@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +21,7 @@ import { Search, FileText, ArrowRight, Box, Download, Filter } from "lucide-reac
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 // Mock data for bin movements
 const mockMovements = [
@@ -84,7 +84,7 @@ const mockMovements = [
 
 const BinMovementReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -7),
     to: new Date(),
   });
@@ -137,7 +137,10 @@ const BinMovementReport = () => {
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+              <DatePickerWithRange 
+                date={dateRange} 
+                setDate={(newDateRange) => setDateRange(newDateRange || { from: undefined, to: undefined })} 
+              />
               <Button variant="outline" className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 <span className="hidden md:inline">Export</span>

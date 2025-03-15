@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +20,8 @@ import { Input } from "@/components/ui/input";
 import { SearchX, FileText, Download, Filter, AlertTriangle, Clock } from "lucide-react";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
+import { DateRange } from "react-day-picker";
 
-// Mock data for missing bins
 const mockMissingBins = [
   {
     id: "1",
@@ -32,7 +31,7 @@ const mockMissingBins = [
     lastSeen: {
       location: "warehouse",
       gate: "Gate 1",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
     },
     status: "missing",
     missingDays: 30,
@@ -45,7 +44,7 @@ const mockMissingBins = [
     lastSeen: {
       location: "wip",
       gate: "Gate 2",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45), // 45 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
     },
     status: "missing",
     missingDays: 45,
@@ -58,7 +57,7 @@ const mockMissingBins = [
     lastSeen: {
       location: "customer",
       gate: "Gate 3",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15), // 15 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
     },
     status: "missing",
     missingDays: 15,
@@ -71,7 +70,7 @@ const mockMissingBins = [
     lastSeen: {
       location: "customer",
       gate: "Gate 1",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
     },
     status: "long-missing",
     missingDays: 60,
@@ -84,7 +83,7 @@ const mockMissingBins = [
     lastSeen: {
       location: "wip",
       gate: "Gate 2",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20), // 20 days ago
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20),
     },
     status: "missing",
     missingDays: 20,
@@ -93,12 +92,11 @@ const mockMissingBins = [
 
 const MissingBinReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -90),
     to: new Date(),
   });
 
-  // Filter missing bins based on search term and missing days
   const filteredMissingBins = mockMissingBins.filter((bin) => {
     const matchesSearch =
       bin.binId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -146,7 +144,10 @@ const MissingBinReport = () => {
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+              <DatePickerWithRange 
+                date={dateRange} 
+                setDate={(newDateRange) => setDateRange(newDateRange || { from: undefined, to: undefined })} 
+              />
               <Button variant="outline" className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 <span className="hidden md:inline">Export</span>
