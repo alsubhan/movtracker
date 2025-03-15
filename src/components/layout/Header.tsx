@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Settings, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export const Header = () => {
@@ -17,8 +17,13 @@ export const Header = () => {
   return (
     <header className="border-b bg-background sticky top-0 z-10">
       <div className="flex h-16 items-center justify-between px-6">
-        <div className="font-semibold text-lg text-foreground">
-          RFID Bin Tracking System
+        <div className="flex items-center">
+          <Button variant="ghost" size="icon" className="md:hidden mr-2">
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="font-semibold text-lg text-foreground">
+            RFID Bin Tracking System
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <Button 
