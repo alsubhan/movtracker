@@ -45,7 +45,7 @@ export const Sidebar = () => {
         <div className="px-3 py-2">
           <Link to="/" className="flex items-center gap-2 mb-6">
             <h2 className="text-xl font-bold tracking-tight text-rfid-blue">
-              RFID Bin Tracker
+              FG Bin Tracker
             </h2>
           </Link>
           <div className="space-y-1">

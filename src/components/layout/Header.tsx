@@ -22,7 +22,7 @@ export const Header = () => {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="font-semibold text-lg text-foreground">
-            RFID Bin Tracking System
+            FG Bin Tracking System
           </div>
         </div>
         <div className="flex items-center gap-4">
