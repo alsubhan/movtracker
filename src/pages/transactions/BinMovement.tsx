@@ -106,6 +106,7 @@ const BinMovement = () => {
   const [selectedGate, setSelectedGate] = useState("Gate 1");
   const [scanMode, setScanMode] = useState<"rfid" | "barcode">("rfid");
   const [manualBarcodeInput, setManualBarcodeInput] = useState("");
+  const [isManualScanningEnabled, setIsManualScanningEnabled] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -553,3 +554,4 @@ const BinMovement = () => {
 };
 
 export default BinMovement;
+
