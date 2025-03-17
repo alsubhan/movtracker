@@ -7,7 +7,8 @@ import {
   Bell, 
   Settings, 
   Menu, 
-  ArrowLeft 
+  ArrowLeft,
+  Home
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -65,6 +66,8 @@ export const Header = () => {
     });
   };
 
+  const isHomePage = window.location.pathname === "/";
+
   return (
     <header className="border-b bg-background sticky top-0 z-10">
       <div className="flex h-16 items-center justify-between px-6">
@@ -73,15 +76,16 @@ export const Header = () => {
             <Menu className="h-5 w-5" />
           </Button>
           
-          {/* Show back button if not on home page */}
-          {window.location.pathname !== "/" && (
+          {/* Always show home button for consistent navigation */}
+          {!isHomePage && (
             <Button 
               variant="ghost" 
               size="icon" 
               className="mr-2" 
               onClick={handleBackToHome}
+              title="Back to Home"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <Home className="h-5 w-5" />
             </Button>
           )}
           
