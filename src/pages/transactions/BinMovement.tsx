@@ -1,7 +1,7 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -13,9 +13,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, ArrowLeft, Box, Antenna, RotateCw } from "lucide-react";
+import { ArrowRight, ArrowLeft, Box, Antenna, RotateCw, Barcode, Scan } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface BinMovementData {
   id: string;
@@ -27,6 +28,7 @@ interface BinMovementData {
   previousLocation: string;
   customer: string;
   project: string;
+  scanMethod?: "rfid" | "barcode";
 }
 
 const mockMovements: BinMovementData[] = [
@@ -40,6 +42,7 @@ const mockMovements: BinMovementData[] = [
     previousLocation: "warehouse",
     customer: "Toyota",
     project: "1001",
+    scanMethod: "rfid",
   },
   {
     id: "2",
@@ -51,6 +54,7 @@ const mockMovements: BinMovementData[] = [
     previousLocation: "warehouse",
     customer: "Honda",
     project: "2001",
+    scanMethod: "rfid",
   },
   {
     id: "3",
@@ -100,9 +104,19 @@ const BinMovement = () => {
   const [scanProgress, setScanProgress] = useState(0);
   const [detectedBins, setDetectedBins] = useState<string[]>([]);
   const [selectedGate, setSelectedGate] = useState("Gate 1");
+  const [scanMode, setScanMode] = useState<"rfid" | "barcode">("rfid");
+  const [manualBarcodeInput, setManualBarcodeInput] = useState("");
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Filter movements based on movement type from URL
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      const parsedSettings = JSON.parse(settings);
+      setIsManualScanningEnabled(parsedSettings.manualScanning || false);
+    }
+  }, []);
+
+  useEffect(() => {
     const filtered = mockMovements.filter(
       (movement) => movement.movementType === movementType
     );
@@ -110,6 +124,13 @@ const BinMovement = () => {
   }, [movementType]);
 
   const handleStartScan = () => {
+    if (scanMode === "barcode") {
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.focus();
+      }
+      return;
+    }
+    
     setIsScanning(true);
     setScanProgress(0);
     setDetectedBins([]);
@@ -121,13 +142,11 @@ const BinMovement = () => {
       description: `Starting ${movementType === "in" ? "Bin In" : "Bin Out"} scan at ${selectedGate}`,
     });
     
-    // Simulate antenna A activation
     setTimeout(() => {
       setAntennaAStatus("active");
       setScanProgress(20);
     }, 1000);
     
-    // Simulate bins being detected by antenna A
     setTimeout(() => {
       const binsToDetect = movementType === "in" 
         ? ["TOY100108010", "TOY100108011", "HON200104015"] 
@@ -138,18 +157,15 @@ const BinMovement = () => {
       setScanProgress(50);
     }, 3000);
     
-    // Simulate antenna B activation
     setTimeout(() => {
       setAntennaBStatus("active");
       setScanProgress(70);
     }, 4000);
     
-    // Simulate scan completion
     setTimeout(() => {
       setAntennaBStatus("complete");
       setScanProgress(100);
       
-      // Add the detected bins to the movements list
       const newMovements = detectedBins.map((binId, index) => ({
         id: `new-${Date.now()}-${index}`,
         binId,
@@ -162,7 +178,6 @@ const BinMovement = () => {
         project: binId.substring(3, 7),
       }));
       
-      // Update movements
       setMovements((prev) => [...newMovements, ...prev]);
       
       toast({
@@ -172,6 +187,44 @@ const BinMovement = () => {
       
       setIsScanning(false);
     }, 6000);
+  };
+
+  const handleManualBarcodeScan = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!manualBarcodeInput.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid barcode",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const newMovement: BinMovementData = {
+      id: `manual-${Date.now()}`,
+      binId: manualBarcodeInput,
+      gateId: selectedGate,
+      movementType: movementType as "in" | "out",
+      timestamp: new Date(),
+      location: movementType === "in" ? "warehouse" : "customer",
+      previousLocation: movementType === "in" ? "customer" : "warehouse",
+      customer: manualBarcodeInput.substring(0, 3),
+      project: manualBarcodeInput.substring(3, 7),
+      scanMethod: "barcode"
+    };
+    
+    setMovements((prev) => [newMovement, ...prev]);
+    
+    toast({
+      title: "Barcode Scanned",
+      description: `Bin ${manualBarcodeInput} registered as ${movementType === "in" ? "Bin In" : "Bin Out"} movement`,
+    });
+    
+    setManualBarcodeInput("");
+    if (barcodeInputRef.current) {
+      barcodeInputRef.current.focus();
+    }
   };
 
   return (
@@ -185,7 +238,7 @@ const BinMovement = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>RFID Scanner</CardTitle>
+            <CardTitle>Bin Scanner</CardTitle>
             <CardDescription>
               {movementType === "in"
                 ? "Scan bins coming into the warehouse"
@@ -194,10 +247,31 @@ const BinMovement = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
+              {isManualScanningEnabled && (
+                <div className="mb-4">
+                  <label className="text-sm font-medium mb-2 block">Scan Method</label>
+                  <ToggleGroup 
+                    type="single" 
+                    value={scanMode}
+                    onValueChange={(value) => value && setScanMode(value as "rfid" | "barcode")} 
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="rfid" aria-label="RFID Scanning">
+                      <Antenna className="h-4 w-4 mr-2" />
+                      RFID
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="barcode" aria-label="Barcode Scanning">
+                      <Barcode className="h-4 w-4 mr-2" />
+                      Barcode
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Gate</label>
                 <select 
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border rounded-md bg-background"
                   value={selectedGate}
                   onChange={(e) => setSelectedGate(e.target.value)}
                   disabled={isScanning}
@@ -208,93 +282,130 @@ const BinMovement = () => {
                 </select>
               </div>
               
-              <div className="flex items-center space-x-4">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Antenna A</span>
-                    <span>
-                      {antennaAStatus === "idle" && "Ready"}
-                      {antennaAStatus === "active" && "Scanning..."}
-                      {antennaAStatus === "complete" && "Complete"}
-                    </span>
-                  </div>
-                  <div className={`h-2 rounded-full ${
-                    antennaAStatus === "idle" ? "bg-gray-200" : 
-                    antennaAStatus === "active" ? "bg-blue-500" : "bg-green-500"
-                  }`}></div>
-                </div>
-                <Antenna className={`h-5 w-5 ${
-                  antennaAStatus === "idle" ? "text-gray-400" : 
-                  antennaAStatus === "active" ? "text-blue-500" : "text-green-500"
-                }`} />
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Antenna B</span>
-                    <span>
-                      {antennaBStatus === "idle" && "Ready"}
-                      {antennaBStatus === "active" && "Scanning..."}
-                      {antennaBStatus === "complete" && "Complete"}
-                    </span>
-                  </div>
-                  <div className={`h-2 rounded-full ${
-                    antennaBStatus === "idle" ? "bg-gray-200" : 
-                    antennaBStatus === "active" ? "bg-blue-500" : "bg-green-500"
-                  }`}></div>
-                </div>
-                <Antenna className={`h-5 w-5 ${
-                  antennaBStatus === "idle" ? "text-gray-400" : 
-                  antennaBStatus === "active" ? "text-blue-500" : "text-green-500"
-                }`} />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Scan Progress</span>
-                  <span>{scanProgress}%</span>
-                </div>
-                <Progress value={scanProgress} />
-              </div>
-              
-              {detectedBins.length > 0 && (
-                <div className="border rounded-md p-3">
-                  <h4 className="text-sm font-medium mb-2">Detected Bins</h4>
-                  <div className="space-y-1">
-                    {detectedBins.map((bin, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <Box className="h-3 w-3 text-blue-500" />
-                        <span>{bin}</span>
+              {scanMode === "rfid" ? (
+                <>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Antenna A</span>
+                        <span>
+                          {antennaAStatus === "idle" && "Ready"}
+                          {antennaAStatus === "active" && "Scanning..."}
+                          {antennaAStatus === "complete" && "Complete"}
+                        </span>
                       </div>
-                    ))}
+                      <div className={`h-2 rounded-full ${
+                        antennaAStatus === "idle" ? "bg-gray-200" : 
+                        antennaAStatus === "active" ? "bg-blue-500" : "bg-green-500"
+                      }`}></div>
+                    </div>
+                    <Antenna className={`h-5 w-5 ${
+                      antennaAStatus === "idle" ? "text-gray-400" : 
+                      antennaAStatus === "active" ? "text-blue-500" : "text-green-500"
+                    }`} />
                   </div>
-                </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Antenna B</span>
+                        <span>
+                          {antennaBStatus === "idle" && "Ready"}
+                          {antennaBStatus === "active" && "Scanning..."}
+                          {antennaBStatus === "complete" && "Complete"}
+                        </span>
+                      </div>
+                      <div className={`h-2 rounded-full ${
+                        antennaBStatus === "idle" ? "bg-gray-200" : 
+                        antennaBStatus === "active" ? "bg-blue-500" : "bg-green-500"
+                      }`}></div>
+                    </div>
+                    <Antenna className={`h-5 w-5 ${
+                      antennaBStatus === "idle" ? "text-gray-400" : 
+                      antennaBStatus === "active" ? "text-blue-500" : "text-green-500"
+                    }`} />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Scan Progress</span>
+                      <span>{scanProgress}%</span>
+                    </div>
+                    <Progress value={scanProgress} />
+                  </div>
+                  
+                  {detectedBins.length > 0 && (
+                    <div className="border rounded-md p-3">
+                      <h4 className="text-sm font-medium mb-2">Detected Bins</h4>
+                      <div className="space-y-1">
+                        {detectedBins.map((bin, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm">
+                            <Box className="h-3 w-3 text-blue-500" />
+                            <span>{bin}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <form onSubmit={handleManualBarcodeScan} className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="barcode-input" className="text-sm font-medium">Scan or Enter Barcode</label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="barcode-input"
+                        ref={barcodeInputRef}
+                        value={manualBarcodeInput}
+                        onChange={(e) => setManualBarcodeInput(e.target.value)}
+                        placeholder="e.g. TOY100108001"
+                        className="flex-1"
+                        autoComplete="off"
+                      />
+                      <Button type="submit" variant="outline" size="icon">
+                        <Scan className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Point your barcode scanner at the bin label or manually enter the bin ID
+                  </div>
+                </form>
               )}
             </div>
           </CardContent>
           <CardFooter>
-            <Button 
-              className="w-full" 
-              onClick={handleStartScan}
-              disabled={isScanning}
-            >
-              {isScanning ? (
-                <>
-                  <RotateCw className="mr-2 h-4 w-4 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                <>
-                  {movementType === "in" ? (
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                  ) : (
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                  )}
-                  Start Scanning
-                </>
-              )}
-            </Button>
+            {scanMode === "rfid" ? (
+              <Button 
+                className="w-full" 
+                onClick={handleStartScan}
+                disabled={isScanning}
+              >
+                {isScanning ? (
+                  <>
+                    <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    {movementType === "in" ? (
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                    ) : (
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                    )}
+                    Start RFID Scanning
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button 
+                className="w-full" 
+                onClick={() => barcodeInputRef.current?.focus()}
+              >
+                <Barcode className="mr-2 h-4 w-4" />
+                Focus Barcode Scanner
+              </Button>
+            )}
           </CardFooter>
         </Card>
 
@@ -320,7 +431,7 @@ const BinMovement = () => {
                       <TableHead>Gate</TableHead>
                       <TableHead>Timestamp</TableHead>
                       <TableHead>Location Change</TableHead>
-                      <TableHead>Movement</TableHead>
+                      <TableHead>Method</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -345,16 +456,29 @@ const BinMovement = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                movement.movementType === "in"
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : "bg-blue-50 text-blue-700 border-blue-200"
-                              }
-                            >
-                              {movement.movementType === "in" ? "In" : "Out"}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  movement.movementType === "in"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                                }
+                              >
+                                {movement.movementType === "in" ? "In" : "Out"}
+                              </Badge>
+                              
+                              {movement.scanMethod && (
+                                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                                  {movement.scanMethod === "rfid" ? (
+                                    <Antenna className="h-3 w-3 mr-1" />
+                                  ) : (
+                                    <Barcode className="h-3 w-3 mr-1" />
+                                  )}
+                                  {movement.scanMethod}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
