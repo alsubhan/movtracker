@@ -1,16 +1,67 @@
 
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Settings, Menu } from "lucide-react";
+import { 
+  Bell, 
+  Settings, 
+  Menu, 
+  ArrowLeft 
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Header = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: "Bin Movement Alert", message: "Bin #1234 moved to Gate A", read: false, time: "10 min ago" },
+    { id: 2, title: "New User Added", message: "Admin added a new user account", read: true, time: "1 hour ago" },
+    { id: 3, title: "System Update", message: "System will be updated tonight at 10PM", read: false, time: "2 hours ago" },
+  ]);
 
-  const handleNotificationClick = () => {
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleNotificationClick = (id: number) => {
+    setNotifications(notifications.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    ));
+    
     toast({
-      title: "Notifications",
-      description: "No new notifications at this time",
+      title: "Notification marked as read",
+      description: "The notification has been marked as read",
+    });
+  };
+
+  const handleBackToHome = () => {
+    navigate("/");
+  };
+
+  const handleSettingsClick = () => {
+    navigate("/settings");
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    toast({
+      title: "All Notifications Read",
+      description: "All notifications have been marked as read",
+    });
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+    toast({
+      title: "Notifications Cleared",
+      description: "All notifications have been cleared",
     });
   };
 
@@ -21,27 +72,107 @@ export const Header = () => {
           <Button variant="ghost" size="icon" className="md:hidden mr-2">
             <Menu className="h-5 w-5" />
           </Button>
+          
+          {/* Show back button if not on home page */}
+          {window.location.pathname !== "/" && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="mr-2" 
+              onClick={handleBackToHome}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          
           <div className="font-semibold text-lg text-foreground">
             FG Bin Tracking System
           </div>
         </div>
+        
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleNotificationClick}
-            className="relative"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rfid-danger"></span>
-          </Button>
-          <Button variant="ghost" size="icon">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rfid-danger"></span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex justify-between items-center">
+                Notifications
+                <span className="text-xs text-muted-foreground">
+                  {unreadCount} unread
+                </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              {notifications.length === 0 ? (
+                <div className="py-4 px-2 text-center text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                <>
+                  {notifications.map((notification) => (
+                    <DropdownMenuItem 
+                      key={notification.id}
+                      className={`flex flex-col items-start p-3 cursor-pointer ${!notification.read ? 'bg-muted/50' : ''}`}
+                      onClick={() => handleNotificationClick(notification.id)}
+                    >
+                      <div className="flex justify-between w-full">
+                        <span className="font-medium">{notification.title}</span>
+                        <span className="text-xs text-muted-foreground">{notification.time}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground mt-1">{notification.message}</span>
+                    </DropdownMenuItem>
+                  ))}
+                  
+                  <DropdownMenuSeparator />
+                  <div className="flex justify-between p-2">
+                    <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                      Mark all as read
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={clearAllNotifications}>
+                      Clear all
+                    </Button>
+                  </div>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <Button variant="ghost" size="icon" onClick={handleSettingsClick}>
             <Settings className="h-5 w-5" />
           </Button>
-          <Avatar>
-            <AvatarImage src="/placeholder.svg" alt="User" />
-            <AvatarFallback>AD</AvatarFallback>
-          </Avatar>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Avatar className="cursor-pointer">
+                <AvatarImage src="/placeholder.svg" alt="User" />
+                <AvatarFallback>AD</AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSettingsClick}>Settings</DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-destructive" 
+                onClick={() => {
+                  localStorage.removeItem("isLoggedIn");
+                  navigate("/login");
+                }}
+              >
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
