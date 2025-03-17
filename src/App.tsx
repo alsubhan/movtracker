@@ -5,6 +5,7 @@ import UserMaster from "./pages/masters/UserMaster";
 import BinMaster from "./pages/masters/BinMaster";
 import GatesMaster from "./pages/masters/GatesMaster";
 import RFIDLabelPrinting from "./pages/transactions/RFIDLabelPrinting";
+import BarcodeLabelPrinting from "./pages/transactions/BarcodeLabelPrinting";
 import BinMovement from "./pages/transactions/BinMovement";
 import NotFound from "./pages/NotFound";
 import BinMovementReport from "./pages/reports/BinMovementReport";
@@ -20,6 +21,7 @@ function App() {
         <Route path="/masters/bin" element={<BinMaster />} />
         <Route path="/masters/gates" element={<GatesMaster />} />
         <Route path="/transactions/rfid-printing" element={<RFIDLabelPrinting />} />
+        <Route path="/transactions/barcode-printing" element={<BarcodeLabelPrinting />} />
         <Route path="/transactions/bin-movement" element={<BinMovement />} />
         <Route path="/reports/bin-movement" element={<BinMovementReport />} />
         <Route path="/reports/missing-bins" element={<MissingBinReport />} />

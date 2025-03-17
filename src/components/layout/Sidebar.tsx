@@ -10,7 +10,8 @@ import {
   FileText, 
   Database, 
   LayoutDashboard, 
-  DoorOpen 
+  DoorOpen,
+  Barcode
 } from "lucide-react";
 
 interface SidebarItemProps {
@@ -92,6 +93,12 @@ export const Sidebar = () => {
                   label="RFID Label Printing"
                   href="/transactions/rfid-printing"
                   active={pathname === "/transactions/rfid-printing"}
+                />
+                <SidebarItem
+                  icon={<Barcode size={20} />}
+                  label="Barcode Label Printing"
+                  href="/transactions/barcode-printing"
+                  active={pathname === "/transactions/barcode-printing"}
                 />
                 <SidebarItem
                   icon={<ArrowRight size={20} />}
