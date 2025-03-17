@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,17 +28,17 @@ const Login = () => {
       return;
     }
     
-    // In a real app, you would validate credentials against a backend
-    // For demo purposes, we'll allow any login
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("username", username);
+    // Login using our auth hook
+    const success = login(username, password);
     
-    toast({
-      title: "Success",
-      description: "You have successfully logged in",
-    });
-    
-    navigate("/");
+    if (success) {
+      toast({
+        title: "Success",
+        description: "You have successfully logged in",
+      });
+      
+      navigate("/");
+    }
   };
 
   return (
@@ -45,6 +47,10 @@ const Login = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-rfid-blue">FG Bin Tracking System</h2>
           <p className="mt-2 text-muted-foreground">Please sign in to continue</p>
+          <div className="mt-3 p-2 bg-muted/50 rounded text-xs text-muted-foreground">
+            <p>Hint: Include "admin" or "operator" in your username</p>
+            <p>to log in with those roles, otherwise defaults to "user"</p>
+          </div>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>

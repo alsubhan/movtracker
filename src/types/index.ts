@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -6,6 +5,14 @@ export interface User {
   role: 'admin' | 'user' | 'operator';
   status: 'active' | 'inactive';
   createdAt: Date;
+  permissions?: string[];
+}
+
+export interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  modules: string[];
 }
 
 export interface Bin {

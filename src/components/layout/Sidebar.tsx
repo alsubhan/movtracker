@@ -11,17 +11,34 @@ import {
   Database, 
   LayoutDashboard, 
   DoorOpen,
-  Barcode
+  Barcode,
+  Settings
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/utils/permissions";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
   label: string;
   href: string;
   active?: boolean;
+  requiredPermission?: string;
 }
 
-const SidebarItem = ({ icon, label, href, active }: SidebarItemProps) => {
+const SidebarItem = ({ 
+  icon, 
+  label, 
+  href, 
+  active,
+  requiredPermission 
+}: SidebarItemProps) => {
+  const { hasPermission } = useAuth();
+  
+  // Don't render the item if user doesn't have permission
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    return null;
+  }
+  
   return (
     <Link
       to={href}
@@ -39,6 +56,7 @@ const SidebarItem = ({ icon, label, href, active }: SidebarItemProps) => {
 export const Sidebar = () => {
   const location = useLocation();
   const pathname = location.pathname;
+  const { user } = useAuth();
 
   return (
     <div className="pb-12 h-full flex flex-col bg-sidebar border-r">
@@ -49,6 +67,14 @@ export const Sidebar = () => {
               FG Bin Tracker
             </h2>
           </Link>
+          
+          {user && (
+            <div className="mb-6 px-3 py-2 bg-muted/30 rounded-md">
+              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
+            </div>
+          )}
+          
           <div className="space-y-1">
             <SidebarItem
               icon={<LayoutDashboard size={20} />}
@@ -67,18 +93,21 @@ export const Sidebar = () => {
                   label="User Master"
                   href="/masters/user"
                   active={pathname === "/masters/user"}
+                  requiredPermission={PERMISSIONS.USER_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<Box size={20} />}
                   label="Bin Master"
                   href="/masters/bin"
                   active={pathname === "/masters/bin"}
+                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<DoorOpen size={20} />}
                   label="Gates Master"
                   href="/masters/gates"
                   active={pathname === "/masters/gates"}
+                  requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
                 />
               </div>
             </div>
@@ -93,24 +122,28 @@ export const Sidebar = () => {
                   label="RFID Label Printing"
                   href="/transactions/rfid-printing"
                   active={pathname === "/transactions/rfid-printing"}
+                  requiredPermission={PERMISSIONS.RFID_PRINTING}
                 />
                 <SidebarItem
                   icon={<Barcode size={20} />}
                   label="Barcode Label Printing"
                   href="/transactions/barcode-printing"
                   active={pathname === "/transactions/barcode-printing"}
+                  requiredPermission={PERMISSIONS.BARCODE_PRINTING}
                 />
                 <SidebarItem
                   icon={<ArrowRight size={20} />}
                   label="Bin Out Movement"
                   href="/transactions/bin-movement?type=out"
                   active={pathname === "/transactions/bin-movement" && location.search.includes("type=out")}
+                  requiredPermission={PERMISSIONS.BIN_MOVEMENT}
                 />
                 <SidebarItem
                   icon={<ArrowLeft size={20} />}
                   label="Bin In Movement"
                   href="/transactions/bin-movement?type=in"
                   active={pathname === "/transactions/bin-movement" && location.search.includes("type=in")}
+                  requiredPermission={PERMISSIONS.BIN_MOVEMENT}
                 />
               </div>
             </div>
@@ -125,12 +158,14 @@ export const Sidebar = () => {
                   label="Bin Movements"
                   href="/reports/bin-movement"
                   active={pathname === "/reports/bin-movement"}
+                  requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
                 <SidebarItem
                   icon={<FileText size={20} />}
                   label="Missing Bins"
                   href="/reports/missing-bins"
                   active={pathname === "/reports/missing-bins"}
+                  requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
               </div>
             </div>
@@ -145,6 +180,14 @@ export const Sidebar = () => {
                   label="Database Utilities"
                   href="/utilities/database"
                   active={pathname === "/utilities/database"}
+                  requiredPermission={PERMISSIONS.DATABASE_UTILITIES}
+                />
+                <SidebarItem
+                  icon={<Settings size={20} />}
+                  label="Settings"
+                  href="/settings"
+                  active={pathname === "/settings"}
+                  requiredPermission={PERMISSIONS.SETTINGS}
                 />
               </div>
             </div>

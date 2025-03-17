@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,9 +34,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { User, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { User as UserIcon, PlusCircle, Pencil, Trash2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User } from "@/types";
+import { getPermissionsForRole, permissionsList } from "@/utils/permissions";
 
 // Mock data
 const initialUsers = [
@@ -47,6 +51,7 @@ const initialUsers = [
     role: "admin",
     status: "active",
     createdAt: new Date("2023-01-15"),
+    permissions: getPermissionsForRole("admin"),
   },
   {
     id: "2",
@@ -55,6 +60,7 @@ const initialUsers = [
     role: "user",
     status: "active",
     createdAt: new Date("2023-02-20"),
+    permissions: getPermissionsForRole("user"),
   },
   {
     id: "3",
@@ -63,20 +69,24 @@ const initialUsers = [
     role: "operator",
     status: "inactive",
     createdAt: new Date("2023-03-10"),
+    permissions: getPermissionsForRole("operator"),
   },
 ];
 
 const UserMaster = () => {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<User>({
     id: "",
     name: "",
     email: "",
     role: "user",
     status: "active",
+    createdAt: new Date(),
+    permissions: [],
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +95,33 @@ const UserMaster = () => {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'role') {
+      // When role changes, update permissions based on role
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        permissions: getPermissionsForRole(value as 'admin' | 'user' | 'operator')
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handlePermissionChange = (permission: string, checked: boolean) => {
+    setFormData((prev) => {
+      const currentPermissions = [...(prev.permissions || [])];
+      
+      if (checked && !currentPermissions.includes(permission)) {
+        return { ...prev, permissions: [...currentPermissions, permission] };
+      } else if (!checked && currentPermissions.includes(permission)) {
+        return { 
+          ...prev, 
+          permissions: currentPermissions.filter(p => p !== permission) 
+        };
+      }
+      
+      return prev;
+    });
   };
 
   const resetForm = () => {
@@ -95,11 +131,14 @@ const UserMaster = () => {
       email: "",
       role: "user",
       status: "active",
+      createdAt: new Date(),
+      permissions: getPermissionsForRole("user"),
     });
     setIsEditing(false);
+    setActiveTab("details");
   };
 
-  const handleEditUser = (user: any) => {
+  const handleEditUser = (user: User) => {
     setFormData(user);
     setIsEditing(true);
     setIsDialogOpen(true);
@@ -165,7 +204,7 @@ const UserMaster = () => {
                 Add User
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[600px]">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
                   <DialogTitle>
@@ -177,70 +216,138 @@ const UserMaster = () => {
                       : "Create a new user account"}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="email@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Select
-                        value={formData.role}
-                        onValueChange={(value) =>
-                          handleSelectChange("role", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="operator">Operator</SelectItem>
-                        </SelectContent>
-                      </Select>
+                
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="details">User Details</TabsTrigger>
+                    <TabsTrigger value="permissions">Permissions</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="details" className="py-4">
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Name</Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          placeholder="Enter full name"
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="email@example.com"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="role">Role</Label>
+                          <Select
+                            value={formData.role}
+                            onValueChange={(value) =>
+                              handleSelectChange("role", value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="operator">Operator</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="status">Status</Label>
+                          <Select
+                            value={formData.status}
+                            onValueChange={(value) =>
+                              handleSelectChange("status", value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(value) =>
-                          handleSelectChange("status", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  </TabsContent>
+                  
+                  <TabsContent value="permissions" className="py-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-sm font-medium">Role-Based Permissions</h3>
+                          <p className="text-xs text-muted-foreground">
+                            The selected role ({formData.role}) has default permissions.
+                            You can customize them below.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Reset permissions to default for the role
+                            setFormData(prev => ({
+                              ...prev,
+                              permissions: getPermissionsForRole(prev.role as 'admin' | 'user' | 'operator')
+                            }));
+                          }}
+                        >
+                          Reset to Defaults
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                        {permissionsList.map((permission) => (
+                          <div key={permission.id} className="flex items-start space-x-2 p-2 rounded border">
+                            <Checkbox 
+                              id={`permission-${permission.id}`}
+                              checked={formData.permissions?.includes(permission.name)}
+                              onCheckedChange={(checked) => 
+                                handlePermissionChange(permission.name, checked === true)
+                              }
+                            />
+                            <div className="grid gap-1.5">
+                              <Label 
+                                htmlFor={`permission-${permission.id}`}
+                                className="font-medium"
+                              >
+                                {permission.description}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Modules: {permission.modules.join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
+                  </TabsContent>
+                </Tabs>
+                
+                <DialogFooter className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    type="button" 
+                    onClick={() => setIsDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit">
@@ -259,6 +366,7 @@ const UserMaster = () => {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Permissions</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -268,7 +376,7 @@ const UserMaster = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
+                      <UserIcon className="h-4 w-4 text-muted-foreground" />
                       {user.name}
                     </div>
                   </TableCell>
@@ -300,6 +408,20 @@ const UserMaster = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 flex items-center text-xs"
+                      onClick={() => {
+                        handleEditUser(user);
+                        setActiveTab("permissions");
+                      }}
+                    >
+                      <Shield className="h-3.5 w-3.5 mr-1" />
+                      {user.permissions?.length || 0} permissions
+                    </Button>
+                  </TableCell>
+                  <TableCell>
                     {user.createdAt.toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
@@ -307,7 +429,10 @@ const UserMaster = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEditUser(user)}
+                        onClick={() => {
+                          handleEditUser(user);
+                          setActiveTab("details");
+                        }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>

@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Settings from "./pages/Settings";
@@ -15,19 +16,31 @@ import NotFound from "./pages/NotFound";
 import BinMovementReport from "./pages/reports/BinMovementReport";
 import MissingBinReport from "./pages/reports/MissingBinReport";
 import DatabaseUtility from "./pages/utilities/DatabaseUtility";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/utils/permissions";
 
-// Auth guard component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+// Auth guard component with permission check
+const ProtectedRoute = ({ 
+  children, 
+  requiredPermission 
+}: { 
+  children: React.ReactNode; 
+  requiredPermission?: string;
+}) => {
+  const { isAuthenticated, hasPermission } = useAuth();
   
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" />;
+  }
+  
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    return <Navigate to="/" />;
   }
   
   return <>{children}</>;
 };
 
-function App() {
+function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,80 +59,88 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/settings" element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/masters/user" element={
-          <ProtectedRoute>
-            <UserMaster />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/masters/bin" element={
-          <ProtectedRoute>
-            <BinMaster />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/masters/gates" element={
-          <ProtectedRoute>
-            <GatesMaster />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/transactions/rfid-printing" element={
-          <ProtectedRoute>
-            <RFIDLabelPrinting />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/transactions/barcode-printing" element={
-          <ProtectedRoute>
-            <BarcodeLabelPrinting />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/transactions/bin-movement" element={
-          <ProtectedRoute>
-            <BinMovement />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/reports/bin-movement" element={
-          <ProtectedRoute>
-            <BinMovementReport />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/reports/missing-bins" element={
-          <ProtectedRoute>
-            <MissingBinReport />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/utilities/database" element={
-          <ProtectedRoute>
-            <DatabaseUtility />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-    </BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Index />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/settings" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.SETTINGS}>
+          <Settings />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/masters/user" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.USER_MANAGEMENT}>
+          <UserMaster />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/masters/bin" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.BIN_MANAGEMENT}>
+          <BinMaster />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/masters/gates" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.GATE_MANAGEMENT}>
+          <GatesMaster />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/transactions/rfid-printing" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.RFID_PRINTING}>
+          <RFIDLabelPrinting />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/transactions/barcode-printing" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.BARCODE_PRINTING}>
+          <BarcodeLabelPrinting />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/transactions/bin-movement" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.BIN_MOVEMENT}>
+          <BinMovement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/reports/bin-movement" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}>
+          <BinMovementReport />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/reports/missing-bins" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}>
+          <MissingBinReport />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/utilities/database" element={
+        <ProtectedRoute requiredPermission={PERMISSIONS.DATABASE_UTILITIES}>
+          <DatabaseUtility />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+        <Toaster />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
