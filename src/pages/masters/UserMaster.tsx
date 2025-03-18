@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { User as UserIcon, PlusCircle, Pencil, Trash2, Shield } from "lucide-react";
+import { UserIcon, PlusCircle, Pencil, Trash2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,7 +43,7 @@ import { User } from "@/types";
 import { getPermissionsForRole, permissionsList } from "@/utils/permissions";
 
 // Mock data
-const initialUsers = [
+const initialUsers: User[] = [
   {
     id: "1",
     name: "John Doe",
@@ -96,11 +96,13 @@ const UserMaster = () => {
 
   const handleSelectChange = (name: string, value: string) => {
     if (name === 'role') {
+      // Ensure role is of the correct type
+      const typedRole = value as 'admin' | 'user' | 'operator';
       // When role changes, update permissions based on role
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
-        permissions: getPermissionsForRole(value as 'admin' | 'user' | 'operator')
+        [name]: typedRole,
+        permissions: getPermissionsForRole(typedRole)
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -306,7 +308,7 @@ const UserMaster = () => {
                             // Reset permissions to default for the role
                             setFormData(prev => ({
                               ...prev,
-                              permissions: getPermissionsForRole(prev.role as 'admin' | 'user' | 'operator')
+                              permissions: getPermissionsForRole(prev.role)
                             }));
                           }}
                         >
