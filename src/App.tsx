@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,8 +8,7 @@ import Settings from "./pages/Settings";
 import UserMaster from "./pages/masters/UserMaster";
 import BinMaster from "./pages/masters/BinMaster";
 import GatesMaster from "./pages/masters/GatesMaster";
-import RFIDLabelPrinting from "./pages/transactions/RFIDLabelPrinting";
-import BarcodeLabelPrinting from "./pages/transactions/BarcodeLabelPrinting";
+import LabelPrinting from "./pages/transactions/LabelPrinting";
 import BinMovement from "./pages/transactions/BinMovement";
 import NotFound from "./pages/NotFound";
 import BinMovementReport from "./pages/reports/BinMovementReport";
@@ -44,7 +42,6 @@ function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate checking auth status
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
@@ -92,15 +89,9 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
-      <Route path="/transactions/rfid-printing" element={
+      <Route path="/transactions/label-printing" element={
         <ProtectedRoute requiredPermission={PERMISSIONS.RFID_PRINTING}>
-          <RFIDLabelPrinting />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/transactions/barcode-printing" element={
-        <ProtectedRoute requiredPermission={PERMISSIONS.BARCODE_PRINTING}>
-          <BarcodeLabelPrinting />
+          <LabelPrinting />
         </ProtectedRoute>
       } />
       

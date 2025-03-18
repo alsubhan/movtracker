@@ -6,8 +6,8 @@ export const PERMISSIONS = {
   USER_MANAGEMENT: 'user_management',
   BIN_MANAGEMENT: 'bin_management',
   GATE_MANAGEMENT: 'gate_management',
-  RFID_PRINTING: 'rfid_printing',
-  BARCODE_PRINTING: 'barcode_printing',
+  RFID_PRINTING: 'label_printing', // Updated permission name
+  BARCODE_PRINTING: 'barcode_printing', // Keep for backwards compatibility
   BIN_MOVEMENT: 'bin_movement',
   REPORTS_VIEW: 'reports_view',
   DATABASE_UTILITIES: 'database_utilities',
@@ -20,13 +20,11 @@ export const ROLE_PERMISSIONS = {
   user: [
     PERMISSIONS.BIN_MANAGEMENT,
     PERMISSIONS.RFID_PRINTING,
-    PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.BIN_MOVEMENT,
     PERMISSIONS.REPORTS_VIEW,
   ],
   operator: [
     PERMISSIONS.RFID_PRINTING,
-    PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.BIN_MOVEMENT,
   ],
 };
@@ -54,13 +52,13 @@ export const permissionsList: Permission[] = [
   {
     id: '4',
     name: PERMISSIONS.RFID_PRINTING,
-    description: 'Print RFID labels',
-    modules: ['RFID Label Printing'],
+    description: 'Print labels (RFID & Barcode)',
+    modules: ['Label Printing'],
   },
   {
     id: '5',
     name: PERMISSIONS.BARCODE_PRINTING,
-    description: 'Print barcode labels',
+    description: 'Print barcode labels (Legacy)',
     modules: ['Barcode Label Printing'],
   },
   {

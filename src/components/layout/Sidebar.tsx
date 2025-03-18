@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { 
@@ -11,7 +10,6 @@ import {
   Database, 
   LayoutDashboard, 
   DoorOpen,
-  Barcode,
   Settings
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,7 +32,6 @@ const SidebarItem = ({
 }: SidebarItemProps) => {
   const { hasPermission } = useAuth();
   
-  // Don't render the item if user doesn't have permission
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return null;
   }
@@ -119,17 +116,10 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<Printer size={20} />}
-                  label="RFID Label Printing"
-                  href="/transactions/rfid-printing"
-                  active={pathname === "/transactions/rfid-printing"}
+                  label="Label Printing"
+                  href="/transactions/label-printing"
+                  active={pathname === "/transactions/label-printing"}
                   requiredPermission={PERMISSIONS.RFID_PRINTING}
-                />
-                <SidebarItem
-                  icon={<Barcode size={20} />}
-                  label="Barcode Label Printing"
-                  href="/transactions/barcode-printing"
-                  active={pathname === "/transactions/barcode-printing"}
-                  requiredPermission={PERMISSIONS.BARCODE_PRINTING}
                 />
                 <SidebarItem
                   icon={<ArrowRight size={20} />}
