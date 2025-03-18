@@ -39,9 +39,10 @@ const Auth = () => {
     try {
       setLoading(true);
       
-      // For username-based login, we need to use the email format under the hood
-      // since Supabase auth uses email. We'll use the username as the unique identifier.
+      // Use a fixed email domain for username-based auth with Supabase
       const email = `${username}@example.com`;
+      
+      console.log("Attempting signin with:", { email, password });
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -60,6 +61,7 @@ const Auth = () => {
       navigate("/");
       
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Error",
         description: error.message || "Invalid username or password",

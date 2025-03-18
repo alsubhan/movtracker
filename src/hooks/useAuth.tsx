@@ -21,18 +21,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshSession = async () => {
     try {
+      console.log("Refreshing session...");
+      
       // Get the current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
+        console.error("Session error:", sessionError);
         throw sessionError;
       }
       
       if (!session) {
+        console.log("No session found");
         setIsAuthenticated(false);
         setUser(null);
         return;
       }
+      
+      console.log("Session found:", session.user.email);
       
       // Fetch the user profile from the profiles table
       const { data: profile, error: profileError } = await supabase
@@ -49,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (profile) {
         // Extract username from email (email format is username@example.com)
         const username = session.user.email?.split('@')[0] || 'User';
+        console.log("Username extracted:", username);
         
         setIsAuthenticated(true);
         setUser({
@@ -59,6 +66,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           status: profile.status as 'active' | 'inactive',
           createdAt: new Date(profile.created_at),
           permissions: getPermissionsForRole(profile.role as 'admin' | 'user' | 'operator')
+        });
+        
+        console.log("User set:", { 
+          name: profile.name || username,
+          role: profile.role,
+          status: profile.status
         });
       }
     } catch (error) {
@@ -77,6 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event);
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           await refreshSession();
         } else if (event === 'SIGNED_OUT') {
