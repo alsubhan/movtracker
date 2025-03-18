@@ -9,7 +9,119 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bin_movements: {
+        Row: {
+          bin_id: string
+          gate_id: string | null
+          id: string
+          location: string
+          movement_type: string
+          previous_location: string | null
+          recorded_by: string
+          timestamp: string
+        }
+        Insert: {
+          bin_id: string
+          gate_id?: string | null
+          id?: string
+          location: string
+          movement_type: string
+          previous_location?: string | null
+          recorded_by: string
+          timestamp?: string
+        }
+        Update: {
+          bin_id?: string
+          gate_id?: string | null
+          id?: string
+          location?: string
+          movement_type?: string
+          previous_location?: string | null
+          recorded_by?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bin_movements_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bins: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer: string
+          id: string
+          last_scan_gate: string | null
+          last_scan_time: string | null
+          location: string
+          partition: string | null
+          project: string | null
+          rfid_tag: string
+          serial_number: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer: string
+          id?: string
+          last_scan_gate?: string | null
+          last_scan_time?: string | null
+          location?: string
+          partition?: string | null
+          project?: string | null
+          rfid_tag: string
+          serial_number?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer?: string
+          id?: string
+          last_scan_gate?: string | null
+          last_scan_time?: string | null
+          location?: string
+          partition?: string | null
+          project?: string | null
+          rfid_tag?: string
+          serial_number?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          role: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+          role?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          role?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

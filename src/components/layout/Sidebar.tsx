@@ -1,5 +1,6 @@
+
 import { cn } from "@/lib/utils";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   User, 
   Box, 
@@ -10,10 +11,13 @@ import {
   Database, 
   LayoutDashboard, 
   DoorOpen,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -53,7 +57,18 @@ const SidebarItem = ({
 export const Sidebar = () => {
   const location = useLocation();
   const pathname = location.pathname;
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await logout();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out",
+    });
+    navigate("/auth");
+  };
 
   return (
     <div className="pb-12 h-full flex flex-col bg-sidebar border-r">
@@ -180,6 +195,17 @@ export const Sidebar = () => {
                   requiredPermission={PERMISSIONS.SETTINGS}
                 />
               </div>
+            </div>
+            
+            <div className="mt-auto pt-6">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-muted-foreground hover:text-destructive"
+                onClick={handleLogout}
+              >
+                <LogOut size={20} className="mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>

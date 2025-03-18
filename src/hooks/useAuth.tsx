@@ -2,12 +2,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import { hasPermission, getPermissionsForRole } from '@/utils/permissions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  refreshSession: () => Promise<void>;
+  logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
 }
 
@@ -16,64 +17,88 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is logged in from localStorage
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (isLoggedIn) {
-      const username = localStorage.getItem('username') || '';
-      const userRole = localStorage.getItem('userRole') || 'user';
+  const refreshSession = async () => {
+    try {
+      // Get the current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      setIsAuthenticated(true);
-      setUser({
-        id: '1',
-        name: username,
-        email: `${username.toLowerCase()}@example.com`,
-        role: userRole as 'admin' | 'user' | 'operator',
-        status: 'active',
-        createdAt: new Date(),
-        permissions: getPermissionsForRole(userRole as 'admin' | 'user' | 'operator')
-      });
+      if (sessionError) {
+        throw sessionError;
+      }
+      
+      if (!session) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+      
+      // Fetch the user profile from the profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        return;
+      }
+      
+      if (profile) {
+        setIsAuthenticated(true);
+        setUser({
+          id: session.user.id,
+          name: profile.name || session.user.email?.split('@')[0] || 'User',
+          email: profile.email || session.user.email || '',
+          role: profile.role as 'admin' | 'user' | 'operator',
+          status: profile.status as 'active' | 'inactive',
+          createdAt: new Date(profile.created_at),
+          permissions: getPermissionsForRole(profile.role as 'admin' | 'user' | 'operator')
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      setIsAuthenticated(false);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  const login = (username: string, password: string): boolean => {
-    // In a real app, you would validate against a backend
-    // For now, we'll set a default role based on username (for demo purposes)
-    let role: 'admin' | 'user' | 'operator' = 'user';
-    
-    if (username.toLowerCase().includes('admin')) {
-      role = 'admin';
-    } else if (username.toLowerCase().includes('operator')) {
-      role = 'operator';
-    }
-    
-    // Store login info in localStorage
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('username', username);
-    localStorage.setItem('userRole', role);
-    
-    // Update state
-    setIsAuthenticated(true);
-    setUser({
-      id: '1',
-      name: username,
-      email: `${username.toLowerCase()}@example.com`,
-      role: role,
-      status: 'active',
-      createdAt: new Date(),
-      permissions: getPermissionsForRole(role)
-    });
-    
-    return true;
   };
 
-  const logout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('username');
-    localStorage.removeItem('userRole');
-    setIsAuthenticated(false);
-    setUser(null);
+  useEffect(() => {
+    // Initial session check
+    refreshSession();
+    
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await refreshSession();
+        } else if (event === 'SIGNED_OUT') {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      }
+    );
+    
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setIsAuthenticated(false);
+      setUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const checkPermission = (permission: string): boolean => {
@@ -85,7 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider value={{ 
       isAuthenticated, 
       user, 
-      login, 
+      refreshSession,
       logout, 
       hasPermission: checkPermission 
     }}>

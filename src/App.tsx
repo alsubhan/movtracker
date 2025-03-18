@@ -1,9 +1,11 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import UserMaster from "./pages/masters/UserMaster";
 import BinMaster from "./pages/masters/BinMaster";
@@ -28,7 +30,7 @@ const ProtectedRoute = ({
   const { isAuthenticated, hasPermission } = useAuth();
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/auth" />;
   }
   
   if (requiredPermission && !hasPermission(requiredPermission)) {
@@ -58,6 +60,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth" element={<Auth />} />
       
       <Route path="/" element={
         <ProtectedRoute>
