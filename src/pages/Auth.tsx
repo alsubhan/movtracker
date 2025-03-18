@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, Mail, Lock } from "lucide-react";
+import { LogIn, User, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 const Auth = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -27,10 +27,10 @@ const Auth = () => {
     e.preventDefault();
     
     // Simple validation
-    if (!email || !password) {
+    if (!username || !password) {
       toast({
         title: "Error",
-        description: "Please enter both email and password",
+        description: "Please enter both username and password",
         variant: "destructive",
       });
       return;
@@ -38,6 +38,10 @@ const Auth = () => {
     
     try {
       setLoading(true);
+      
+      // For username-based login, we need to use the email format under the hood
+      // since Supabase auth uses email. We'll use the username as the unique identifier.
+      const email = `${username}@example.com`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -58,7 +62,7 @@ const Auth = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Invalid email or password",
+        description: error.message || "Invalid username or password",
         variant: "destructive",
       });
     } finally {
@@ -77,15 +81,15 @@ const Auth = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSignIn}>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="signin-email">Email</Label>
+              <Label htmlFor="signin-username">Username</Label>
               <div className="relative">
-                <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="signin-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  id="signin-username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
                   className="pl-8"
                 />
               </div>
@@ -125,7 +129,7 @@ const Auth = () => {
           <div className="text-center mt-4">
             <p className="text-sm text-muted-foreground">
               Default admin credentials:<br />
-              Email: admin@example.com<br />
+              Username: admin<br />
               Password: password123
             </p>
           </div>

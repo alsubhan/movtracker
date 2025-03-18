@@ -47,7 +47,7 @@ import { supabase } from "@/integrations/supabase/client";
 const UserMaster = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<User & { password?: string }>({
+  const [formData, setFormData] = useState<User & { password?: string, username?: string }>({
     id: "",
     name: "",
     email: "",
@@ -56,6 +56,7 @@ const UserMaster = () => {
     createdAt: new Date(),
     permissions: [],
     password: "",
+    username: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
@@ -154,7 +155,10 @@ const UserMaster = () => {
   };
 
   const handleEditUser = (user: User) => {
-    setFormData({...user, password: ""});
+    // Extract username from email (email format is username@example.com)
+    const username = user.email.split('@')[0];
+    
+    setFormData({...user, password: "", username});
     setIsEditing(true);
     setIsDialogOpen(true);
   };
@@ -224,18 +228,21 @@ const UserMaster = () => {
         });
       } else {
         // Create a new user
-        if (!formData.password) {
+        if (!formData.username || !formData.password) {
           toast({
             title: "Error",
-            description: "Password is required for new users",
+            description: "Username and password are required for new users",
             variant: "destructive",
           });
           return;
         }
         
+        // Create user in auth with username@example.com format for the email
+        const email = `${formData.username}@example.com`;
+        
         // Create user in auth
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
+          email: email,
           password: formData.password,
           email_confirm: true,
           user_metadata: {
@@ -338,18 +345,32 @@ const UserMaster = () => {
                             required
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            placeholder="email@example.com"
-                            required
-                          />
-                        </div>
+                        {!isEditing && (
+                          <div className="grid gap-2">
+                            <Label htmlFor="username">Username</Label>
+                            <Input
+                              id="username"
+                              name="username"
+                              value={formData.username || ""}
+                              onChange={handleInputChange}
+                              placeholder="Enter username"
+                              required
+                            />
+                          </div>
+                        )}
+                        {isEditing && (
+                          <div className="grid gap-2">
+                            <Label htmlFor="username">Username</Label>
+                            <Input
+                              id="username"
+                              name="username"
+                              value={formData.username || ""}
+                              onChange={handleInputChange}
+                              placeholder="Username"
+                              disabled
+                            />
+                          </div>
+                        )}
                         <div className="grid gap-2">
                           <Label htmlFor="password">
                             {isEditing ? "Password (leave blank to keep current)" : "Password"}
@@ -483,7 +504,7 @@ const UserMaster = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Permissions</TableHead>
@@ -507,7 +528,7 @@ const UserMaster = () => {
                           {user.name}
                         </div>
                       </TableCell>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.email.split('@')[0]}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"

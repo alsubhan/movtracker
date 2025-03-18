@@ -47,10 +47,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       if (profile) {
+        // Extract username from email (email format is username@example.com)
+        const username = session.user.email?.split('@')[0] || 'User';
+        
         setIsAuthenticated(true);
         setUser({
           id: session.user.id,
-          name: profile.name || session.user.email?.split('@')[0] || 'User',
+          name: profile.name || username,
           email: profile.email || session.user.email || '',
           role: profile.role as 'admin' | 'user' | 'operator',
           status: profile.status as 'active' | 'inactive',
