@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  // This will only be visible momentarily before redirection
   return (
     <div className="flex min-h-screen items-center justify-center">
       <Button onClick={() => navigate('/auth')}>
