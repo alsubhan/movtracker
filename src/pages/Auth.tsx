@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogIn, User, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
 const Auth = () => {
   const [username, setUsername] = useState("");
@@ -18,10 +19,12 @@ const Auth = () => {
   const { isAuthenticated, refreshSession } = useAuth();
   
   // If user is already authenticated, redirect to home page
-  if (isAuthenticated) {
-    navigate("/");
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to home page");
+      navigate("/");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +54,7 @@ const Auth = () => {
       
       if (error) throw error;
       
+      console.log("Login successful, refreshing session");
       await refreshSession();
       
       toast({
@@ -58,6 +62,7 @@ const Auth = () => {
         description: "You have successfully logged in",
       });
       
+      console.log("Navigating to home page...");
       navigate("/");
       
     } catch (error: any) {
@@ -71,6 +76,11 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // If the user is already authenticated, we don't want to render the login form
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
