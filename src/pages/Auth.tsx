@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { LogIn, User, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 
 const Auth = () => {
   const [username, setUsername] = useState("");
@@ -55,6 +54,8 @@ const Auth = () => {
       if (error) throw error;
       
       console.log("Login successful, refreshing session");
+      
+      // Make sure the session refresh is completed
       await refreshSession();
       
       toast({
@@ -63,8 +64,17 @@ const Auth = () => {
       });
       
       console.log("Navigating to home page...");
-      // Force redirect here to ensure it happens after authentication is successful
-      window.location.href = "/";
+      
+      // First try the navigate API
+      navigate("/");
+      
+      // As a fallback, use window.location after a short delay
+      setTimeout(() => {
+        if (window.location.pathname === "/auth") {
+          console.log("Using fallback redirect method");
+          window.location.href = "/";
+        }
+      }, 1000);
       
     } catch (error: any) {
       console.error("Login error:", error);

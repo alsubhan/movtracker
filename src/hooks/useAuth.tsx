@@ -28,7 +28,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (sessionError) {
         console.error("Session error:", sessionError);
-        throw sessionError;
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
       }
       
       if (!session) {
@@ -40,6 +42,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       console.log("Session found:", session.user.email);
       
+      // Set authenticated to true immediately when we have a valid session
+      setIsAuthenticated(true);
+      
       try {
         // Fetch the user profile from the profiles table
         const { data: profile, error: profileError } = await supabase
@@ -48,13 +53,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', session.user.id)
           .single();
         
+        // Extract username from email (email format is username@example.com)
+        const username = session.user.email?.split('@')[0] || 'User';
+        
         if (profileError) {
           console.error('Error fetching profile:', profileError);
-          // Even if profile fetch fails, set basic authenticated state
-          setIsAuthenticated(true);
-          
-          // Extract username from email (email format is username@example.com)
-          const username = session.user.email?.split('@')[0] || 'User';
+          // Even with profile error, we still have a session, so maintain authenticated state
           setUser({
             id: session.user.id,
             name: username,
@@ -68,11 +72,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (profile) {
-          // Extract username from email (email format is username@example.com)
-          const username = session.user.email?.split('@')[0] || 'User';
-          console.log("Username extracted:", username);
+          console.log("Profile found:", profile);
           
-          setIsAuthenticated(true);
           setUser({
             id: session.user.id,
             name: profile.name || username,
@@ -151,7 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout, 
       hasPermission: checkPermission 
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
