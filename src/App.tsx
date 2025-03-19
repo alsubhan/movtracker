@@ -44,9 +44,10 @@ function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Shorter loading time to avoid blank screen
     setTimeout(() => {
       setIsLoading(false);
-    }, 500);
+    }, 100);
   }, []);
 
   if (isLoading) {

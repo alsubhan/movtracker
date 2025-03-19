@@ -152,7 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout, 
       hasPermission: checkPermission 
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

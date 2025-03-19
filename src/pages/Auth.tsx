@@ -21,9 +21,9 @@ const Auth = () => {
   useEffect(() => {
     if (isAuthenticated) {
       console.log("User is authenticated, redirecting to home page");
-      navigate("/");
+      window.location.href = "/";
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,16 +65,8 @@ const Auth = () => {
       
       console.log("Navigating to home page...");
       
-      // First try the navigate API
-      navigate("/");
-      
-      // As a fallback, use window.location after a short delay
-      setTimeout(() => {
-        if (window.location.pathname === "/auth") {
-          console.log("Using fallback redirect method");
-          window.location.href = "/";
-        }
-      }, 1000);
+      // Force a direct navigation to avoid any React Router issues
+      window.location.href = "/";
       
     } catch (error: any) {
       console.error("Login error:", error);
