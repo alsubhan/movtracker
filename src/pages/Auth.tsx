@@ -63,7 +63,8 @@ const Auth = () => {
       });
       
       console.log("Navigating to home page...");
-      navigate("/");
+      // Force redirect here to ensure it happens after authentication is successful
+      window.location.href = "/";
       
     } catch (error: any) {
       console.error("Login error:", error);
