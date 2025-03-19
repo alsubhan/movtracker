@@ -13,6 +13,7 @@ const Auth = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isAuthenticated, refreshSession } = useAuth();
@@ -27,6 +28,9 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Clear any previous error
+    setErrorMessage("");
     
     // Simple validation
     if (!username || !password) {
@@ -44,7 +48,7 @@ const Auth = () => {
       // Use a fixed email domain for username-based auth with Supabase
       const email = `${username}@example.com`;
       
-      console.log("Attempting signin with:", { email, password });
+      console.log("Attempting signin with:", { email });
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -70,9 +74,11 @@ const Auth = () => {
       
     } catch (error: any) {
       console.error("Login error:", error);
+      const errorMsg = error.message || "Invalid username or password";
+      setErrorMessage(errorMsg);
       toast({
         title: "Error",
-        description: error.message || "Invalid username or password",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -124,6 +130,12 @@ const Auth = () => {
                 />
               </div>
             </div>
+            
+            {errorMessage && (
+              <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
+                {errorMessage}
+              </div>
+            )}
           </div>
           
           <Button 
