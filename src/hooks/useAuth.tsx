@@ -144,6 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return hasPermission(user.role, permission);
   };
 
+  // Always render children, don't wait for loading
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 

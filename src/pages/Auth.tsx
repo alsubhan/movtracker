@@ -22,9 +22,9 @@ const Auth = () => {
   useEffect(() => {
     if (isAuthenticated) {
       console.log("User is authenticated, redirecting to home page");
-      window.location.href = "/";
+      navigate("/");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,8 +69,8 @@ const Auth = () => {
       
       console.log("Navigating to home page...");
       
-      // Force a direct navigation to avoid any React Router issues
-      window.location.href = "/";
+      // Use React Router navigation instead of direct window location change
+      navigate("/");
       
     } catch (error: any) {
       console.error("Login error:", error);
