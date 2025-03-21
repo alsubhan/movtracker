@@ -22,7 +22,12 @@ const Auth = () => {
   useEffect(() => {
     if (isAuthenticated) {
       console.log("User is authenticated, redirecting to home page");
-      navigate("/");
+      // Add a small delay to ensure all state updates have been processed
+      const redirectTimer = setTimeout(() => {
+        navigate("/");
+      }, 100);
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [isAuthenticated, navigate]);
 
@@ -70,7 +75,10 @@ const Auth = () => {
       console.log("Navigating to home page...");
       
       // Use React Router navigation instead of direct window location change
-      navigate("/");
+      // Use setTimeout to ensure all state updates have been processed
+      setTimeout(() => {
+        navigate("/");
+      }, 100);
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -88,7 +96,14 @@ const Auth = () => {
 
   // If the user is already authenticated, we don't want to render the login form
   if (isAuthenticated) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p>You are already logged in.</p>
+          <p>Redirecting to home page...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

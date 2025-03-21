@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   const refreshSession = async () => {
     try {
@@ -51,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
         
         // Extract username from email (email format is username@example.com)
         const username = session.user.email?.split('@')[0] || 'User';
@@ -89,6 +90,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role: profile.role,
             status: profile.status
           });
+        } else {
+          // No profile found, set default user data
+          console.log("No profile found, setting default user data");
+          setUser({
+            id: session.user.id,
+            name: username,
+            email: session.user.email || '',
+            role: 'user',
+            status: 'active',
+            createdAt: new Date(),
+            permissions: getPermissionsForRole('user')
+          });
         }
       } catch (profileError) {
         console.error('Error in profile handling:', profileError);
@@ -101,14 +114,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   };
 
   useEffect(() => {
-    // Initial session check
-    refreshSession();
-    
-    // Set up auth state change listener
+    // Set up auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event);
@@ -120,6 +131,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     );
+    
+    // Then do the initial session check
+    refreshSession();
     
     // Cleanup subscription on unmount
     return () => {
