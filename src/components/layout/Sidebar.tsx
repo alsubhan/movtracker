@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   User, 
   Box, 
-  Printer, 
+  Barcode, 
   ArrowRight, 
   ArrowLeft, 
   FileText, 
@@ -130,7 +130,7 @@ export const Sidebar = () => {
               </h2>
               <div className="space-y-1">
                 <SidebarItem
-                  icon={<Printer size={20} />}
+                  icon={<Barcode size={20} />}
                   label="Barcode Label Printing"
                   href="/transactions/label-printing"
                   active={pathname === "/transactions/label-printing"}
