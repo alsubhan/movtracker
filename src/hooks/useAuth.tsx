@@ -1,8 +1,7 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '@/types';
-import { hasPermission, getPermissionsForRole } from '@/utils/permissions';
-import { supabase } from '@/integrations/supabase/client';
+import { getPermissionsForRole } from '@/utils/permissions';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -15,153 +14,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
-
-  const refreshSession = async () => {
-    try {
-      console.log("Refreshing session...");
-      
-      // Get the current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("Session error:", sessionError);
-        setIsAuthenticated(false);
-        setUser(null);
-        return;
-      }
-      
-      if (!session) {
-        console.log("No session found");
-        setIsAuthenticated(false);
-        setUser(null);
-        return;
-      }
-      
-      console.log("Session found:", session.user.email);
-      
-      // Set authenticated to true immediately when we have a valid session
-      setIsAuthenticated(true);
-      
-      try {
-        // Fetch the user profile from the profiles table
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        
-        // Extract username from email (email format is username@example.com)
-        const username = session.user.email?.split('@')[0] || 'User';
-        
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          // Even with profile error, we still have a session, so maintain authenticated state
-          setUser({
-            id: session.user.id,
-            name: username,
-            email: session.user.email || '',
-            role: 'user', // Default role if profile not found
-            status: 'active',
-            createdAt: new Date(),
-            permissions: getPermissionsForRole('user')
-          });
-          return;
-        }
-        
-        if (profile) {
-          console.log("Profile found:", profile);
-          
-          setUser({
-            id: session.user.id,
-            name: profile.name || username,
-            email: profile.email || session.user.email || '',
-            role: profile.role as 'admin' | 'user' | 'operator',
-            status: profile.status as 'active' | 'inactive',
-            createdAt: new Date(profile.created_at),
-            permissions: getPermissionsForRole(profile.role as 'admin' | 'user' | 'operator')
-          });
-          
-          console.log("User set:", { 
-            name: profile.name || username,
-            role: profile.role,
-            status: profile.status
-          });
-        } else {
-          // No profile found, set default user data
-          console.log("No profile found, setting default user data");
-          setUser({
-            id: session.user.id,
-            name: username,
-            email: session.user.email || '',
-            role: 'user',
-            status: 'active',
-            createdAt: new Date(),
-            permissions: getPermissionsForRole('user')
-          });
-        }
-      } catch (profileError) {
-        console.error('Error in profile handling:', profileError);
-        // Set basic authentication even if profile fetch fails
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      console.error('Error refreshing session:', error);
-      setIsAuthenticated(false);
-      setUser(null);
-    } finally {
-      setLoading(false);
-      setInitialized(true);
-    }
+  // Create a default admin user
+  const defaultUser: User = {
+    id: '1',
+    name: 'Admin User',
+    email: 'admin@example.com',
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date(),
+    permissions: getPermissionsForRole('admin')
   };
 
-  useEffect(() => {
-    // Set up auth state change listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event);
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          await refreshSession();
-        } else if (event === 'SIGNED_OUT') {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-      }
-    );
-    
-    // Then do the initial session check
-    refreshSession();
-    
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const [user] = useState<User>(defaultUser);
+
+  const refreshSession = async () => {
+    // No-op function since we've removed authentication
+    console.log("Session refresh requested (no-op)");
+  };
 
   const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      setIsAuthenticated(false);
-      setUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    // No-op function since we've removed authentication
+    console.log("Logout requested (no-op)");
   };
 
   const checkPermission = (permission: string): boolean => {
-    if (!user) return false;
-    return hasPermission(user.role, permission);
+    // Always return true to grant all permissions
+    return true;
   };
 
-  // Always render children, don't wait for loading
   return (
     <AuthContext.Provider value={{ 
-      isAuthenticated, 
+      isAuthenticated: true, // Always authenticated
       user, 
       refreshSession,
       logout, 
