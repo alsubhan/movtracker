@@ -30,11 +30,11 @@ const ProtectedRoute = ({
   const { isAuthenticated, hasPermission } = useAuth();
   
   if (!isAuthenticated) {
-    return <Navigate to="/auth" />;
+    return <Navigate to="/auth" replace />;
   }
   
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;

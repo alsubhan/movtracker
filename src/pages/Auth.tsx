@@ -22,12 +22,7 @@ const Auth = () => {
   useEffect(() => {
     if (isAuthenticated) {
       console.log("User is authenticated, redirecting to home page");
-      // Add a small delay to ensure all state updates have been processed
-      const redirectTimer = setTimeout(() => {
-        navigate("/");
-      }, 100);
-      
-      return () => clearTimeout(redirectTimer);
+      navigate("/", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -74,11 +69,8 @@ const Auth = () => {
       
       console.log("Navigating to home page...");
       
-      // Use React Router navigation instead of direct window location change
-      // Use setTimeout to ensure all state updates have been processed
-      setTimeout(() => {
-        navigate("/");
-      }, 100);
+      // Navigate immediately with replace to prevent back navigation
+      navigate("/", { replace: true });
       
     } catch (error: any) {
       console.error("Login error:", error);
