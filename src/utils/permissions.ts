@@ -6,8 +6,7 @@ export const PERMISSIONS = {
   USER_MANAGEMENT: 'user_management',
   BIN_MANAGEMENT: 'bin_management',
   GATE_MANAGEMENT: 'gate_management',
-  RFID_PRINTING: 'label_printing', // Updated permission name
-  BARCODE_PRINTING: 'barcode_printing', // Keep for backwards compatibility
+  BARCODE_PRINTING: 'barcode_printing', // This is now the primary permission
   BIN_MOVEMENT: 'bin_movement',
   REPORTS_VIEW: 'reports_view',
   DATABASE_UTILITIES: 'database_utilities',
@@ -19,12 +18,12 @@ export const ROLE_PERMISSIONS = {
   admin: Object.values(PERMISSIONS),
   user: [
     PERMISSIONS.BIN_MANAGEMENT,
-    PERMISSIONS.RFID_PRINTING,
+    PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.BIN_MOVEMENT,
     PERMISSIONS.REPORTS_VIEW,
   ],
   operator: [
-    PERMISSIONS.RFID_PRINTING,
+    PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.BIN_MOVEMENT,
   ],
 };
@@ -51,36 +50,30 @@ export const permissionsList: Permission[] = [
   },
   {
     id: '4',
-    name: PERMISSIONS.RFID_PRINTING,
-    description: 'Print labels (RFID & Barcode)',
-    modules: ['Label Printing'],
-  },
-  {
-    id: '5',
     name: PERMISSIONS.BARCODE_PRINTING,
-    description: 'Print barcode labels (Legacy)',
+    description: 'Print barcode labels',
     modules: ['Barcode Label Printing'],
   },
   {
-    id: '6',
+    id: '5',
     name: PERMISSIONS.BIN_MOVEMENT,
     description: 'Track bin movements',
     modules: ['Bin In Movement', 'Bin Out Movement'],
   },
   {
-    id: '7',
+    id: '6',
     name: PERMISSIONS.REPORTS_VIEW,
     description: 'View reports',
     modules: ['Bin Movements', 'Missing Bins'],
   },
   {
-    id: '8',
+    id: '7',
     name: PERMISSIONS.DATABASE_UTILITIES,
     description: 'Database utility functions',
     modules: ['Database Utilities'],
   },
   {
-    id: '9',
+    id: '8',
     name: PERMISSIONS.SETTINGS,
     description: 'Manage application settings',
     modules: ['Settings'],

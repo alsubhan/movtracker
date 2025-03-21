@@ -131,10 +131,10 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<Printer size={20} />}
-                  label="Label Printing"
+                  label="Barcode Label Printing"
                   href="/transactions/label-printing"
                   active={pathname === "/transactions/label-printing"}
-                  requiredPermission={PERMISSIONS.RFID_PRINTING}
+                  requiredPermission={PERMISSIONS.BARCODE_PRINTING}
                 />
                 <SidebarItem
                   icon={<ArrowRight size={20} />}
