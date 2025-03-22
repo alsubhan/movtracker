@@ -71,12 +71,18 @@ const UserMaster = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      console.log("Fetching users from profiles table...");
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching users:", error);
+        throw error;
+      }
+      
+      console.log("Fetched data:", data);
       
       if (data) {
         const formattedUsers: User[] = data.map(profile => ({
@@ -92,6 +98,7 @@ const UserMaster = () => {
         setUsers(formattedUsers);
       }
     } catch (error: any) {
+      console.error("Error in fetchUsers:", error);
       toast({
         title: "Error fetching users",
         description: error.message,
@@ -261,7 +268,24 @@ const UserMaster = () => {
       // Only run if users array is empty and we're not currently loading
       if (users.length === 0 && !loading) {
         try {
+          console.log("No users found, creating default admin user...");
           const adminId = crypto.randomUUID();
+          
+          const { data: existingAdmin, error: checkError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', 'admin@example.com')
+            .single();
+            
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error("Error checking for existing admin:", checkError);
+            throw checkError;
+          }
+          
+          if (existingAdmin) {
+            console.log("Admin already exists, skipping creation");
+            return;
+          }
           
           const { error } = await supabase
             .from('profiles')
@@ -274,7 +298,12 @@ const UserMaster = () => {
               created_at: new Date().toISOString()
             });
           
-          if (error) throw error;
+          if (error) {
+            console.error("Error creating default admin:", error);
+            throw error;
+          }
+          
+          console.log("Default admin created successfully with ID:", adminId);
           
           toast({
             title: "Default Admin Created",
@@ -286,7 +315,7 @@ const UserMaster = () => {
           console.error("Error creating default admin:", error);
           toast({
             title: "Error",
-            description: "Could not create default admin",
+            description: "Could not create default admin: " + error.message,
             variant: "destructive",
           });
         }
