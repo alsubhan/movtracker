@@ -175,19 +175,23 @@ const UserMaster = () => {
     }
     
     try {
-      const { error } = await supabase.auth.admin.deleteUser(id);
+      // Instead of deleting from auth, just update the profile status
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: 'inactive' })
+        .eq('id', id);
       
       if (error) throw error;
       
       await fetchUsers();
       
       toast({
-        title: "User Deleted",
-        description: "User has been deleted successfully",
+        title: "User Status Updated",
+        description: "User has been marked as inactive",
       });
     } catch (error: any) {
       toast({
-        title: "Error deleting user",
+        title: "Error updating user",
         description: error.message,
         variant: "destructive",
       });
@@ -199,12 +203,11 @@ const UserMaster = () => {
     
     try {
       if (isEditing) {
-        // Update existing user
+        // Update existing user profile
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
             name: formData.name,
-            email: formData.email,
             role: formData.role,
             status: formData.status,
           })
@@ -212,58 +215,27 @@ const UserMaster = () => {
         
         if (profileError) throw profileError;
         
-        // If password is provided, update it
-        if (formData.password) {
-          const { error: passwordError } = await supabase.auth.admin.updateUserById(
-            formData.id,
-            { password: formData.password }
-          );
-          
-          if (passwordError) throw passwordError;
-        }
-        
         toast({
           title: "User Updated",
           description: "User has been updated successfully",
         });
       } else {
-        // Create a new user
-        if (!formData.username || !formData.password) {
-          toast({
-            title: "Error",
-            description: "Username and password are required for new users",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Create user in auth with username@example.com format for the email
+        // For new users in demo mode, create directly in profiles table with a UUID
+        const newUserId = crypto.randomUUID();
         const email = `${formData.username}@example.com`;
         
-        // Create user in auth
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: email,
-          password: formData.password,
-          email_confirm: true,
-          user_metadata: {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: newUserId,
             name: formData.name,
-          }
-        });
+            email: email,
+            role: formData.role,
+            status: formData.status,
+            created_at: new Date().toISOString()
+          });
         
-        if (authError) throw authError;
-        
-        // Update the profile with the correct role
-        if (authData?.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              role: formData.role,
-              status: formData.status,
-            })
-            .eq('id', authData.user.id);
-          
-          if (profileError) throw profileError;
-        }
+        if (profileError) throw profileError;
         
         toast({
           title: "User Added",
@@ -282,6 +254,47 @@ const UserMaster = () => {
       });
     }
   };
+
+  // Set a default admin if no users exist
+  useEffect(() => {
+    const checkAndCreateDefaultAdmin = async () => {
+      // Only run if users array is empty and we're not currently loading
+      if (users.length === 0 && !loading) {
+        try {
+          const adminId = crypto.randomUUID();
+          
+          const { error } = await supabase
+            .from('profiles')
+            .insert({
+              id: adminId,
+              name: 'Admin User',
+              email: 'admin@example.com',
+              role: 'admin',
+              status: 'active',
+              created_at: new Date().toISOString()
+            });
+          
+          if (error) throw error;
+          
+          toast({
+            title: "Default Admin Created",
+            description: "A default admin user has been added",
+          });
+          
+          fetchUsers();
+        } catch (error: any) {
+          console.error("Error creating default admin:", error);
+          toast({
+            title: "Error",
+            description: "Could not create default admin",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    
+    checkAndCreateDefaultAdmin();
+  }, [users, loading]);
 
   // Only admins can create users
   const canCreateUsers = currentUser?.role === 'admin';
@@ -371,20 +384,23 @@ const UserMaster = () => {
                             />
                           </div>
                         )}
-                        <div className="grid gap-2">
-                          <Label htmlFor="password">
-                            {isEditing ? "Password (leave blank to keep current)" : "Password"}
-                          </Label>
-                          <Input
-                            id="password"
-                            name="password"
-                            type="password"
-                            value={formData.password || ""}
-                            onChange={handleInputChange}
-                            placeholder={isEditing ? "Leave blank to keep current password" : "Create a password"}
-                            required={!isEditing}
-                          />
-                        </div>
+                        {isEditing && (
+                          <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                              id="password"
+                              name="password"
+                              type="password"
+                              value={formData.password || ""}
+                              onChange={handleInputChange}
+                              placeholder="Not editable in demo mode"
+                              disabled
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Password cannot be changed in demo mode
+                            </p>
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
