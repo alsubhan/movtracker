@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '@/types';
 import { getPermissionsForRole } from '@/utils/permissions';
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   isAuthenticated: boolean;

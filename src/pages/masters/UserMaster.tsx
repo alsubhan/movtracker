@@ -72,6 +72,8 @@ const UserMaster = () => {
     try {
       setLoading(true);
       console.log("Fetching users from profiles table...");
+      
+      // Use simpler query without RLS checks that might cause issues
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -275,9 +277,9 @@ const UserMaster = () => {
             .from('profiles')
             .select('id')
             .eq('email', 'admin@example.com')
-            .single();
+            .maybeSingle(); // Use maybeSingle instead of single to avoid errors
             
-          if (checkError && checkError.code !== 'PGRST116') {
+          if (checkError) {
             console.error("Error checking for existing admin:", checkError);
             throw checkError;
           }
