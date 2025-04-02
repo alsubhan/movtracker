@@ -42,7 +42,6 @@ import { useToast } from "@/hooks/use-toast";
 const initialBins = [
   {
     id: "1",
-    rfidTag: "RFID-00123",
     customer: "TOY",
     project: "1001",
     partition: "08",
@@ -55,7 +54,6 @@ const initialBins = [
   },
   {
     id: "2",
-    rfidTag: "RFID-00124",
     customer: "HON",
     project: "2001",
     partition: "04",
@@ -68,7 +66,6 @@ const initialBins = [
   },
   {
     id: "3",
-    rfidTag: "RFID-00125",
     customer: "NIS",
     project: "3001",
     partition: "02",
@@ -87,7 +84,6 @@ const BinMaster = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     id: "",
-    rfidTag: "",
     customer: "",
     project: "",
     partition: "",
@@ -111,7 +107,6 @@ const BinMaster = () => {
   const resetForm = () => {
     setFormData({
       id: "",
-      rfidTag: "",
       customer: "",
       project: "",
       partition: "",
@@ -140,6 +135,9 @@ const BinMaster = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Generate bin ID based on customer, project, partition, and serial number
+    const binId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
+    
     if (isEditing) {
       setBins(
         bins.map((bin) =>
@@ -157,12 +155,9 @@ const BinMaster = () => {
         description: "Bin has been updated successfully",
       });
     } else {
-      // Generate bin ID based on customer, project, partition, and serial number
-      const binId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
-      
       const newBin = {
         ...formData,
-        id: String(bins.length + 1),
+        id: binId, // Using the generated binId instead of a sequential number
         lastScanTime: new Date(),
         createdAt: new Date(),
       };
@@ -178,11 +173,11 @@ const BinMaster = () => {
   };
 
   const filteredBins = bins.filter((bin) => {
+    const binId = `${bin.customer}${bin.project}${bin.partition}${bin.serialNumber}`;
     const searchableValues = [
-      bin.rfidTag,
       bin.customer,
       bin.project,
-      `${bin.customer}${bin.project}${bin.partition}${bin.serialNumber}`,
+      binId,
     ].join(" ").toLowerCase();
     
     return searchableValues.includes(searchTerm.toLowerCase());
@@ -199,7 +194,7 @@ const BinMaster = () => {
           <div>
             <CardTitle>Bins</CardTitle>
             <CardDescription>
-              Manage RFID-enabled bins and their tracking information
+              Manage bins and their tracking information
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -234,21 +229,10 @@ const BinMaster = () => {
                     <DialogDescription>
                       {isEditing
                         ? "Update bin details and tracking information"
-                        : "Create a new bin with RFID tracking"}
+                        : "Create a new bin with tracking information"}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="rfidTag">RFID Tag</Label>
-                      <Input
-                        id="rfidTag"
-                        name="rfidTag"
-                        value={formData.rfidTag}
-                        onChange={handleInputChange}
-                        placeholder="RFID tag number"
-                        required
-                      />
-                    </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="customer">Customer Code (3)</Label>
@@ -369,7 +353,6 @@ const BinMaster = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Bin ID</TableHead>
-                <TableHead>RFID Tag</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Last Scan</TableHead>
@@ -378,73 +361,72 @@ const BinMaster = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBins.map((bin) => (
-                <TableRow key={bin.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Box className="h-4 w-4 text-muted-foreground" />
-                      {bin.customer}
-                      {bin.project}
-                      {bin.partition}
-                      {bin.serialNumber}
-                    </div>
-                  </TableCell>
-                  <TableCell>{bin.rfidTag}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        bin.status === "in-stock"
-                          ? "bg-green-50 text-green-700 border-green-200"
+              {filteredBins.map((bin) => {
+                const binId = `${bin.customer}${bin.project}${bin.partition}${bin.serialNumber}`;
+                return (
+                  <TableRow key={bin.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Box className="h-4 w-4 text-muted-foreground" />
+                        {binId}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          bin.status === "in-stock"
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : bin.status === "in-wip"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : bin.status === "dispatched"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }
+                      >
+                        {bin.status === "in-stock"
+                          ? "In Stock"
                           : bin.status === "in-wip"
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          ? "In WIP"
                           : bin.status === "dispatched"
-                          ? "bg-amber-50 text-amber-700 border-amber-200"
-                          : "bg-red-50 text-red-700 border-red-200"
-                      }
-                    >
-                      {bin.status === "in-stock"
-                        ? "In Stock"
-                        : bin.status === "in-wip"
-                        ? "In WIP"
-                        : bin.status === "dispatched"
-                        ? "Dispatched"
-                        : "Damaged"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {bin.location === "warehouse"
-                        ? "Warehouse"
-                        : bin.location === "wip"
-                        ? "WIP"
-                        : "Customer"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {bin.lastScanTime.toLocaleString()}
-                  </TableCell>
-                  <TableCell>{bin.lastScanGate}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditBin(bin)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteBin(bin.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                          ? "Dispatched"
+                          : "Damaged"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {bin.location === "warehouse"
+                          ? "Warehouse"
+                          : bin.location === "wip"
+                          ? "WIP"
+                          : "Customer"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {bin.lastScanTime.toLocaleString()}
+                    </TableCell>
+                    <TableCell>{bin.lastScanGate}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditBin(bin)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteBin(bin.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

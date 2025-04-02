@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -17,7 +18,6 @@ export interface Permission {
 
 export interface Bin {
   id: string;
-  rfidTag: string;
   customer: string;
   project: string;
   partition: string;
