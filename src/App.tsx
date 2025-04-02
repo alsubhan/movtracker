@@ -7,7 +7,7 @@ import Login from "./pages/Login";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import UserMaster from "./pages/masters/UserMaster";
-import BinMaster from "./pages/masters/BinMaster";
+import Products from "./pages/masters/Products";
 import GatesMaster from "./pages/masters/GatesMaster";
 import LabelPrinting from "./pages/transactions/LabelPrinting";
 import BinMovement from "./pages/transactions/BinMovement";
@@ -42,7 +42,7 @@ function AppRoutes() {
       <Route path="/" element={<Index />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/masters/user" element={<UserMaster />} />
-      <Route path="/masters/bin" element={<BinMaster />} />
+      <Route path="/masters/bin" element={<Products />} />
       <Route path="/masters/gates" element={<GatesMaster />} />
       <Route path="/transactions/label-printing" element={<LabelPrinting />} />
       <Route path="/transactions/bin-movement" element={<BinMovement />} />

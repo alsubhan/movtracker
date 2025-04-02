@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -39,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 // Mock data
-const initialBins = [
+const initialProducts = [
   {
     id: "1",
     customer: "TOY",
@@ -78,8 +79,8 @@ const initialBins = [
   },
 ];
 
-const BinMaster = () => {
-  const [bins, setBins] = useState(initialBins);
+const Products = () => {
+  const [products, setProducts] = useState(initialProducts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
@@ -118,53 +119,53 @@ const BinMaster = () => {
     setIsEditing(false);
   };
 
-  const handleEditBin = (bin: any) => {
-    setFormData(bin);
+  const handleEditProduct = (product: any) => {
+    setFormData(product);
     setIsEditing(true);
     setIsDialogOpen(true);
   };
 
-  const handleDeleteBin = (id: string) => {
-    setBins(bins.filter((bin) => bin.id !== id));
+  const handleDeleteProduct = (id: string) => {
+    setProducts(products.filter((product) => product.id !== id));
     toast({
-      title: "Bin Deleted",
-      description: "Bin has been deleted successfully",
+      title: "Product Deleted",
+      description: "Product has been deleted successfully",
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Generate bin ID based on customer, project, partition, and serial number
-    const binId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
+    // Generate product ID based on customer, project, partition, and serial number
+    const productId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
     
     if (isEditing) {
-      setBins(
-        bins.map((bin) =>
-          bin.id === formData.id
+      setProducts(
+        products.map((product) =>
+          product.id === formData.id
             ? {
                 ...formData,
-                lastScanTime: bin.lastScanTime,
-                createdAt: bin.createdAt,
+                lastScanTime: product.lastScanTime,
+                createdAt: product.createdAt,
               }
-            : bin
+            : product
         )
       );
       toast({
-        title: "Bin Updated",
-        description: "Bin has been updated successfully",
+        title: "Product Updated",
+        description: "Product has been updated successfully",
       });
     } else {
-      const newBin = {
+      const newProduct = {
         ...formData,
-        id: binId, // Using the generated binId instead of a sequential number
+        id: productId, // Using the generated productId instead of a sequential number
         lastScanTime: new Date(),
         createdAt: new Date(),
       };
-      setBins([...bins, newBin]);
+      setProducts([...products, newProduct]);
       toast({
-        title: "Bin Added",
-        description: `New bin ${binId} has been added successfully`,
+        title: "Product Added",
+        description: `New product ${productId} has been added successfully`,
       });
     }
     
@@ -172,12 +173,12 @@ const BinMaster = () => {
     setIsDialogOpen(false);
   };
 
-  const filteredBins = bins.filter((bin) => {
-    const binId = `${bin.customer}${bin.project}${bin.partition}${bin.serialNumber}`;
+  const filteredProducts = products.filter((product) => {
+    const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
     const searchableValues = [
-      bin.customer,
-      bin.project,
-      binId,
+      product.customer,
+      product.project,
+      productId,
     ].join(" ").toLowerCase();
     
     return searchableValues.includes(searchTerm.toLowerCase());
@@ -186,15 +187,15 @@ const BinMaster = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Bin Master</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Products</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Bins</CardTitle>
+            <CardTitle>Products</CardTitle>
             <CardDescription>
-              Manage bins and their tracking information
+              Manage products and their tracking information
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -202,7 +203,7 @@ const BinMaster = () => {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search bins..."
+                placeholder="Search products..."
                 className="pl-8 w-[250px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -217,19 +218,19 @@ const BinMaster = () => {
                   }}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Bin
+                  Add Product
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>
-                      {isEditing ? "Edit Bin" : "Add New Bin"}
+                      {isEditing ? "Edit Product" : "Add New Product"}
                     </DialogTitle>
                     <DialogDescription>
                       {isEditing
-                        ? "Update bin details and tracking information"
-                        : "Create a new bin with tracking information"}
+                        ? "Update product details and tracking information"
+                        : "Create a new product with tracking information"}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -340,7 +341,7 @@ const BinMaster = () => {
                       Cancel
                     </Button>
                     <Button type="submit">
-                      {isEditing ? "Update Bin" : "Add Bin"}
+                      {isEditing ? "Update Product" : "Add Product"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -352,7 +353,7 @@ const BinMaster = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Bin ID</TableHead>
+                <TableHead>Product ID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Last Scan</TableHead>
@@ -361,64 +362,64 @@ const BinMaster = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBins.map((bin) => {
-                const binId = `${bin.customer}${bin.project}${bin.partition}${bin.serialNumber}`;
+              {filteredProducts.map((product) => {
+                const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
                 return (
-                  <TableRow key={bin.id}>
+                  <TableRow key={product.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Box className="h-4 w-4 text-muted-foreground" />
-                        {binId}
+                        {productId}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={
-                          bin.status === "in-stock"
+                          product.status === "in-stock"
                             ? "bg-green-50 text-green-700 border-green-200"
-                            : bin.status === "in-wip"
+                            : product.status === "in-wip"
                             ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : bin.status === "dispatched"
+                            : product.status === "dispatched"
                             ? "bg-amber-50 text-amber-700 border-amber-200"
                             : "bg-red-50 text-red-700 border-red-200"
                         }
                       >
-                        {bin.status === "in-stock"
+                        {product.status === "in-stock"
                           ? "In Stock"
-                          : bin.status === "in-wip"
+                          : product.status === "in-wip"
                           ? "In WIP"
-                          : bin.status === "dispatched"
+                          : product.status === "dispatched"
                           ? "Dispatched"
                           : "Damaged"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {bin.location === "warehouse"
+                        {product.location === "warehouse"
                           ? "Warehouse"
-                          : bin.location === "wip"
+                          : product.location === "wip"
                           ? "WIP"
                           : "Customer"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {bin.lastScanTime.toLocaleString()}
+                      {product.lastScanTime.toLocaleString()}
                     </TableCell>
-                    <TableCell>{bin.lastScanGate}</TableCell>
+                    <TableCell>{product.lastScanGate}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEditBin(bin)}
+                          onClick={() => handleEditProduct(product)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteBin(bin.id)}
+                          onClick={() => handleDeleteProduct(product.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -435,4 +436,4 @@ const BinMaster = () => {
   );
 };
 
-export default BinMaster;
+export default Products;

@@ -16,7 +16,7 @@ export interface Permission {
   modules: string[];
 }
 
-export interface Bin {
+export interface Product {
   id: string;
   customer: string;
   project: string;
@@ -39,9 +39,9 @@ export interface Gate {
   antennaB: string;
 }
 
-export interface BinMovement {
+export interface ProductMovement {
   id: string;
-  binId: string;
+  productId: string;
   gateId: string;
   movementType: 'in' | 'out';
   timestamp: Date;
@@ -50,14 +50,14 @@ export interface BinMovement {
 }
 
 export interface Dashboard {
-  warehouseBins: {
-    fgBins: number;
-    emptyBins: number;
+  warehouseProducts: {
+    fgProducts: number;
+    emptyProducts: number;
   };
-  wipBins: number;
-  customerBins: {
+  wipProducts: number;
+  customerProducts: {
     [customer: string]: number;
   };
-  overdueBins: number;
-  unusedBins: number;
+  overdueProducts: number;
+  unusedProducts: number;
 }

@@ -82,7 +82,7 @@ export const Sidebar = () => {
           
           {user && (
             <div className="mb-6 px-3 py-2 bg-muted/30 rounded-md">
-              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-sm font-medium">{user.full_name}</p>
               <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
             </div>
           )}
@@ -109,7 +109,7 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<Box size={20} />}
-                  label="Bin Master"
+                  label="Products"
                   href="/masters/bin"
                   active={pathname === "/masters/bin"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
@@ -138,14 +138,14 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<ArrowRight size={20} />}
-                  label="Bin Out Movement"
+                  label="Product Out Movement"
                   href="/transactions/bin-movement?type=out"
                   active={pathname === "/transactions/bin-movement" && location.search.includes("type=out")}
                   requiredPermission={PERMISSIONS.BIN_MOVEMENT}
                 />
                 <SidebarItem
                   icon={<ArrowLeft size={20} />}
-                  label="Bin In Movement"
+                  label="Product In Movement"
                   href="/transactions/bin-movement?type=in"
                   active={pathname === "/transactions/bin-movement" && location.search.includes("type=in")}
                   requiredPermission={PERMISSIONS.BIN_MOVEMENT}
@@ -160,14 +160,14 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<FileText size={20} />}
-                  label="Bin Movements"
+                  label="Product Movements"
                   href="/reports/bin-movement"
                   active={pathname === "/reports/bin-movement"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
                 <SidebarItem
                   icon={<FileText size={20} />}
-                  label="Missing Bins"
+                  label="Missing Products"
                   href="/reports/missing-bins"
                   active={pathname === "/reports/missing-bins"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}
