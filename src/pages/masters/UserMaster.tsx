@@ -47,16 +47,15 @@ import { supabase } from "@/integrations/supabase/client";
 const UserMaster = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<User & { password?: string, username?: string }>({
+  const [formData, setFormData] = useState<User & { password?: string }>({
     id: "",
-    name: "",
-    email: "",
+    full_name: "",
+    username: "",
     role: "user",
     status: "active",
     createdAt: new Date(),
     permissions: [],
     password: "",
-    username: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
@@ -89,8 +88,8 @@ const UserMaster = () => {
       if (data) {
         const formattedUsers: User[] = data.map(profile => ({
           id: profile.id,
-          name: profile.name || 'Unknown',
-          email: profile.email || 'No email',
+          full_name: profile.full_name || 'Unknown',
+          username: profile.username,
           role: profile.role as 'admin' | 'user' | 'operator',
           status: profile.status as 'active' | 'inactive',
           createdAt: new Date(profile.created_at),
@@ -151,8 +150,8 @@ const UserMaster = () => {
   const resetForm = () => {
     setFormData({
       id: "",
-      name: "",
-      email: "",
+      full_name: "",
+      username: "",
       role: "user",
       status: "active",
       createdAt: new Date(),
@@ -164,10 +163,7 @@ const UserMaster = () => {
   };
 
   const handleEditUser = (user: User) => {
-    // Extract username from email (email format is username@example.com)
-    const username = user.email.split('@')[0];
-    
-    setFormData({...user, password: "", username});
+    setFormData({...user, password: ""});
     setIsEditing(true);
     setIsDialogOpen(true);
   };
@@ -216,7 +212,7 @@ const UserMaster = () => {
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
-            name: formData.name,
+            full_name: formData.full_name,
             role: formData.role,
             status: formData.status,
           })
@@ -231,14 +227,14 @@ const UserMaster = () => {
       } else {
         // For new users in demo mode, create directly in profiles table with a UUID
         const newUserId = crypto.randomUUID();
-        const email = `${formData.username}@example.com`;
         
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
             id: newUserId,
-            name: formData.name,
-            email: email,
+            full_name: formData.full_name,
+            username: formData.username,
+            password: "demopassword", // Demo password
             role: formData.role,
             status: formData.status,
             created_at: new Date().toISOString()
@@ -276,8 +272,8 @@ const UserMaster = () => {
           const { data: existingAdmin, error: checkError } = await supabase
             .from('profiles')
             .select('id')
-            .eq('email', 'admin@example.com')
-            .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+            .eq('username', 'admin')
+            .maybeSingle();
             
           if (checkError) {
             console.error("Error checking for existing admin:", checkError);
@@ -293,8 +289,9 @@ const UserMaster = () => {
             .from('profiles')
             .insert({
               id: adminId,
-              name: 'Admin User',
-              email: 'admin@example.com',
+              full_name: 'Admin User',
+              username: 'admin',
+              password: 'adminpassword', // Demo password
               role: 'admin',
               status: 'active',
               created_at: new Date().toISOString()
@@ -379,11 +376,11 @@ const UserMaster = () => {
                     <TabsContent value="details" className="py-4">
                       <div className="grid gap-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="name">Name</Label>
+                          <Label htmlFor="full_name">Name</Label>
                           <Input
-                            id="name"
-                            name="name"
-                            value={formData.name}
+                            id="full_name"
+                            name="full_name"
+                            value={formData.full_name || ""}
                             onChange={handleInputChange}
                             placeholder="Enter full name"
                             required
@@ -572,10 +569,10 @@ const UserMaster = () => {
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <UserIcon className="h-4 w-4 text-muted-foreground" />
-                          {user.name}
+                          {user.full_name || "Unknown"}
                         </div>
                       </TableCell>
-                      <TableCell>{user.email.split('@')[0]}</TableCell>
+                      <TableCell>{user.username}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"

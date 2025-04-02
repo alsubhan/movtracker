@@ -1,8 +1,8 @@
 
 export interface User {
   id: string;
-  name: string;
-  email: string;
+  full_name: string | null;
+  username: string;
   role: 'admin' | 'user' | 'operator';
   status: 'active' | 'inactive';
   createdAt: Date;
