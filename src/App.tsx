@@ -1,5 +1,4 @@
 
-
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -67,4 +66,3 @@ function App() {
 }
 
 export default App;
-

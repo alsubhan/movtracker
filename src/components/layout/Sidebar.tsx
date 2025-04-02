@@ -102,7 +102,7 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<User size={20} />}
-                  label="User Master"
+                  label="Users"
                   href="/masters/user"
                   active={pathname === "/masters/user"}
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT}
@@ -116,7 +116,7 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<DoorOpen size={20} />}
-                  label="Gates Master"
+                  label="Gates"
                   href="/masters/gates"
                   active={pathname === "/masters/gates"}
                   requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
