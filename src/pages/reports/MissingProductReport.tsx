@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +23,10 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-const mockMissingBins = [
+const mockMissingProducts = [
   {
     id: "1",
-    binId: "TOY100108010",
+    productId: "TOY100108010",
     customer: "Toyota",
     project: "1001",
     lastSeen: {
@@ -38,7 +39,7 @@ const mockMissingBins = [
   },
   {
     id: "2",
-    binId: "HON200104015",
+    productId: "HON200104015",
     customer: "Honda",
     project: "2001",
     lastSeen: {
@@ -51,7 +52,7 @@ const mockMissingBins = [
   },
   {
     id: "3",
-    binId: "NIS300102025",
+    productId: "NIS300102025",
     customer: "Nissan",
     project: "3001",
     lastSeen: {
@@ -64,7 +65,7 @@ const mockMissingBins = [
   },
   {
     id: "4",
-    binId: "TOY100108050",
+    productId: "TOY100108050",
     customer: "Toyota",
     project: "1001",
     lastSeen: {
@@ -77,7 +78,7 @@ const mockMissingBins = [
   },
   {
     id: "5",
-    binId: "HON200104060",
+    productId: "HON200104060",
     customer: "Honda",
     project: "2001",
     lastSeen: {
@@ -90,19 +91,19 @@ const mockMissingBins = [
   },
 ];
 
-const MissingBinReport = () => {
+const MissingProductReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -90),
     to: new Date(),
   });
 
-  const filteredMissingBins = mockMissingBins.filter((bin) => {
+  const filteredMissingProducts = mockMissingProducts.filter((product) => {
     const matchesSearch =
-      bin.binId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.customer.toLowerCase().includes(searchTerm.toLowerCase());
+      product.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.customer.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const lastSeenDate = bin.lastSeen.timestamp;
+    const lastSeenDate = product.lastSeen.timestamp;
     const withinDateRange = 
       (!dateRange.from || lastSeenDate >= dateRange.from) && 
       (!dateRange.to || lastSeenDate <= dateRange.to);
@@ -113,15 +114,15 @@ const MissingBinReport = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Missing Bins Report</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Missing Products Report</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Missing Bins</CardTitle>
+            <CardTitle>Missing Products</CardTitle>
             <CardDescription>
-              Track and locate bins that have not been scanned recently
+              Track and locate products that have not been scanned recently
             </CardDescription>
           </div>
         </CardHeader>
@@ -132,7 +133,7 @@ const MissingBinReport = () => {
                 <SearchX className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by bin ID or customer..."
+                  placeholder="Search by product ID or customer..."
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -162,7 +163,7 @@ const MissingBinReport = () => {
                   <div>
                     <p className="text-sm font-medium text-yellow-800">Missing &lt; 30 days</p>
                     <p className="text-2xl font-bold text-yellow-900">
-                      {mockMissingBins.filter((bin) => bin.missingDays < 30).length}
+                      {mockMissingProducts.filter((product) => product.missingDays < 30).length}
                     </p>
                   </div>
                   <Clock className="h-8 w-8 text-yellow-500" />
@@ -175,7 +176,7 @@ const MissingBinReport = () => {
                   <div>
                     <p className="text-sm font-medium text-orange-800">Missing 30-60 days</p>
                     <p className="text-2xl font-bold text-orange-900">
-                      {mockMissingBins.filter((bin) => bin.missingDays >= 30 && bin.missingDays < 60).length}
+                      {mockMissingProducts.filter((product) => product.missingDays >= 30 && product.missingDays < 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
@@ -188,7 +189,7 @@ const MissingBinReport = () => {
                   <div>
                     <p className="text-sm font-medium text-red-800">Missing &gt; 60 days</p>
                     <p className="text-2xl font-bold text-red-900">
-                      {mockMissingBins.filter((bin) => bin.missingDays >= 60).length}
+                      {mockMissingProducts.filter((product) => product.missingDays >= 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -200,7 +201,7 @@ const MissingBinReport = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Bin ID</TableHead>
+                <TableHead>Product ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Last Seen Location</TableHead>
                 <TableHead>Last Seen Gate</TableHead>
@@ -210,29 +211,29 @@ const MissingBinReport = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMissingBins.length > 0 ? (
-                filteredMissingBins.map((bin) => (
-                  <TableRow key={bin.id}>
-                    <TableCell className="font-medium">{bin.binId}</TableCell>
-                    <TableCell>{bin.customer}</TableCell>
-                    <TableCell>{bin.lastSeen.location}</TableCell>
-                    <TableCell>{bin.lastSeen.gate}</TableCell>
-                    <TableCell>{bin.lastSeen.timestamp.toLocaleDateString()}</TableCell>
-                    <TableCell>{bin.missingDays} days</TableCell>
+              {filteredMissingProducts.length > 0 ? (
+                filteredMissingProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.productId}</TableCell>
+                    <TableCell>{product.customer}</TableCell>
+                    <TableCell>{product.lastSeen.location}</TableCell>
+                    <TableCell>{product.lastSeen.gate}</TableCell>
+                    <TableCell>{product.lastSeen.timestamp.toLocaleDateString()}</TableCell>
+                    <TableCell>{product.missingDays} days</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={
-                          bin.missingDays < 30
+                          product.missingDays < 30
                             ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                            : bin.missingDays < 60
+                            : product.missingDays < 60
                             ? "bg-orange-50 text-orange-700 border-orange-200"
                             : "bg-red-50 text-red-700 border-red-200"
                         }
                       >
-                        {bin.missingDays < 30
+                        {product.missingDays < 30
                           ? "Recently Missing"
-                          : bin.missingDays < 60
+                          : product.missingDays < 60
                           ? "Missing"
                           : "Long Missing"}
                       </Badge>
@@ -244,7 +245,7 @@ const MissingBinReport = () => {
                   <TableCell colSpan={7} className="text-center py-4">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <FileText className="h-8 w-8 mb-2" />
-                      <p>No missing bins found</p>
+                      <p>No missing products found</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -257,4 +258,4 @@ const MissingBinReport = () => {
   );
 };
 
-export default MissingBinReport;
+export default MissingProductReport;

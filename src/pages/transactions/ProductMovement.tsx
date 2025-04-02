@@ -20,9 +20,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface BinMovementData {
+interface ProductMovementData {
   id: string;
-  binId: string;
+  productId: string;
   gateId: string;
   movementType: "in" | "out";
   timestamp: Date;
@@ -33,10 +33,10 @@ interface BinMovementData {
 }
 
 // Mock data for demo purposes
-const mockMovements: BinMovementData[] = [
+const mockMovements: ProductMovementData[] = [
   {
     id: "1",
-    binId: "TOY100108001",
+    productId: "TOY100108001",
     gateId: "Gate 1",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 5),
@@ -47,7 +47,7 @@ const mockMovements: BinMovementData[] = [
   },
   {
     id: "2",
-    binId: "HON200104002",
+    productId: "HON200104002",
     gateId: "Gate 2",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 15),
@@ -58,13 +58,13 @@ const mockMovements: BinMovementData[] = [
   },
 ];
 
-const BinMovement = () => {
+const ProductMovement = () => {
   const [searchParams] = useSearchParams();
   const defaultMovementType = searchParams.get("type") || "out";
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [movements, setMovements] = useState<BinMovementData[]>([]);
+  const [movements, setMovements] = useState<ProductMovementData[]>([]);
   const [selectedGate, setSelectedGate] = useState("Gate 1");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [movementType, setMovementType] = useState<"in" | "out">(defaultMovementType as "in" | "out");
@@ -91,9 +91,9 @@ const BinMovement = () => {
       return;
     }
     
-    const newMovement: BinMovementData = {
+    const newMovement: ProductMovementData = {
       id: `manual-${Date.now()}`,
-      binId: barcodeInput,
+      productId: barcodeInput,
       gateId: selectedGate,
       movementType: movementType,
       timestamp: new Date(),
@@ -111,7 +111,7 @@ const BinMovement = () => {
     
     toast({
       title: "Barcode Scanned",
-      description: `Bin ${barcodeInput} registered as ${movementType === "in" ? "Bin In" : "Bin Out"} movement`,
+      description: `Product ${barcodeInput} registered as ${movementType === "in" ? "Product In" : "Product Out"} movement`,
     });
     
     // Reset input and focus for next scan
@@ -125,16 +125,16 @@ const BinMovement = () => {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">
-          Bin Movement
+          Product Movement
         </h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Bin Scanner</CardTitle>
+            <CardTitle>Product Scanner</CardTitle>
             <CardDescription>
-              Scan bins coming into or going out of the warehouse
+              Scan products coming into or going out of the warehouse
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -149,11 +149,11 @@ const BinMovement = () => {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="in" id="in" />
-                    <label htmlFor="in" className="cursor-pointer">Bin In</label>
+                    <label htmlFor="in" className="cursor-pointer">Product In</label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="out" id="out" />
-                    <label htmlFor="out" className="cursor-pointer">Bin Out</label>
+                    <label htmlFor="out" className="cursor-pointer">Product Out</label>
                   </div>
                 </RadioGroup>
               </div>
@@ -193,7 +193,7 @@ const BinMovement = () => {
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Point your barcode scanner at the bin label or manually enter the bin ID
+                  Point your barcode scanner at the product label or manually enter the product ID
                 </div>
               </form>
             </div>
@@ -214,7 +214,7 @@ const BinMovement = () => {
           <CardHeader>
             <CardTitle>Recent Movements</CardTitle>
             <CardDescription>
-              Recently tracked bin {movementType === "in" ? "in" : "out"} movements
+              Recently tracked product {movementType === "in" ? "in" : "out"} movements
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -228,7 +228,7 @@ const BinMovement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Bin ID</TableHead>
+                      <TableHead>Product ID</TableHead>
                       <TableHead>Gate</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Location Change</TableHead>
@@ -242,7 +242,7 @@ const BinMovement = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.binId}
+                              {movement.productId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.gateId}</TableCell>
@@ -286,7 +286,7 @@ const BinMovement = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Total Bins</CardTitle>
+                        <CardTitle className="text-sm">Total Products</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">{movements.length}</div>
@@ -321,4 +321,4 @@ const BinMovement = () => {
   );
 };
 
-export default BinMovement;
+export default ProductMovement;

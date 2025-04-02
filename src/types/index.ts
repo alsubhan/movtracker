@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   full_name: string | null;
@@ -61,3 +62,4 @@ export interface Dashboard {
   overdueProducts: number;
   unusedProducts: number;
 }
+

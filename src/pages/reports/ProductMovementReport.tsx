@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +24,11 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-// Mock data for bin movements
+// Mock data for product movements
 const mockMovements = [
   {
     id: "1",
-    binId: "TOY100108001",
+    productId: "TOY100108001",
     gateId: "Gate 1",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
@@ -38,7 +39,7 @@ const mockMovements = [
   },
   {
     id: "2",
-    binId: "HON200104002",
+    productId: "HON200104002",
     gateId: "Gate 2",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), // 1 day ago
@@ -49,7 +50,7 @@ const mockMovements = [
   },
   {
     id: "3",
-    binId: "NIS300102003",
+    productId: "NIS300102003",
     gateId: "Gate 3",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
@@ -60,7 +61,7 @@ const mockMovements = [
   },
   {
     id: "4",
-    binId: "TOY100108005",
+    productId: "TOY100108005",
     gateId: "Gate 1",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
@@ -71,7 +72,7 @@ const mockMovements = [
   },
   {
     id: "5",
-    binId: "HON200104007",
+    productId: "HON200104007",
     gateId: "Gate 2",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
@@ -82,7 +83,7 @@ const mockMovements = [
   },
 ];
 
-const BinMovementReport = () => {
+const ProductMovementReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -7),
@@ -92,7 +93,7 @@ const BinMovementReport = () => {
   // Filter movements based on search term and date range
   const filteredMovements = mockMovements.filter((movement) => {
     const matchesSearch =
-      movement.binId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.customer.toLowerCase().includes(searchTerm.toLowerCase());
     
     const movementDate = movement.timestamp;
@@ -106,15 +107,15 @@ const BinMovementReport = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Bin Movement Report</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Product Movement Report</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Bin Movements</CardTitle>
+            <CardTitle>Product Movements</CardTitle>
             <CardDescription>
-              Track all bin movements across gates and locations
+              Track all product movements across gates and locations
             </CardDescription>
           </div>
         </CardHeader>
@@ -125,7 +126,7 @@ const BinMovementReport = () => {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by bin ID or customer..."
+                  placeholder="Search by product ID or customer..."
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -151,14 +152,14 @@ const BinMovementReport = () => {
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">All Movements</TabsTrigger>
-              <TabsTrigger value="in">Bin In</TabsTrigger>
-              <TabsTrigger value="out">Bin Out</TabsTrigger>
+              <TabsTrigger value="in">Product In</TabsTrigger>
+              <TabsTrigger value="out">Product Out</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Bin ID</TableHead>
+                    <TableHead>Product ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -173,7 +174,7 @@ const BinMovementReport = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Box className="h-4 w-4 text-muted-foreground" />
-                            {movement.binId}
+                            {movement.productId}
                           </div>
                         </TableCell>
                         <TableCell>{movement.customer}</TableCell>
@@ -207,7 +208,7 @@ const BinMovementReport = () => {
                       <TableCell colSpan={6} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No bin movements found</p>
+                          <p>No product movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -219,7 +220,7 @@ const BinMovementReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Bin ID</TableHead>
+                    <TableHead>Product ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -235,7 +236,7 @@ const BinMovementReport = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.binId}
+                              {movement.productId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.customer}</TableCell>
@@ -257,7 +258,7 @@ const BinMovementReport = () => {
                       <TableCell colSpan={5} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No bin in movements found</p>
+                          <p>No product in movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -269,7 +270,7 @@ const BinMovementReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Bin ID</TableHead>
+                    <TableHead>Product ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -285,7 +286,7 @@ const BinMovementReport = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.binId}
+                              {movement.productId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.customer}</TableCell>
@@ -307,7 +308,7 @@ const BinMovementReport = () => {
                       <TableCell colSpan={5} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No bin out movements found</p>
+                          <p>No product out movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -322,4 +323,4 @@ const BinMovementReport = () => {
   );
 };
 
-export default BinMovementReport;
+export default ProductMovementReport;

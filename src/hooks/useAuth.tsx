@@ -1,65 +1,105 @@
 
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { User } from '@/types';
-import { getPermissionsForRole } from '@/utils/permissions';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { User } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+import { PERMISSIONS } from "@/utils/permissions";
 
 interface AuthContextType {
-  isAuthenticated: boolean;
   user: User | null;
-  refreshSession: () => Promise<void>;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Create a default admin user
-  const defaultUser: User = {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin',
-    status: 'active',
-    createdAt: new Date(),
-    permissions: getPermissionsForRole('admin')
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Mock user for development
+  useEffect(() => {
+    const mockUser: User = {
+      id: "1",
+      full_name: "John Smith",
+      username: "admin",
+      role: "admin",
+      status: "active",
+      createdAt: new Date(),
+      permissions: Object.values(PERMISSIONS),
+    };
+    
+    setUser(mockUser);
+    setLoading(false);
+  }, []);
+
+  const login = async (username: string, password: string): Promise<User | null> => {
+    try {
+      // In a real app, this would authenticate with Supabase
+      // const { data, error } = await supabase.auth.signInWithPassword({
+      //   email: username,
+      //   password,
+      // });
+      // if (error) throw error;
+
+      // Mock successful login
+      const mockUser: User = {
+        id: "1",
+        full_name: "John Smith",
+        username: "admin",
+        role: "admin",
+        status: "active",
+        createdAt: new Date(),
+        permissions: Object.values(PERMISSIONS),
+      };
+
+      setUser(mockUser);
+      return mockUser;
+    } catch (error) {
+      console.error("Login error:", error);
+      return null;
+    }
   };
 
-  const [user] = useState<User>(defaultUser);
-
-  const refreshSession = async () => {
-    // No-op function since we've removed authentication
-    console.log("Session refresh requested (no-op)");
+  const logout = async (): Promise<void> => {
+    try {
+      // In a real app, this would sign out from Supabase
+      // await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
-  const logout = async () => {
-    // No-op function since we've removed authentication
-    console.log("Logout requested (no-op)");
-  };
-
-  const checkPermission = (permission: string): boolean => {
-    // Always return true to grant all permissions
-    return true;
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated: true, // Always authenticated
-      user, 
-      refreshSession,
-      logout, 
-      hasPermission: checkPermission 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

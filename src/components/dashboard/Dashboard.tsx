@@ -13,22 +13,22 @@ import {
 
 // Mock data for the dashboard - in a real app, this would come from an API
 const dashboardData = {
-  warehouseBins: {
-    fgBins: 320,
-    emptyBins: 180,
+  warehouseProducts: {
+    fgProducts: 320,
+    emptyProducts: 180,
     total: 500
   },
-  wipBins: {
+  wipProducts: {
     count: 120,
     total: 200
   },
-  customerBins: [
+  customerProducts: [
     { name: "Toyota", count: 45 },
     { name: "Honda", count: 30 },
     { name: "Nissan", count: 25 },
   ],
-  overdueBins: 15,
-  unusedBins: 8
+  overdueProducts: 15,
+  unusedProducts: 8
 };
 
 export const Dashboard = () => {
@@ -53,14 +53,14 @@ export const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Total Bins
+                  Total Products
                 </CardTitle>
                 <Box className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.warehouseBins.total}</div>
+                <div className="text-2xl font-bold">{dashboardData.warehouseProducts.total}</div>
                 <p className="text-xs text-muted-foreground">
-                  Tracking {dashboardData.warehouseBins.total} bins across all locations
+                  Tracking {dashboardData.warehouseProducts.total} products across all locations
                 </p>
               </CardContent>
             </Card>
@@ -68,20 +68,20 @@ export const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Warehouse Bins
+                  Warehouse Products
                 </CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.warehouseBins.fgBins + dashboardData.warehouseBins.emptyBins}</div>
+                <div className="text-2xl font-bold">{dashboardData.warehouseProducts.fgProducts + dashboardData.warehouseProducts.emptyProducts}</div>
                 <div className="mt-2 flex items-center gap-2 text-xs">
                   <div className="flex items-center gap-1">
                     <div className="h-2 w-2 rounded-full bg-rfid-blue"></div>
-                    <span>FG: {dashboardData.warehouseBins.fgBins}</span>
+                    <span>FG: {dashboardData.warehouseProducts.fgProducts}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="h-2 w-2 rounded-full bg-gray-300"></div>
-                    <span>Empty: {dashboardData.warehouseBins.emptyBins}</span>
+                    <span>Empty: {dashboardData.warehouseProducts.emptyProducts}</span>
                   </div>
                 </div>
               </CardContent>
@@ -90,18 +90,18 @@ export const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  WIP Bins
+                  WIP Products
                 </CardTitle>
                 <Package2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.wipBins.count}</div>
+                <div className="text-2xl font-bold">{dashboardData.wipProducts.count}</div>
                 <Progress 
-                  value={(dashboardData.wipBins.count / dashboardData.wipBins.total) * 100} 
+                  value={(dashboardData.wipProducts.count / dashboardData.wipProducts.total) * 100} 
                   className="h-2 mt-2"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {dashboardData.wipBins.count} of {dashboardData.wipBins.total} capacity
+                  {dashboardData.wipProducts.count} of {dashboardData.wipProducts.total} capacity
                 </p>
               </CardContent>
             </Card>
@@ -109,16 +109,16 @@ export const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Customer Bins
+                  Customer Products
                 </CardTitle>
                 <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.customerBins.reduce((acc, customer) => acc + customer.count, 0)}
+                  {dashboardData.customerProducts.reduce((acc, customer) => acc + customer.count, 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Dispatched to {dashboardData.customerBins.length} customers
+                  Dispatched to {dashboardData.customerProducts.length} customers
                 </p>
               </CardContent>
             </Card>
@@ -127,13 +127,13 @@ export const Dashboard = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Bins by Location</CardTitle>
+                <CardTitle>Products by Location</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[200px] flex items-center justify-center">
                   <div className="relative h-40 w-40">
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-lg font-bold">{dashboardData.warehouseBins.total}</span>
+                      <span className="text-lg font-bold">{dashboardData.warehouseProducts.total}</span>
                     </div>
                     <svg className="h-full w-full" viewBox="0 0 20 20">
                       <circle r="10" cx="10" cy="10" fill="white" />
@@ -144,7 +144,7 @@ export const Dashboard = () => {
                         fill="transparent"
                         stroke="#3b82f6"
                         strokeWidth="10"
-                        strokeDasharray={`${(dashboardData.warehouseBins.fgBins / dashboardData.warehouseBins.total) * 31.4} 31.4`}
+                        strokeDasharray={`${(dashboardData.warehouseProducts.fgProducts / dashboardData.warehouseProducts.total) * 31.4} 31.4`}
                         transform="rotate(-90) translate(-20)"
                       />
                       <circle 
@@ -154,8 +154,8 @@ export const Dashboard = () => {
                         fill="transparent"
                         stroke="#d1d5db"
                         strokeWidth="10"
-                        strokeDasharray={`${(dashboardData.warehouseBins.emptyBins / dashboardData.warehouseBins.total) * 31.4} 31.4`}
-                        strokeDashoffset={`${-1 * (dashboardData.warehouseBins.fgBins / dashboardData.warehouseBins.total) * 31.4}`}
+                        strokeDasharray={`${(dashboardData.warehouseProducts.emptyProducts / dashboardData.warehouseProducts.total) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * (dashboardData.warehouseProducts.fgProducts / dashboardData.warehouseProducts.total) * 31.4}`}
                         transform="rotate(-90) translate(-20)"
                       />
                       <circle 
@@ -165,8 +165,8 @@ export const Dashboard = () => {
                         fill="transparent"
                         stroke="#10b981"
                         strokeWidth="10"
-                        strokeDasharray={`${(dashboardData.wipBins.count / dashboardData.warehouseBins.total) * 31.4} 31.4`}
-                        strokeDashoffset={`${-1 * ((dashboardData.warehouseBins.fgBins + dashboardData.warehouseBins.emptyBins) / dashboardData.warehouseBins.total) * 31.4}`}
+                        strokeDasharray={`${(dashboardData.wipProducts.count / dashboardData.warehouseProducts.total) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * ((dashboardData.warehouseProducts.fgProducts + dashboardData.warehouseProducts.emptyProducts) / dashboardData.warehouseProducts.total) * 31.4}`}
                         transform="rotate(-90) translate(-20)"
                       />
                       <circle 
@@ -176,8 +176,8 @@ export const Dashboard = () => {
                         fill="transparent"
                         stroke="#f59e0b"
                         strokeWidth="10"
-                        strokeDasharray={`${(dashboardData.customerBins.reduce((acc, customer) => acc + customer.count, 0) / dashboardData.warehouseBins.total) * 31.4} 31.4`}
-                        strokeDashoffset={`${-1 * ((dashboardData.warehouseBins.fgBins + dashboardData.warehouseBins.emptyBins + dashboardData.wipBins.count) / dashboardData.warehouseBins.total) * 31.4}`}
+                        strokeDasharray={`${(dashboardData.customerProducts.reduce((acc, customer) => acc + customer.count, 0) / dashboardData.warehouseProducts.total) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * ((dashboardData.warehouseProducts.fgProducts + dashboardData.warehouseProducts.emptyProducts + dashboardData.wipProducts.count) / dashboardData.warehouseProducts.total) * 31.4}`}
                         transform="rotate(-90) translate(-20)"
                       />
                     </svg>
@@ -186,20 +186,20 @@ export const Dashboard = () => {
                   <div className="ml-8 space-y-2">
                     <div className="flex items-center">
                       <div className="mr-2 h-3 w-3 rounded-full bg-rfid-blue"></div>
-                      <span className="text-sm font-medium">FG Warehouse: {dashboardData.warehouseBins.fgBins}</span>
+                      <span className="text-sm font-medium">FG Warehouse: {dashboardData.warehouseProducts.fgProducts}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="mr-2 h-3 w-3 rounded-full bg-gray-300"></div>
-                      <span className="text-sm font-medium">Empty Warehouse: {dashboardData.warehouseBins.emptyBins}</span>
+                      <span className="text-sm font-medium">Empty Warehouse: {dashboardData.warehouseProducts.emptyProducts}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="mr-2 h-3 w-3 rounded-full bg-rfid-success"></div>
-                      <span className="text-sm font-medium">WIP: {dashboardData.wipBins.count}</span>
+                      <span className="text-sm font-medium">WIP: {dashboardData.wipProducts.count}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="mr-2 h-3 w-3 rounded-full bg-rfid-warning"></div>
                       <span className="text-sm font-medium">
-                        Customer: {dashboardData.customerBins.reduce((acc, customer) => acc + customer.count, 0)}
+                        Customer: {dashboardData.customerProducts.reduce((acc, customer) => acc + customer.count, 0)}
                       </span>
                     </div>
                   </div>
@@ -218,9 +218,9 @@ export const Dashboard = () => {
                       <Clock className="h-5 w-5 text-red-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Overdue Bins</p>
+                      <p className="text-sm font-medium">Overdue Products</p>
                       <p className="text-xs text-muted-foreground">
-                        {dashboardData.overdueBins} bins past turnaround time
+                        {dashboardData.overdueProducts} products past turnaround time
                       </p>
                     </div>
                   </div>
@@ -230,9 +230,9 @@ export const Dashboard = () => {
                       <AlertTriangle className="h-5 w-5 text-amber-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Unused Bins</p>
+                      <p className="text-sm font-medium">Unused Products</p>
                       <p className="text-xs text-muted-foreground">
-                        {dashboardData.unusedBins} bins unused for over 1 month
+                        {dashboardData.unusedProducts} products unused for over 1 month
                       </p>
                     </div>
                   </div>
@@ -257,7 +257,7 @@ export const Dashboard = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Bin Movements</CardTitle>
+                <CardTitle>Recent Product Movements</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -279,15 +279,15 @@ export const Dashboard = () => {
             
             <Card>
               <CardHeader>
-                <CardTitle>Customer Bin Distribution</CardTitle>
+                <CardTitle>Customer Product Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {dashboardData.customerBins.map((customer, i) => (
+                  {dashboardData.customerProducts.map((customer, i) => (
                     <div key={i} className="space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{customer.name}</span>
-                        <span className="text-sm text-muted-foreground">{customer.count} bins</span>
+                        <span className="text-sm text-muted-foreground">{customer.count} products</span>
                       </div>
                       <Progress value={(customer.count / 100) * 100} className="h-2" />
                     </div>
