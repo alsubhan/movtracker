@@ -4,10 +4,10 @@ import { Permission } from '@/types';
 // Define application permissions
 export const PERMISSIONS = {
   USER_MANAGEMENT: 'user_management',
-  BIN_MANAGEMENT: 'bin_management',
+  INVENTORY_MANAGEMENT: 'inventory_management',
   GATE_MANAGEMENT: 'gate_management',
   BARCODE_PRINTING: 'barcode_printing', // This is now the primary permission
-  BIN_MOVEMENT: 'bin_movement',
+  INVENTORY_MOVEMENT: 'inventory_movement',
   REPORTS_VIEW: 'reports_view',
   DATABASE_UTILITIES: 'database_utilities',
   SETTINGS: 'settings',
@@ -17,14 +17,14 @@ export const PERMISSIONS = {
 export const ROLE_PERMISSIONS = {
   admin: Object.values(PERMISSIONS),
   user: [
-    PERMISSIONS.BIN_MANAGEMENT,
+    PERMISSIONS.INVENTORY_MANAGEMENT,
     PERMISSIONS.BARCODE_PRINTING,
-    PERMISSIONS.BIN_MOVEMENT,
+    PERMISSIONS.INVENTORY_MOVEMENT,
     PERMISSIONS.REPORTS_VIEW,
   ],
   operator: [
     PERMISSIONS.BARCODE_PRINTING,
-    PERMISSIONS.BIN_MOVEMENT,
+    PERMISSIONS.INVENTORY_MOVEMENT,
   ],
 };
 
@@ -34,19 +34,19 @@ export const permissionsList: Permission[] = [
     id: '1',
     name: PERMISSIONS.USER_MANAGEMENT,
     description: 'Manage user accounts',
-    modules: ['User Master'],
+    modules: ['Users'],
   },
   {
     id: '2',
-    name: PERMISSIONS.BIN_MANAGEMENT,
-    description: 'Manage bins',
-    modules: ['Bin Master'],
+    name: PERMISSIONS.INVENTORY_MANAGEMENT,
+    description: 'Manage Inventory',
+    modules: ['Inventory'],
   },
   {
     id: '3',
     name: PERMISSIONS.GATE_MANAGEMENT,
     description: 'Manage gates',
-    modules: ['Gates Master'],
+    modules: ['Gates','Gate Types'],
   },
   {
     id: '4',
@@ -56,15 +56,15 @@ export const permissionsList: Permission[] = [
   },
   {
     id: '5',
-    name: PERMISSIONS.BIN_MOVEMENT,
-    description: 'Track bin movements',
-    modules: ['Bin In Movement', 'Bin Out Movement'],
+    name: PERMISSIONS.INVENTORY_MOVEMENT,
+    description: 'Movements',
+    modules: ['In Movement', 'Out Movement'],
   },
   {
     id: '6',
     name: PERMISSIONS.REPORTS_VIEW,
     description: 'View reports',
-    modules: ['Bin Movements', 'Missing Bins'],
+    modules: ['Movements Report', 'Missing Report'],
   },
   {
     id: '7',

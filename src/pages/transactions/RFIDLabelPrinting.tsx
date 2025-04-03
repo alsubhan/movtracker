@@ -152,7 +152,7 @@ const RFIDLabelPrinting = () => {
           <CardHeader>
             <CardTitle>Print RFID Labels</CardTitle>
             <CardDescription>
-              Generate and print RFID labels for bin tracking
+              Generate and print RFID labels for inventory tracking
             </CardDescription>
           </CardHeader>
           <CardContent>

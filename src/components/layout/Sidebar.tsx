@@ -114,14 +114,14 @@ export const Sidebar = () => {
                   label="Inventory"
                   href="/inventory"
                   active={pathname === "/inventory"}
-                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<MapPin size={20} />}
                   label="Locations"
                   href="/locations"
                   active={pathname === "/locations"}
-                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<DoorOpen size={20} />}
@@ -135,7 +135,7 @@ export const Sidebar = () => {
                   label="Customers"
                   href="/customers"
                   active={pathname === "/customers"}
-                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
                 />
               </div>
             </div>
@@ -157,7 +157,7 @@ export const Sidebar = () => {
                   label="Movement"
                   href="/movement"
                   active={pathname === "/movement"}
-                  requiredPermission={PERMISSIONS.BIN_MOVEMENT}
+                  requiredPermission={PERMISSIONS.INVENTORY_MOVEMENT}
                 />
               </div>
             </div>

@@ -90,7 +90,7 @@ export const Header = () => {
           )}
           
           <div className="font-semibold text-lg text-foreground">
-            Mov Tracker
+            MovTracker
           </div>
         </div>
         

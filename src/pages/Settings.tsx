@@ -88,7 +88,7 @@ const Settings = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="notifications" className="text-base font-medium">Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Enable notifications for bin movements</p>
+                    <p className="text-sm text-muted-foreground">Enable notifications for inventory movements</p>
                   </div>
                   <Switch
                     id="notifications"

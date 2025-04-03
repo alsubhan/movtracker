@@ -152,7 +152,7 @@ const BarcodeLabelPrinting = () => {
           <CardHeader>
             <CardTitle>Print Barcode Labels</CardTitle>
             <CardDescription>
-              Generate and print 2D barcode labels for manual bin tracking
+              Generate and print 2D barcode labels for manual inventory tracking
             </CardDescription>
           </CardHeader>
           <CardContent>
