@@ -157,12 +157,12 @@ const Customers = () => {
     <Layout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Customers</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Customers Management</h2>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Customer Management</CardTitle>
+            <CardTitle>Customers</CardTitle>
             <CardDescription>
               Manage customer information in the system
             </CardDescription>
