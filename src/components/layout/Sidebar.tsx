@@ -78,7 +78,7 @@ export const Sidebar = () => {
         <div className="px-3 py-2">
           <Link to="/" className="flex items-center gap-2 mb-6">
             <h2 className="text-xl font-bold tracking-tight text-rfid-blue">
-              Product Rental Tracker
+              MovTracker
             </h2>
           </Link>
           
