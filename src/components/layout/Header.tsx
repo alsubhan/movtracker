@@ -90,7 +90,7 @@ export const Header = () => {
           )}
           
           <div className="font-semibold text-lg text-foreground">
-            FG Bin Tracking System
+            Product Rental Tracker
           </div>
         </div>
         

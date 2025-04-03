@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
@@ -76,7 +77,7 @@ export const Sidebar = () => {
         <div className="px-3 py-2">
           <Link to="/" className="flex items-center gap-2 mb-6">
             <h2 className="text-xl font-bold tracking-tight text-rfid-blue">
-              FG Product Tracker
+              Product Rental Tracker
             </h2>
           </Link>
           
