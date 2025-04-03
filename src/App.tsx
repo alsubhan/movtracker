@@ -43,16 +43,16 @@ function AppRoutes() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<Index />} />
       <Route path="/settings" element={<Settings />} />
-      <Route path="/masters/user" element={<Users />} />
-      <Route path="/masters/bin" element={<Inventory />} />
-      <Route path="/masters/locations" element={<Locations />} />
-      <Route path="/masters/gates" element={<Gates />} />
-      <Route path="/masters/customers" element={<Customers />} />
-      <Route path="/transactions/label-printing" element={<LabelPrinting />} />
-      <Route path="/transactions/product-movement" element={<Movement />} />
-      <Route path="/reports/bin-movement" element={<MovementReport />} />
-      <Route path="/reports/missing-bins" element={<MissingReport />} />
-      <Route path="/utilities/database" element={<DatabaseUtility />} />
+      <Route path="/users" element={<Users />} />
+      <Route path="/inventory" element={<Inventory />} />
+      <Route path="/locations" element={<Locations />} />
+      <Route path="/gates" element={<Gates />} />
+      <Route path="/customers" element={<Customers />} />
+      <Route path="/label-printing" element={<LabelPrinting />} />
+      <Route path="/movement" element={<Movement />} />
+      <Route path="/movement-report" element={<MovementReport />} />
+      <Route path="/missing-report" element={<MissingReport />} />
+      <Route path="/database" element={<DatabaseUtility />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Customer, Location } from "@/types";
 
 // Mock data
-const initialProducts = [
+const initialInventory = [
   {
     id: "1",
     customer: "TOY",
@@ -96,8 +96,8 @@ const mockCustomers: Customer[] = [
   { id: "5", code: "TES", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
 ];
 
-const Products = () => {
-  const [products, setProducts] = useState(initialProducts);
+const Inventory = () => {
+  const [inventory, setInventory] = useState(initialInventory);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
@@ -149,7 +149,7 @@ const Products = () => {
   };
 
   const handleDeleteProduct = (id: string) => {
-    setProducts(products.filter((product) => product.id !== id));
+    setInventory(inventory.filter((product) => product.id !== id));
     toast({
       title: "Product Deleted",
       description: "Product has been deleted successfully",
@@ -163,8 +163,8 @@ const Products = () => {
     const productId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
     
     if (isEditing) {
-      setProducts(
-        products.map((product) =>
+      setInventory(
+        inventory.map((product) =>
           product.id === formData.id
             ? {
                 ...formData,
@@ -185,7 +185,7 @@ const Products = () => {
         lastScanTime: new Date(),
         createdAt: new Date(),
       };
-      setProducts([...products, newProduct]);
+      setInventory([...inventory, newProduct]);
       toast({
         title: "Product Added",
         description: `New product ${productId} has been added successfully`,
@@ -196,7 +196,7 @@ const Products = () => {
     setIsDialogOpen(false);
   };
 
-  const filteredProducts = products.filter((product) => {
+  const filteredInventory = inventory.filter((product) => {
     const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
     const searchableValues = [
       product.customer,
@@ -216,15 +216,15 @@ const Products = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Products</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Products</CardTitle>
+            <CardTitle>Inventory</CardTitle>
             <CardDescription>
-              Manage products and their tracking information
+              Manage inventory and their tracking information
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ const Products = () => {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search products..."
+                placeholder="Search inventory..."
                 className="pl-8 w-[250px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -400,7 +400,7 @@ const Products = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => {
+              {filteredInventory.map((product) => {
                 const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
                 return (
                   <TableRow key={product.id}>
@@ -475,4 +475,4 @@ const Products = () => {
   );
 };
 
-export default Products;
+export default Inventory;
