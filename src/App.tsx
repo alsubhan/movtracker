@@ -9,6 +9,7 @@ import Settings from "./pages/Settings";
 import UserMaster from "./pages/masters/UserMaster";
 import Products from "./pages/masters/Products";
 import GatesMaster from "./pages/masters/GatesMaster";
+import Customers from "./pages/masters/Customers";
 import LabelPrinting from "./pages/transactions/LabelPrinting";
 import ProductMovement from "./pages/transactions/ProductMovement";
 import NotFound from "./pages/NotFound";
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/masters/user" element={<UserMaster />} />
       <Route path="/masters/bin" element={<Products />} />
       <Route path="/masters/gates" element={<GatesMaster />} />
+      <Route path="/masters/customers" element={<Customers />} />
       <Route path="/transactions/label-printing" element={<LabelPrinting />} />
       <Route path="/transactions/bin-movement" element={<ProductMovement />} />
       <Route path="/reports/bin-movement" element={<ProductMovementReport />} />

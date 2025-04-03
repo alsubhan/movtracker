@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
@@ -12,7 +11,8 @@ import {
   LayoutDashboard, 
   DoorOpen,
   Settings,
-  LogOut
+  LogOut,
+  Building
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
@@ -120,6 +120,13 @@ export const Sidebar = () => {
                   href="/masters/gates"
                   active={pathname === "/masters/gates"}
                   requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
+                />
+                <SidebarItem
+                  icon={<Building size={20} />}
+                  label="Customers"
+                  href="/masters/customers"
+                  active={pathname === "/masters/customers"}
+                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
               </div>
             </div>
