@@ -105,8 +105,8 @@ export const Sidebar = () => {
                 <SidebarItem
                   icon={<User size={20} />}
                   label="Users"
-                  href="/masters/user"
-                  active={pathname === "/masters/user"}
+                  href="/users"
+                  active={pathname === "/users"}
                   requiredPermission={PERMISSIONS.USER_MANAGEMENT}
                 />
                 <SidebarItem

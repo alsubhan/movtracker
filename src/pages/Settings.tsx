@@ -136,7 +136,7 @@ const Settings = () => {
               <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
               
               <div className="space-y-4">
-                <Button variant="outline" onClick={() => navigate("/masters/user")}>
+                <Button variant="outline" onClick={() => navigate("/users")}>
                   Manage Users
                 </Button>
                 
