@@ -154,7 +154,7 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<Box size={20} />}
-                  label="Product Movement"
+                  label="Movement"
                   href="/transactions/product-movement"
                   active={pathname === "/transactions/product-movement"}
                   requiredPermission={PERMISSIONS.BIN_MOVEMENT}
@@ -169,14 +169,14 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<FileText size={20} />}
-                  label="Product Movements"
+                  label="Movements Report"
                   href="/reports/bin-movement"
                   active={pathname === "/reports/bin-movement"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
                 <SidebarItem
                   icon={<FileText size={20} />}
-                  label="Missing Products"
+                  label="Missing Report"
                   href="/reports/missing-bins"
                   active={pathname === "/reports/missing-bins"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}

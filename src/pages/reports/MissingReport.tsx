@@ -114,13 +114,13 @@ const MissingReport = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Missing Products Report</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Missing Report</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Missing Products</CardTitle>
+            <CardTitle>Missing Report</CardTitle>
             <CardDescription>
               Track and locate products that have not been scanned recently
             </CardDescription>
@@ -245,7 +245,7 @@ const MissingReport = () => {
                   <TableCell colSpan={7} className="text-center py-4">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <FileText className="h-8 w-8 mb-2" />
-                      <p>No missing products found</p>
+                      <p>No missing found</p>
                     </div>
                   </TableCell>
                 </TableRow>

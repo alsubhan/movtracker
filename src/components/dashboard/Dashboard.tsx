@@ -257,7 +257,7 @@ export const Dashboard = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Product Movements</CardTitle>
+                <CardTitle>Recent Movements</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">

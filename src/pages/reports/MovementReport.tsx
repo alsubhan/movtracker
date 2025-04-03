@@ -24,7 +24,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-// Mock data for product movements
+// Mock data for movements
 const mockMovements = [
   {
     id: "1",
@@ -107,15 +107,15 @@ const MovementReport = () => {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Product Movement Report</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Movement Report</h2>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Product Movements</CardTitle>
+            <CardTitle>Movements Report</CardTitle>
             <CardDescription>
-              Track all product movements across gates and locations
+              Track all movements across gates and locations
             </CardDescription>
           </div>
         </CardHeader>
@@ -208,7 +208,7 @@ const MovementReport = () => {
                       <TableCell colSpan={6} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No product movements found</p>
+                          <p>No movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -258,7 +258,7 @@ const MovementReport = () => {
                       <TableCell colSpan={5} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No product in movements found</p>
+                          <p>No in movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -308,7 +308,7 @@ const MovementReport = () => {
                       <TableCell colSpan={5} className="text-center py-4">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
                           <FileText className="h-8 w-8 mb-2" />
-                          <p>No product out movements found</p>
+                          <p>No out movements found</p>
                         </div>
                       </TableCell>
                     </TableRow>
