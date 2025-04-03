@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, Box, Barcode, Scan } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -58,6 +60,14 @@ const mockMovements: ProductMovementData[] = [
   },
 ];
 
+// Mock customers for demo
+const mockCustomers = [
+  { id: "TOY", name: "Toyota" },
+  { id: "HON", name: "Honda" },
+  { id: "NIS", name: "Nissan" },
+  { id: "SUZ", name: "Suzuki" },
+];
+
 const ProductMovement = () => {
   const [searchParams] = useSearchParams();
   const defaultMovementType = searchParams.get("type") || "out";
@@ -66,17 +76,20 @@ const ProductMovement = () => {
   
   const [movements, setMovements] = useState<ProductMovementData[]>([]);
   const [selectedGate, setSelectedGate] = useState("Gate 1");
+  const [selectedCustomer, setSelectedCustomer] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [movementType, setMovementType] = useState<"in" | "out">(defaultMovementType as "in" | "out");
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Load movements based on selected type
+  // Load all movements initially
   useEffect(() => {
-    const filtered = mockMovements.filter(
-      (movement) => movement.movementType === movementType
-    );
-    setMovements(filtered);
-  }, [movementType]);
+    setMovements(mockMovements);
+  }, []);
+
+  // Filter movements based on selected type
+  const filteredMovements = movements.filter(
+    (movement) => movement.movementType === movementType
+  );
 
   // Handle barcode scan
   const handleBarcodeScan = (e: React.FormEvent) => {
@@ -91,6 +104,15 @@ const ProductMovement = () => {
       return;
     }
     
+    if (!selectedCustomer && barcodeInput.length >= 3) {
+      // Try to extract customer code from barcode
+      const customerCode = barcodeInput.substring(0, 3);
+      const customer = mockCustomers.find(c => c.id === customerCode);
+      if (customer) {
+        setSelectedCustomer(customer.id);
+      }
+    }
+    
     const newMovement: ProductMovementData = {
       id: `manual-${Date.now()}`,
       productId: barcodeInput,
@@ -99,8 +121,8 @@ const ProductMovement = () => {
       timestamp: new Date(),
       location: movementType === "in" ? "warehouse" : "customer",
       previousLocation: movementType === "in" ? "customer" : "warehouse",
-      customer: barcodeInput.substring(0, 3),
-      project: barcodeInput.substring(3, 7),
+      customer: selectedCustomer || barcodeInput.substring(0, 3),
+      project: barcodeInput.length >= 7 ? barcodeInput.substring(3, 7) : "",
     };
     
     // Save to database (mock)
@@ -156,6 +178,26 @@ const ProductMovement = () => {
                     <label htmlFor="out" className="cursor-pointer">Product Out</label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              {/* Customer Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="customer">Select Customer</Label>
+                <Select
+                  value={selectedCustomer}
+                  onValueChange={setSelectedCustomer}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockCustomers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Gate Selection */}
@@ -236,8 +278,8 @@ const ProductMovement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.length > 0 ? (
-                      movements.map((movement) => (
+                    {filteredMovements.length > 0 ? (
+                      filteredMovements.map((movement) => (
                         <TableRow key={movement.id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
@@ -289,7 +331,7 @@ const ProductMovement = () => {
                         <CardTitle className="text-sm">Total Products</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">{movements.length}</div>
+                        <div className="text-2xl font-bold">{filteredMovements.length}</div>
                       </CardContent>
                     </Card>
                     
@@ -299,11 +341,11 @@ const ProductMovement = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {Array.from(new Set(movements.map(m => m.customer))).map((customer, i) => (
+                          {Array.from(new Set(filteredMovements.map(m => m.customer))).map((customer, i) => (
                             <div key={i} className="flex justify-between items-center text-sm">
                               <span>{customer}</span>
                               <span className="font-medium">
-                                {movements.filter(m => m.customer === customer).length}
+                                {filteredMovements.filter(m => m.customer === customer).length}
                               </span>
                             </div>
                           ))}

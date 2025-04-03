@@ -16,6 +16,20 @@ export interface Permission {
   modules: string[];
 }
 
+export interface ProductLocation {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
+
+export interface GateType {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
+
 export interface Product {
   id: string;
   customer: string;
@@ -23,7 +37,7 @@ export interface Product {
   partition: string;
   serialNumber: string;
   status: 'in-stock' | 'in-wip' | 'dispatched' | 'damaged';
-  location: 'warehouse' | 'wip' | 'customer';
+  location: string;
   lastScanTime: Date;
   lastScanGate: string;
   createdAt: Date;
@@ -33,7 +47,7 @@ export interface Gate {
   id: string;
   name: string;
   gateLocation: string;
-  type: 'production' | 'warehouse' | 'dispatch';
+  type: string;
   status: 'active' | 'inactive';
 }
 
@@ -43,8 +57,8 @@ export interface ProductMovement {
   gateId: string;
   movementType: 'in' | 'out';
   timestamp: Date;
-  location: 'warehouse' | 'wip' | 'customer';
-  previousLocation: 'warehouse' | 'wip' | 'customer';
+  location: string;
+  previousLocation: string;
 }
 
 export interface Dashboard {

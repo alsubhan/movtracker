@@ -48,6 +48,7 @@ function AppRoutes() {
       <Route path="/masters/customers" element={<Customers />} />
       <Route path="/transactions/label-printing" element={<LabelPrinting />} />
       <Route path="/transactions/bin-movement" element={<ProductMovement />} />
+      <Route path="/transactions/product-movement" element={<ProductMovement />} />
       <Route path="/reports/bin-movement" element={<ProductMovementReport />} />
       <Route path="/reports/missing-bins" element={<MissingProductReport />} />
       <Route path="/utilities/database" element={<DatabaseUtility />} />
