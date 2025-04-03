@@ -43,6 +43,16 @@ export interface Product {
   createdAt: Date;
 }
 
+export interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  status: string;
+}
+
 export interface Gate {
   id: string;
   name: string;

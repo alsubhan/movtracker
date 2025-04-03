@@ -29,24 +29,16 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Customer } from "@/types";
 
 // Sample data for demonstration
-const demoCustomers = [
-  { id: "1", name: "Toyota", contact_person: "John Smith", phone: "555-1234", email: "john@toyota.com", status: "Active" },
-  { id: "2", name: "Honda", contact_person: "Jane Doe", phone: "555-2345", email: "jane@honda.com", status: "Active" },
-  { id: "3", name: "Nissan", contact_person: "Bob Johnson", phone: "555-3456", email: "bob@nissan.com", status: "Active" },
-  { id: "4", name: "Ford", contact_person: "Alice Williams", phone: "555-4567", email: "alice@ford.com", status: "Inactive" },
-  { id: "5", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
+const demoCustomers: Customer[] = [
+  { id: "1", code: "TOY", name: "Toyota", contact_person: "John Smith", phone: "555-1234", email: "john@toyota.com", status: "Active" },
+  { id: "2", code: "HON", name: "Honda", contact_person: "Jane Doe", phone: "555-2345", email: "jane@honda.com", status: "Active" },
+  { id: "3", code: "NIS", name: "Nissan", contact_person: "Bob Johnson", phone: "555-3456", email: "bob@nissan.com", status: "Active" },
+  { id: "4", code: "FOR", name: "Ford", contact_person: "Alice Williams", phone: "555-4567", email: "alice@ford.com", status: "Inactive" },
+  { id: "5", code: "TES", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
 ];
-
-interface Customer {
-  id: string;
-  name: string;
-  contact_person: string;
-  phone: string;
-  email: string;
-  status: string;
-}
 
 const Customers = () => {
   const { toast } = useToast();
@@ -60,6 +52,7 @@ const Customers = () => {
   // Filter customers based on search term
   const filteredCustomers = customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -84,14 +77,41 @@ const Customers = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const customerData = {
+    const customerData: Customer = {
       id: currentCustomer?.id || `${customers.length + 1}`,
+      code: (formData.get("code") as string).toUpperCase(),
       name: formData.get("name") as string,
       contact_person: formData.get("contact_person") as string,
       phone: formData.get("phone") as string,
       email: formData.get("email") as string,
       status: formData.get("status") as string,
     };
+
+    // Check if code already exists (except for the current customer being edited)
+    const codeExists = customers.some(c => 
+      c.code === customerData.code && c.id !== customerData.id
+    );
+
+    if (codeExists) {
+      toast({
+        title: "Error",
+        description: `Customer code ${customerData.code} already exists.`,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate code format (3 characters)
+    if (customerData.code.length !== 3) {
+      toast({
+        title: "Error",
+        description: "Customer code must be exactly 3 characters.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
 
     // Simulate API call
     setTimeout(() => {
@@ -166,6 +186,7 @@ const Customers = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Code</TableHead>
                     <TableHead>Customer Name</TableHead>
                     <TableHead>Contact Person</TableHead>
                     <TableHead>Phone</TableHead>
@@ -177,14 +198,15 @@ const Customers = () => {
                 <TableBody>
                   {filteredCustomers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         No customers found
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredCustomers.map((customer) => (
                       <TableRow key={customer.id}>
-                        <TableCell className="font-medium">{customer.name}</TableCell>
+                        <TableCell className="font-medium">{customer.code}</TableCell>
+                        <TableCell>{customer.name}</TableCell>
                         <TableCell>{customer.contact_person}</TableCell>
                         <TableCell>{customer.phone}</TableCell>
                         <TableCell>{customer.email}</TableCell>
@@ -241,6 +263,20 @@ const Customers = () => {
           </DialogHeader>
           <form onSubmit={handleSaveCustomer}>
             <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="code" className="text-right">
+                  Code (3)
+                </Label>
+                <Input
+                  id="code"
+                  name="code"
+                  defaultValue={currentCustomer?.code}
+                  className="col-span-3"
+                  maxLength={3}
+                  required
+                  placeholder="e.g. TOY"
+                />
+              </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
                   Name

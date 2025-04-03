@@ -13,7 +13,8 @@ import {
   DoorOpen,
   Settings,
   LogOut,
-  Building
+  Building,
+  MapPin
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
@@ -116,6 +117,13 @@ export const Sidebar = () => {
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
                 <SidebarItem
+                  icon={<MapPin size={20} />}
+                  label="Product Locations"
+                  href="/masters/product-locations"
+                  active={pathname === "/masters/product-locations"}
+                  requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
+                />
+                <SidebarItem
                   icon={<DoorOpen size={20} />}
                   label="Gates"
                   href="/masters/gates"
@@ -145,17 +153,10 @@ export const Sidebar = () => {
                   requiredPermission={PERMISSIONS.BARCODE_PRINTING}
                 />
                 <SidebarItem
-                  icon={<ArrowRight size={20} />}
-                  label="Product Out Movement"
-                  href="/transactions/bin-movement?type=out"
-                  active={pathname === "/transactions/bin-movement" && location.search.includes("type=out")}
-                  requiredPermission={PERMISSIONS.BIN_MOVEMENT}
-                />
-                <SidebarItem
-                  icon={<ArrowLeft size={20} />}
-                  label="Product In Movement"
-                  href="/transactions/bin-movement?type=in"
-                  active={pathname === "/transactions/bin-movement" && location.search.includes("type=in")}
+                  icon={<Box size={20} />}
+                  label="Product Movement"
+                  href="/transactions/product-movement"
+                  active={pathname === "/transactions/product-movement"}
                   requiredPermission={PERMISSIONS.BIN_MOVEMENT}
                 />
               </div>

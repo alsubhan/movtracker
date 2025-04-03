@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +38,7 @@ import {
 import { Box, PlusCircle, Pencil, Trash2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Customer, ProductLocation } from "@/types";
 
 // Mock data
 const initialProducts = [
@@ -79,6 +80,22 @@ const initialProducts = [
   },
 ];
 
+// Mock locations for demo
+const mockLocations: ProductLocation[] = [
+  { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
+  { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
+  { id: "3", name: "Customer Site", description: "Client location", status: "active" },
+];
+
+// Mock customer data
+const mockCustomers: Customer[] = [
+  { id: "1", code: "TOY", name: "Toyota", contact_person: "John Smith", phone: "555-1234", email: "john@toyota.com", status: "Active" },
+  { id: "2", code: "HON", name: "Honda", contact_person: "Jane Doe", phone: "555-2345", email: "jane@honda.com", status: "Active" },
+  { id: "3", code: "NIS", name: "Nissan", contact_person: "Bob Johnson", phone: "555-3456", email: "bob@nissan.com", status: "Active" },
+  { id: "4", code: "FOR", name: "Ford", contact_person: "Alice Williams", phone: "555-4567", email: "alice@ford.com", status: "Inactive" },
+  { id: "5", code: "TES", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
+];
+
 const Products = () => {
   const [products, setProducts] = useState(initialProducts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -94,7 +111,13 @@ const Products = () => {
     lastScanGate: "",
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [locations, setLocations] = useState<ProductLocation[]>(mockLocations);
+  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
   const { toast } = useToast();
+
+  // Filter out inactive customers and locations
+  const activeCustomers = customers.filter(customer => customer.status === "Active");
+  const activeLocations = locations.filter(location => location.status === "active");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -184,6 +207,12 @@ const Products = () => {
     return searchableValues.includes(searchTerm.toLowerCase());
   });
 
+  // Get customer name from code
+  const getCustomerName = (code: string) => {
+    const customer = customers.find(c => c.code === code);
+    return customer ? customer.name : code;
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -234,19 +263,25 @@ const Products = () => {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="customer">Customer</Label>
+                      <Select
+                        value={formData.customer}
+                        onValueChange={(value) => handleSelectChange("customer", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeCustomers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.code}>
+                              {customer.name} ({customer.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="customer">Customer Code (3)</Label>
-                        <Input
-                          id="customer"
-                          name="customer"
-                          value={formData.customer}
-                          onChange={handleInputChange}
-                          placeholder="e.g. TOY"
-                          maxLength={3}
-                          required
-                        />
-                      </div>
                       <div className="grid gap-2">
                         <Label htmlFor="project">Project (4)</Label>
                         <Input
@@ -271,18 +306,18 @@ const Products = () => {
                           required
                         />
                       </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="serialNumber">Serial Number (3)</Label>
-                      <Input
-                        id="serialNumber"
-                        name="serialNumber"
-                        value={formData.serialNumber}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 001"
-                        maxLength={3}
-                        required
-                      />
+                      <div className="grid gap-2">
+                        <Label htmlFor="serialNumber">Serial Number (3)</Label>
+                        <Input
+                          id="serialNumber"
+                          name="serialNumber"
+                          value={formData.serialNumber}
+                          onChange={handleInputChange}
+                          placeholder="e.g. 001"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
@@ -316,9 +351,11 @@ const Products = () => {
                             <SelectValue placeholder="Select location" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="warehouse">Warehouse</SelectItem>
-                            <SelectItem value="wip">WIP</SelectItem>
-                            <SelectItem value="customer">Customer</SelectItem>
+                            {activeLocations.map((location) => (
+                              <SelectItem key={location.id} value={location.id}>
+                                {location.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -354,6 +391,7 @@ const Products = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Product ID</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Last Scan</TableHead>
@@ -372,6 +410,7 @@ const Products = () => {
                         {productId}
                       </div>
                     </TableCell>
+                    <TableCell>{getCustomerName(product.customer)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"

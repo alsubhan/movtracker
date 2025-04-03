@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import UserMaster from "./pages/masters/UserMaster";
 import Products from "./pages/masters/Products";
+import ProductLocations from "./pages/masters/ProductLocations";
 import GatesMaster from "./pages/masters/GatesMaster";
 import Customers from "./pages/masters/Customers";
 import LabelPrinting from "./pages/transactions/LabelPrinting";
@@ -44,10 +45,10 @@ function AppRoutes() {
       <Route path="/settings" element={<Settings />} />
       <Route path="/masters/user" element={<UserMaster />} />
       <Route path="/masters/bin" element={<Products />} />
+      <Route path="/masters/product-locations" element={<ProductLocations />} />
       <Route path="/masters/gates" element={<GatesMaster />} />
       <Route path="/masters/customers" element={<Customers />} />
       <Route path="/transactions/label-printing" element={<LabelPrinting />} />
-      <Route path="/transactions/bin-movement" element={<ProductMovement />} />
       <Route path="/transactions/product-movement" element={<ProductMovement />} />
       <Route path="/reports/bin-movement" element={<ProductMovementReport />} />
       <Route path="/reports/missing-bins" element={<MissingProductReport />} />
