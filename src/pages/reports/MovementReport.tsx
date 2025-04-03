@@ -152,8 +152,8 @@ const MovementReport = () => {
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">All Movements</TabsTrigger>
-              <TabsTrigger value="in">Product In</TabsTrigger>
-              <TabsTrigger value="out">Product Out</TabsTrigger>
+              <TabsTrigger value="in">In</TabsTrigger>
+              <TabsTrigger value="out">Out</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
               <Table>

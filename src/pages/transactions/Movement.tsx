@@ -133,7 +133,7 @@ const Movement = () => {
     
     toast({
       title: "Barcode Scanned",
-      description: `Product ${barcodeInput} registered as ${movementType === "in" ? "Product In" : "Product Out"} movement`,
+      description: `Product ${barcodeInput} registered as ${movementType === "in" ? "In" : "Product Out"} movement`,
     });
     
     // Reset input and focus for next scan
@@ -171,11 +171,11 @@ const Movement = () => {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="in" id="in" />
-                    <label htmlFor="in" className="cursor-pointer">Product In</label>
+                    <label htmlFor="in" className="cursor-pointer">In</label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="out" id="out" />
-                    <label htmlFor="out" className="cursor-pointer">Product Out</label>
+                    <label htmlFor="out" className="cursor-pointer">Out</label>
                   </div>
                 </RadioGroup>
               </div>
