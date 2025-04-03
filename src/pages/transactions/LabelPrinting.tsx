@@ -91,8 +91,8 @@ const LabelPrinting = () => {
     const previews: string[] = [];
     for (let i = 0; i < quantity; i++) {
       const serial = (serialStart + i).toString().padStart(3, "0");
-      const binId = `${formData.customer}${formData.project}${formData.partition}${serial}`;
-      previews.push(binId);
+      const productId = `${formData.customer}${formData.project}${formData.partition}${serial}`;
+      previews.push(productId);
     }
     
     setPreviewData(previews);
@@ -152,7 +152,7 @@ const LabelPrinting = () => {
           <CardHeader>
             <CardTitle>Print Barcode Labels</CardTitle>
             <CardDescription>
-              Generate and print 2D barcode labels for manual bin tracking
+              Generate and print 2D barcode labels for manual product tracking
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -181,7 +181,7 @@ const LabelPrinting = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="partition">Bin Partition (2 chars)</Label>
+                  <Label htmlFor="partition">Product Partition (2 chars)</Label>
                   <Input
                     id="partition"
                     name="partition"
@@ -254,18 +254,18 @@ const LabelPrinting = () => {
             {previewData.length > 0 ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  {previewData.slice(0, 6).map((binId, index) => (
+                  {previewData.slice(0, 6).map((productId, index) => (
                     <div 
                       key={index} 
                       className="border rounded-md p-4 flex flex-col items-center justify-center bg-white"
                     >
                       <div className="text-xs text-gray-500 mb-1">Barcode Label</div>
-                      <div className="text-lg font-bold">{binId}</div>
+                      <div className="text-lg font-bold">{productId}</div>
                       <div className="mt-2">
                         <Barcode className="h-12 w-32" />
                       </div>
                       <div className="mt-2 text-xs rounded-sm text-center">
-                        {binId}
+                        {productId}
                       </div>
                       <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
                     </div>
@@ -292,7 +292,7 @@ const LabelPrinting = () => {
                     <br />
                     YYYY = Project code (4 chars)
                     <br />
-                    ZZ = Bin partition (2 chars)
+                    ZZ = Product partition (2 chars)
                     <br />
                     NNN = Serial number (3 chars)
                   </p>

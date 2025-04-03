@@ -43,29 +43,23 @@ const initialGates = [
   {
     id: "1",
     name: "Gate 1",
-    location: "Finished Goods Warehouse",
+    gateLocation: "Finished Goods Warehouse",
     type: "warehouse",
     status: "active",
-    antennaA: "RFID-ANT-001",
-    antennaB: "RFID-ANT-002",
   },
   {
     id: "2",
     name: "Gate 2",
-    location: "Production Line Exit",
+    gateLocation: "Production Line Exit",
     type: "production",
     status: "active",
-    antennaA: "RFID-ANT-003",
-    antennaB: "RFID-ANT-004",
   },
   {
     id: "3",
     name: "Gate 3",
-    location: "Customer Dispatch Area",
+    gateLocation: "Customer Dispatch Area",
     type: "dispatch",
     status: "inactive",
-    antennaA: "RFID-ANT-005",
-    antennaB: "RFID-ANT-006",
   },
 ];
 
@@ -75,11 +69,9 @@ const GatesMaster = () => {
   const [formData, setFormData] = useState({
     id: "",
     name: "",
-    location: "",
+    gateLocation: "",
     type: "warehouse",
     status: "active",
-    antennaA: "",
-    antennaB: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
@@ -97,11 +89,9 @@ const GatesMaster = () => {
     setFormData({
       id: "",
       name: "",
-      location: "",
+      gateLocation: "",
       type: "warehouse",
       status: "active",
-      antennaA: "",
-      antennaB: "",
     });
     setIsEditing(false);
   };
@@ -154,9 +144,9 @@ const GatesMaster = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>RFID Gates</CardTitle>
+            <CardTitle>Gates</CardTitle>
             <CardDescription>
-              Manage RFID gate locations and configurations
+              Manage gate locations and configurations
             </CardDescription>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -180,7 +170,7 @@ const GatesMaster = () => {
                   <DialogDescription>
                     {isEditing
                       ? "Update gate configuration and status"
-                      : "Create a new RFID gate for bin tracking"}
+                      : "Create a new gate for product tracking"}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -196,11 +186,11 @@ const GatesMaster = () => {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="location">Location</Label>
+                    <Label htmlFor="gateLocation">Gate Location</Label>
                     <Input
-                      id="location"
-                      name="location"
-                      value={formData.location}
+                      id="gateLocation"
+                      name="gateLocation"
+                      value={formData.gateLocation}
                       onChange={handleInputChange}
                       placeholder="e.g. Warehouse Entrance"
                       required
@@ -243,30 +233,6 @@ const GatesMaster = () => {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="antennaA">Antenna A ID</Label>
-                      <Input
-                        id="antennaA"
-                        name="antennaA"
-                        value={formData.antennaA}
-                        onChange={handleInputChange}
-                        placeholder="e.g. RFID-ANT-001"
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="antennaB">Antenna B ID</Label>
-                      <Input
-                        id="antennaB"
-                        name="antennaB"
-                        value={formData.antennaB}
-                        onChange={handleInputChange}
-                        placeholder="e.g. RFID-ANT-002"
-                        required
-                      />
-                    </div>
-                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
@@ -285,11 +251,9 @@ const GatesMaster = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Gate Name</TableHead>
-                <TableHead>Location</TableHead>
+                <TableHead>Gate Location</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Antenna A</TableHead>
-                <TableHead>Antenna B</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -302,7 +266,7 @@ const GatesMaster = () => {
                       {gate.name}
                     </div>
                   </TableCell>
-                  <TableCell>{gate.location}</TableCell>
+                  <TableCell>{gate.gateLocation}</TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -333,8 +297,6 @@ const GatesMaster = () => {
                       {gate.status === "active" ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{gate.antennaA}</TableCell>
-                  <TableCell>{gate.antennaB}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button

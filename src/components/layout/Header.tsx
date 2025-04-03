@@ -24,7 +24,7 @@ export const Header = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([
-    { id: 1, title: "Bin Movement Alert", message: "Bin #1234 moved to Gate A", read: false, time: "10 min ago" },
+    { id: 1, title: "Product Movement Alert", message: "Product #1234 moved to Gate A", read: false, time: "10 min ago" },
     { id: 2, title: "New User Added", message: "Admin added a new user account", read: true, time: "1 hour ago" },
     { id: 3, title: "System Update", message: "System will be updated tonight at 10PM", read: false, time: "2 hours ago" },
   ]);
@@ -104,7 +104,7 @@ export const Header = () => {
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rfid-danger"></span>
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
                 )}
               </Button>
             </DropdownMenuTrigger>

@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   full_name: string | null;
@@ -33,11 +32,9 @@ export interface Product {
 export interface Gate {
   id: string;
   name: string;
-  location: string;
+  gateLocation: string;
   type: 'production' | 'warehouse' | 'dispatch';
   status: 'active' | 'inactive';
-  antennaA: string;
-  antennaB: string;
 }
 
 export interface ProductMovement {
@@ -62,4 +59,3 @@ export interface Dashboard {
   overdueProducts: number;
   unusedProducts: number;
 }
-
