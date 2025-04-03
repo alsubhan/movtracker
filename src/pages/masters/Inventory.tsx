@@ -142,53 +142,53 @@ const Inventory = () => {
     setIsEditing(false);
   };
 
-  const handleEditProduct = (product: any) => {
-    setFormData(product);
+  const handleEditInventory = (inventory: any) => {
+    setFormData(inventory);
     setIsEditing(true);
     setIsDialogOpen(true);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    setInventory(inventory.filter((product) => product.id !== id));
+  const handleDeleteInventory = (id: string) => {
+    setInventory(inventory.filter((inventory) => inventory.id !== id));
     toast({
-      title: "Product Deleted",
-      description: "Product has been deleted successfully",
+      title: "Inventory Deleted",
+      description: "Inventory has been deleted successfully",
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Generate product ID based on customer, project, partition, and serial number
-    const productId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
+    // Generate inventory ID based on customer, project, partition, and serial number
+    const inventoryId = `${formData.customer}${formData.project}${formData.partition}${formData.serialNumber}`;
     
     if (isEditing) {
       setInventory(
-        inventory.map((product) =>
-          product.id === formData.id
+        inventory.map((inventory) =>
+          inventory.id === formData.id
             ? {
                 ...formData,
-                lastScanTime: product.lastScanTime,
-                createdAt: product.createdAt,
+                lastScanTime: inventory.lastScanTime,
+                createdAt: inventory.createdAt,
               }
-            : product
+            : inventory
         )
       );
       toast({
-        title: "Product Updated",
-        description: "Product has been updated successfully",
+        title: "Inventory Updated",
+        description: "Inventory has been updated successfully",
       });
     } else {
-      const newProduct = {
+      const newInventory = {
         ...formData,
-        id: productId, // Using the generated productId instead of a sequential number
+        id: inventoryId, // Using the generated inventoryId instead of a sequential number
         lastScanTime: new Date(),
         createdAt: new Date(),
       };
-      setInventory([...inventory, newProduct]);
+      setInventory([...inventory, newInventory]);
       toast({
-        title: "Product Added",
-        description: `New product ${productId} has been added successfully`,
+        title: "Inventory Added",
+        description: `New inventory ${inventoryId} has been added successfully`,
       });
     }
     
@@ -196,12 +196,12 @@ const Inventory = () => {
     setIsDialogOpen(false);
   };
 
-  const filteredInventory = inventory.filter((product) => {
-    const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
+  const filteredInventory = inventory.filter((inventory) => {
+    const inventoryId = `${inventory.customer}${inventory.project}${inventory.partition}${inventory.serialNumber}`;
     const searchableValues = [
-      product.customer,
-      product.project,
-      productId,
+      inventory.customer,
+      inventory.project,
+      inventoryId,
     ].join(" ").toLowerCase();
     
     return searchableValues.includes(searchTerm.toLowerCase());
@@ -247,19 +247,19 @@ const Inventory = () => {
                   }}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Product
+                  Add Inventory
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>
-                      {isEditing ? "Edit Product" : "Add New Product"}
+                      {isEditing ? "Edit Inventory" : "Add New Inventory"}
                     </DialogTitle>
                     <DialogDescription>
                       {isEditing
-                        ? "Update product details and tracking information"
-                        : "Create a new product with tracking information"}
+                        ? "Update inventory details and tracking information"
+                        : "Create a new inventory with tracking information"}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -378,7 +378,7 @@ const Inventory = () => {
                       Cancel
                     </Button>
                     <Button type="submit">
-                      {isEditing ? "Update Product" : "Add Product"}
+                      {isEditing ? "Update Inventory" : "Add Inventory"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -390,7 +390,7 @@ const Inventory = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product ID</TableHead>
+                <TableHead>Inventory ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
@@ -400,65 +400,65 @@ const Inventory = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInventory.map((product) => {
-                const productId = `${product.customer}${product.project}${product.partition}${product.serialNumber}`;
+              {filteredInventory.map((inventory) => {
+                const inventoryId = `${inventory.customer}${inventory.project}${inventory.partition}${inventory.serialNumber}`;
                 return (
-                  <TableRow key={product.id}>
+                  <TableRow key={inventory.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Box className="h-4 w-4 text-muted-foreground" />
-                        {productId}
+                        {inventoryId}
                       </div>
                     </TableCell>
-                    <TableCell>{getCustomerName(product.customer)}</TableCell>
+                    <TableCell>{getCustomerName(inventory.customer)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={
-                          product.status === "in-stock"
+                          inventory.status === "in-stock"
                             ? "bg-green-50 text-green-700 border-green-200"
-                            : product.status === "in-wip"
+                            : inventory.status === "in-wip"
                             ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : product.status === "dispatched"
+                            : inventory.status === "dispatched"
                             ? "bg-amber-50 text-amber-700 border-amber-200"
                             : "bg-red-50 text-red-700 border-red-200"
                         }
                       >
-                        {product.status === "in-stock"
+                        {inventory.status === "in-stock"
                           ? "In Stock"
-                          : product.status === "in-wip"
+                          : inventory.status === "in-wip"
                           ? "In WIP"
-                          : product.status === "dispatched"
+                          : inventory.status === "dispatched"
                           ? "Dispatched"
                           : "Damaged"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {product.location === "warehouse"
+                        {inventory.location === "warehouse"
                           ? "Warehouse"
-                          : product.location === "wip"
+                          : inventory.location === "wip"
                           ? "WIP"
                           : "Customer"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {product.lastScanTime.toLocaleString()}
+                      {inventory.lastScanTime.toLocaleString()}
                     </TableCell>
-                    <TableCell>{product.lastScanGate}</TableCell>
+                    <TableCell>{inventory.lastScanGate}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEditProduct(product)}
+                          onClick={() => handleEditInventory(inventory)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteProduct(product.id)}
+                          onClick={() => handleDeleteInventory(inventory.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

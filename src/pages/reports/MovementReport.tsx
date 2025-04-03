@@ -28,7 +28,7 @@ import { DateRange } from "react-day-picker";
 const mockMovements = [
   {
     id: "1",
-    productId: "TOY100108001",
+    inventoryId: "TOY100108001",
     gateId: "Gate 1",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
@@ -39,7 +39,7 @@ const mockMovements = [
   },
   {
     id: "2",
-    productId: "HON200104002",
+    inventoryId: "HON200104002",
     gateId: "Gate 2",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), // 1 day ago
@@ -50,7 +50,7 @@ const mockMovements = [
   },
   {
     id: "3",
-    productId: "NIS300102003",
+    inventoryId: "NIS300102003",
     gateId: "Gate 3",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
@@ -61,7 +61,7 @@ const mockMovements = [
   },
   {
     id: "4",
-    productId: "TOY100108005",
+    inventoryId: "TOY100108005",
     gateId: "Gate 1",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
@@ -72,7 +72,7 @@ const mockMovements = [
   },
   {
     id: "5",
-    productId: "HON200104007",
+    inventoryId: "HON200104007",
     gateId: "Gate 2",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
@@ -93,7 +93,7 @@ const MovementReport = () => {
   // Filter movements based on search term and date range
   const filteredMovements = mockMovements.filter((movement) => {
     const matchesSearch =
-      movement.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.inventoryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.customer.toLowerCase().includes(searchTerm.toLowerCase());
     
     const movementDate = movement.timestamp;
@@ -126,7 +126,7 @@ const MovementReport = () => {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by product ID or customer..."
+                  placeholder="Search by inventory ID or customer..."
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -159,7 +159,7 @@ const MovementReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product ID</TableHead>
+                    <TableHead>Inventory ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -174,7 +174,7 @@ const MovementReport = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Box className="h-4 w-4 text-muted-foreground" />
-                            {movement.productId}
+                            {movement.inventoryId}
                           </div>
                         </TableCell>
                         <TableCell>{movement.customer}</TableCell>
@@ -220,7 +220,7 @@ const MovementReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product ID</TableHead>
+                    <TableHead>Inventory ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -236,7 +236,7 @@ const MovementReport = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.productId}
+                              {movement.inventoryId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.customer}</TableCell>
@@ -270,7 +270,7 @@ const MovementReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product ID</TableHead>
+                    <TableHead>Inventory ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Gate</TableHead>
                     <TableHead>Timestamp</TableHead>
@@ -286,7 +286,7 @@ const MovementReport = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.productId}
+                              {movement.inventoryId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.customer}</TableCell>

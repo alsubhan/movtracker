@@ -30,7 +30,7 @@ export interface GateType {
   status: 'active' | 'inactive';
 }
 
-export interface Product {
+export interface Inventory {
   id: string;
   customer: string;
   project: string;
@@ -63,7 +63,7 @@ export interface Gate {
 
 export interface Movement {
   id: string;
-  productId: string;
+  inventoryId: string;
   gateId: string;
   movementType: 'in' | 'out';
   timestamp: Date;

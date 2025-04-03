@@ -290,7 +290,7 @@ const Gates = () => {
                       <DialogDescription>
                         {isEditingGate
                           ? "Update gate configuration and status"
-                          : "Create a new gate for product tracking"}
+                          : "Create a new gate for inventory tracking"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">

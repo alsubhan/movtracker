@@ -24,7 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface MovementData {
   id: string;
-  productId: string;
+  inventoryId: string;
   gateId: string;
   movementType: "in" | "out";
   timestamp: Date;
@@ -38,7 +38,7 @@ interface MovementData {
 const mockMovements: MovementData[] = [
   {
     id: "1",
-    productId: "TOY100108001",
+    inventoryId: "TOY100108001",
     gateId: "Gate 1",
     movementType: "out",
     timestamp: new Date(Date.now() - 1000 * 60 * 5),
@@ -49,7 +49,7 @@ const mockMovements: MovementData[] = [
   },
   {
     id: "2",
-    productId: "HON200104002",
+    inventoryId: "HON200104002",
     gateId: "Gate 2",
     movementType: "in",
     timestamp: new Date(Date.now() - 1000 * 60 * 15),
@@ -115,7 +115,7 @@ const Movement = () => {
     
     const newMovement: MovementData = {
       id: `manual-${Date.now()}`,
-      productId: barcodeInput,
+      inventoryId: barcodeInput,
       gateId: selectedGate,
       movementType: movementType,
       timestamp: new Date(),
@@ -133,7 +133,7 @@ const Movement = () => {
     
     toast({
       title: "Barcode Scanned",
-      description: `Product ${barcodeInput} registered as ${movementType === "in" ? "In" : "Product Out"} movement`,
+      description: `Inventory ${barcodeInput} registered as ${movementType === "in" ? "In" : "Inventory Out"} movement`,
     });
     
     // Reset input and focus for next scan
@@ -154,7 +154,7 @@ const Movement = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Product Scanner</CardTitle>
+            <CardTitle>Inventory Scanner</CardTitle>
             <CardDescription>
               Scan inventory coming into or going out of the warehouse
             </CardDescription>
@@ -235,7 +235,7 @@ const Movement = () => {
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Point your barcode scanner at the product label or manually enter the product ID
+                  Point your barcode scanner at the inventory label or manually enter the inventory ID
                 </div>
               </form>
             </div>
@@ -256,7 +256,7 @@ const Movement = () => {
           <CardHeader>
             <CardTitle>Recent Movements</CardTitle>
             <CardDescription>
-              Recently tracked product {movementType === "in" ? "in" : "out"} movements
+              Recently tracked inventory {movementType === "in" ? "in" : "out"} movements
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -270,7 +270,7 @@ const Movement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product ID</TableHead>
+                      <TableHead>Inventory ID</TableHead>
                       <TableHead>Gate</TableHead>
                       <TableHead>Time</TableHead>
                       <TableHead>Location Change</TableHead>
@@ -284,7 +284,7 @@ const Movement = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Box className="h-4 w-4 text-muted-foreground" />
-                              {movement.productId}
+                              {movement.inventoryId}
                             </div>
                           </TableCell>
                           <TableCell>{movement.gateId}</TableCell>

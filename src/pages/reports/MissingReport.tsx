@@ -26,7 +26,7 @@ import { DateRange } from "react-day-picker";
 const mockMissings = [
   {
     id: "1",
-    productId: "TOY100108010",
+    inventoryId: "TOY100108010",
     customer: "Toyota",
     project: "1001",
     lastSeen: {
@@ -39,7 +39,7 @@ const mockMissings = [
   },
   {
     id: "2",
-    productId: "HON200104015",
+    inventoryId: "HON200104015",
     customer: "Honda",
     project: "2001",
     lastSeen: {
@@ -52,7 +52,7 @@ const mockMissings = [
   },
   {
     id: "3",
-    productId: "NIS300102025",
+    inventoryId: "NIS300102025",
     customer: "Nissan",
     project: "3001",
     lastSeen: {
@@ -65,7 +65,7 @@ const mockMissings = [
   },
   {
     id: "4",
-    productId: "TOY100108050",
+    inventoryId: "TOY100108050",
     customer: "Toyota",
     project: "1001",
     lastSeen: {
@@ -78,7 +78,7 @@ const mockMissings = [
   },
   {
     id: "5",
-    productId: "HON200104060",
+    inventoryId: "HON200104060",
     customer: "Honda",
     project: "2001",
     lastSeen: {
@@ -98,12 +98,12 @@ const MissingReport = () => {
     to: new Date(),
   });
 
-  const filteredMissings = mockMissings.filter((product) => {
+  const filteredMissings = mockMissings.filter((inventory) => {
     const matchesSearch =
-      product.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.customer.toLowerCase().includes(searchTerm.toLowerCase());
+      inventory.inventoryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inventory.customer.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const lastSeenDate = product.lastSeen.timestamp;
+    const lastSeenDate = inventory.lastSeen.timestamp;
     const withinDateRange = 
       (!dateRange.from || lastSeenDate >= dateRange.from) && 
       (!dateRange.to || lastSeenDate <= dateRange.to);
@@ -133,7 +133,7 @@ const MissingReport = () => {
                 <SearchX className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by product ID or customer..."
+                  placeholder="Search by inventory ID or customer..."
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -163,7 +163,7 @@ const MissingReport = () => {
                   <div>
                     <p className="text-sm font-medium text-yellow-800">Missing &lt; 30 days</p>
                     <p className="text-2xl font-bold text-yellow-900">
-                      {mockMissings.filter((product) => product.missingDays < 30).length}
+                      {mockMissings.filter((inventory) => inventory.missingDays < 30).length}
                     </p>
                   </div>
                   <Clock className="h-8 w-8 text-yellow-500" />
@@ -176,7 +176,7 @@ const MissingReport = () => {
                   <div>
                     <p className="text-sm font-medium text-orange-800">Missing 30-60 days</p>
                     <p className="text-2xl font-bold text-orange-900">
-                      {mockMissings.filter((product) => product.missingDays >= 30 && product.missingDays < 60).length}
+                      {mockMissings.filter((inventory) => inventory.missingDays >= 30 && inventory.missingDays < 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
@@ -189,7 +189,7 @@ const MissingReport = () => {
                   <div>
                     <p className="text-sm font-medium text-red-800">Missing &gt; 60 days</p>
                     <p className="text-2xl font-bold text-red-900">
-                      {mockMissings.filter((product) => product.missingDays >= 60).length}
+                      {mockMissings.filter((inventory) => inventory.missingDays >= 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -201,7 +201,7 @@ const MissingReport = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Product ID</TableHead>
+                <TableHead>Inventory ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Last Seen Location</TableHead>
                 <TableHead>Last Seen Gate</TableHead>
@@ -212,28 +212,28 @@ const MissingReport = () => {
             </TableHeader>
             <TableBody>
               {filteredMissings.length > 0 ? (
-                filteredMissings.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.productId}</TableCell>
-                    <TableCell>{product.customer}</TableCell>
-                    <TableCell>{product.lastSeen.location}</TableCell>
-                    <TableCell>{product.lastSeen.gate}</TableCell>
-                    <TableCell>{product.lastSeen.timestamp.toLocaleDateString()}</TableCell>
-                    <TableCell>{product.missingDays} days</TableCell>
+                filteredMissings.map((inventory) => (
+                  <TableRow key={inventory.id}>
+                    <TableCell className="font-medium">{inventory.inventoryId}</TableCell>
+                    <TableCell>{inventory.customer}</TableCell>
+                    <TableCell>{inventory.lastSeen.location}</TableCell>
+                    <TableCell>{inventory.lastSeen.gate}</TableCell>
+                    <TableCell>{inventory.lastSeen.timestamp.toLocaleDateString()}</TableCell>
+                    <TableCell>{inventory.missingDays} days</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={
-                          product.missingDays < 30
+                          inventory.missingDays < 30
                             ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                            : product.missingDays < 60
+                            : inventory.missingDays < 60
                             ? "bg-orange-50 text-orange-700 border-orange-200"
                             : "bg-red-50 text-red-700 border-red-200"
                         }
                       >
-                        {product.missingDays < 30
+                        {inventory.missingDays < 30
                           ? "Recently Missing"
-                          : product.missingDays < 60
+                          : inventory.missingDays < 60
                           ? "Missing"
                           : "Long Missing"}
                       </Badge>

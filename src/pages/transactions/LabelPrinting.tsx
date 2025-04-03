@@ -32,7 +32,7 @@ const LabelPrinting = () => {
   const [selectedInventory, setSelectedInventory] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("generate");
 
-  // Mock product database for search
+  // Mock inventory database for search
   const mockInventory = [
     "TOY100108001",
     "TOY100108002",
@@ -50,7 +50,7 @@ const LabelPrinting = () => {
     if (!searchQuery.trim()) {
       toast({
         title: "Search Error",
-        description: "Please enter a product ID to search",
+        description: "Please enter a inventory ID to search",
         variant: "destructive",
       });
       return;
@@ -136,8 +136,8 @@ const LabelPrinting = () => {
     const previews: string[] = [];
     for (let i = 0; i < quantity; i++) {
       const serial = (serialStart + i).toString().padStart(3, "0");
-      const productId = `${formData.customer}${formData.project}${formData.partition}${serial}`;
-      previews.push(productId);
+      const inventoryId = `${formData.customer}${formData.project}${formData.partition}${serial}`;
+      previews.push(inventoryId);
     }
     
     setPreviewData(previews);
@@ -148,11 +148,11 @@ const LabelPrinting = () => {
     });
   };
 
-  const toggleInventoryelection = (productId: string) => {
-    if (selectedInventory.includes(productId)) {
-      setSelectedInventory(selectedInventory.filter(id => id !== productId));
+  const toggleInventoryelection = (inventoryId: string) => {
+    if (selectedInventory.includes(inventoryId)) {
+      setSelectedInventory(selectedInventory.filter(id => id !== inventoryId));
     } else {
-      setSelectedInventory([...selectedInventory, productId]);
+      setSelectedInventory([...selectedInventory, inventoryId]);
     }
   };
 
@@ -160,7 +160,7 @@ const LabelPrinting = () => {
     if (selectedInventory.length === 0) {
       toast({
         title: "No Inventory Selected",
-        description: "Please select at least one product to add to preview",
+        description: "Please select at least one inventory to add to preview",
         variant: "destructive",
       });
       return;
@@ -222,7 +222,7 @@ const LabelPrinting = () => {
     if (!searchQuery.trim()) {
       toast({
         title: "Error",
-        description: "Please scan or enter a product ID",
+        description: "Please scan or enter a inventory ID",
         variant: "destructive",
       });
       return;
@@ -234,19 +234,19 @@ const LabelPrinting = () => {
       if (!selectedInventory.includes(searchQuery)) {
         setSelectedInventory([...selectedInventory, searchQuery]);
         toast({
-          title: "Product Added",
-          description: `Product ${searchQuery} added to selection`,
+          title: "Inventory Added",
+          description: `Inventory ${searchQuery} added to selection`,
         });
       } else {
         toast({
           title: "Already Selected",
-          description: `Product ${searchQuery} is already in your selection`,
+          description: `Inventory ${searchQuery} is already in your selection`,
         });
       }
     } else {
       toast({
-        title: "Product Not Found",
-        description: `Product ${searchQuery} not found in database`,
+        title: "Inventory Not Found",
+        description: `Inventory ${searchQuery} not found in database`,
         variant: "destructive",
       });
     }
@@ -272,7 +272,7 @@ const LabelPrinting = () => {
             <CardHeader>
               <CardTitle>Generate New Barcode Labels</CardTitle>
               <CardDescription>
-                Create new barcode labels based on product information
+                Create new barcode labels based on inventory information
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -301,7 +301,7 @@ const LabelPrinting = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="partition">Product Partition (2 chars)</Label>
+                    <Label htmlFor="partition">Inventory Partition (2 chars)</Label>
                     <Input
                       id="partition"
                       name="partition"
@@ -361,7 +361,7 @@ const LabelPrinting = () => {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="text"
-                      placeholder="Search or scan product ID"
+                      placeholder="Search or scan inventory ID"
                       className="pl-8"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -383,18 +383,18 @@ const LabelPrinting = () => {
                     Search Results ({searchResults.length})
                   </div>
                   <div className="p-4 space-y-2">
-                    {searchResults.map((product, index) => (
+                    {searchResults.map((inventory, index) => (
                       <div key={index} className="flex items-center justify-between border-b py-2 last:border-0">
                         <div className="flex items-center gap-2">
                           <Barcode className="h-4 w-4 text-muted-foreground" />
-                          <span>{product}</span>
+                          <span>{inventory}</span>
                         </div>
                         <Button
-                          variant={selectedInventory.includes(product) ? "default" : "outline"}
+                          variant={selectedInventory.includes(inventory) ? "default" : "outline"}
                           size="sm"
-                          onClick={() => toggleInventoryelection(product)}
+                          onClick={() => toggleInventoryelection(inventory)}
                         >
-                          {selectedInventory.includes(product) ? "Selected" : "Select"}
+                          {selectedInventory.includes(inventory) ? "Selected" : "Select"}
                         </Button>
                       </div>
                     ))}
@@ -408,16 +408,16 @@ const LabelPrinting = () => {
                     Selected Inventory ({selectedInventory.length})
                   </div>
                   <div className="p-4 space-y-2">
-                    {selectedInventory.map((product, index) => (
+                    {selectedInventory.map((inventory, index) => (
                       <div key={index} className="flex items-center justify-between border-b py-2 last:border-0">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>{product}</span>
+                          <span>{inventory}</span>
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => toggleInventoryelection(product)}
+                          onClick={() => toggleInventoryelection(inventory)}
                         >
                           Remove
                         </Button>
@@ -451,18 +451,18 @@ const LabelPrinting = () => {
               {previewData.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    {previewData.slice(0, 6).map((productId, index) => (
+                    {previewData.slice(0, 6).map((inventoryId, index) => (
                       <div 
                         key={index} 
                         className="border rounded-md p-4 flex flex-col items-center justify-center bg-white"
                       >
                         <div className="text-xs text-gray-500 mb-1">Barcode Label</div>
-                        <div className="text-lg font-bold">{productId}</div>
+                        <div className="text-lg font-bold">{inventoryId}</div>
                         <div className="mt-2">
                           <Barcode className="h-12 w-32" />
                         </div>
                         <div className="mt-2 text-xs rounded-sm text-center">
-                          {productId}
+                          {inventoryId}
                         </div>
                         <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
                       </div>
@@ -489,7 +489,7 @@ const LabelPrinting = () => {
                       <br />
                       YYYY = Project code (4 chars)
                       <br />
-                      ZZ = Product partition (2 chars)
+                      ZZ = Inventory partition (2 chars)
                       <br />
                       NNN = Serial number (3 chars)
                     </p>
