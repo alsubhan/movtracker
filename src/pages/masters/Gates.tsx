@@ -71,7 +71,7 @@ const initialGateTypes = [
   { id: "3", name: "dispatch", description: "Dispatch area gates", status: "active" },
 ];
 
-const GatesMaster = () => {
+const Gates = () => {
   const [gates, setGates] = useState(initialGates);
   const [gateTypes, setGateTypes] = useState(initialGateTypes);
   const [isGateDialogOpen, setIsGateDialogOpen] = useState(false);
@@ -585,4 +585,4 @@ const GatesMaster = () => {
   );
 };
 
-export default GatesMaster;
+export default Gates;

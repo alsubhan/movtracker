@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface ProductMovementData {
+interface MovementData {
   id: string;
   productId: string;
   gateId: string;
@@ -35,7 +35,7 @@ interface ProductMovementData {
 }
 
 // Mock data for demo purposes
-const mockMovements: ProductMovementData[] = [
+const mockMovements: MovementData[] = [
   {
     id: "1",
     productId: "TOY100108001",
@@ -68,13 +68,13 @@ const mockCustomers = [
   { id: "SUZ", name: "Suzuki" },
 ];
 
-const ProductMovement = () => {
+const Movement = () => {
   const [searchParams] = useSearchParams();
   const defaultMovementType = searchParams.get("type") || "out";
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [movements, setMovements] = useState<ProductMovementData[]>([]);
+  const [movements, setMovements] = useState<MovementData[]>([]);
   const [selectedGate, setSelectedGate] = useState("Gate 1");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -113,7 +113,7 @@ const ProductMovement = () => {
       }
     }
     
-    const newMovement: ProductMovementData = {
+    const newMovement: MovementData = {
       id: `manual-${Date.now()}`,
       productId: barcodeInput,
       gateId: selectedGate,
@@ -363,4 +363,4 @@ const ProductMovement = () => {
   );
 };
 
-export default ProductMovement;
+export default Movement;

@@ -23,7 +23,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-const mockMissingProducts = [
+const mockMissings = [
   {
     id: "1",
     productId: "TOY100108010",
@@ -91,14 +91,14 @@ const mockMissingProducts = [
   },
 ];
 
-const MissingProductReport = () => {
+const MissingReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -90),
     to: new Date(),
   });
 
-  const filteredMissingProducts = mockMissingProducts.filter((product) => {
+  const filteredMissings = mockMissings.filter((product) => {
     const matchesSearch =
       product.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.customer.toLowerCase().includes(searchTerm.toLowerCase());
@@ -163,7 +163,7 @@ const MissingProductReport = () => {
                   <div>
                     <p className="text-sm font-medium text-yellow-800">Missing &lt; 30 days</p>
                     <p className="text-2xl font-bold text-yellow-900">
-                      {mockMissingProducts.filter((product) => product.missingDays < 30).length}
+                      {mockMissings.filter((product) => product.missingDays < 30).length}
                     </p>
                   </div>
                   <Clock className="h-8 w-8 text-yellow-500" />
@@ -176,7 +176,7 @@ const MissingProductReport = () => {
                   <div>
                     <p className="text-sm font-medium text-orange-800">Missing 30-60 days</p>
                     <p className="text-2xl font-bold text-orange-900">
-                      {mockMissingProducts.filter((product) => product.missingDays >= 30 && product.missingDays < 60).length}
+                      {mockMissings.filter((product) => product.missingDays >= 30 && product.missingDays < 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
@@ -189,7 +189,7 @@ const MissingProductReport = () => {
                   <div>
                     <p className="text-sm font-medium text-red-800">Missing &gt; 60 days</p>
                     <p className="text-2xl font-bold text-red-900">
-                      {mockMissingProducts.filter((product) => product.missingDays >= 60).length}
+                      {mockMissings.filter((product) => product.missingDays >= 60).length}
                     </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -211,8 +211,8 @@ const MissingProductReport = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMissingProducts.length > 0 ? (
-                filteredMissingProducts.map((product) => (
+              {filteredMissings.length > 0 ? (
+                filteredMissings.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.productId}</TableCell>
                     <TableCell>{product.customer}</TableCell>
@@ -258,4 +258,4 @@ const MissingProductReport = () => {
   );
 };
 
-export default MissingProductReport;
+export default MissingReport;

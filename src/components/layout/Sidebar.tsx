@@ -118,9 +118,9 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<MapPin size={20} />}
-                  label="Product Locations"
-                  href="/masters/product-locations"
-                  active={pathname === "/masters/product-locations"}
+                  label="Locations"
+                  href="/masters/locations"
+                  active={pathname === "/masters/locations"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
                 <SidebarItem

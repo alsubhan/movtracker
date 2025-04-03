@@ -6,16 +6,16 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
-import UserMaster from "./pages/masters/UserMaster";
+import Users from "./pages/masters/Users";
 import Products from "./pages/masters/Products";
-import ProductLocations from "./pages/masters/ProductLocations";
-import GatesMaster from "./pages/masters/GatesMaster";
+import Locations from "./pages/masters/Locations";
+import Gates from "./pages/masters/Gates";
 import Customers from "./pages/masters/Customers";
 import LabelPrinting from "./pages/transactions/LabelPrinting";
-import ProductMovement from "./pages/transactions/ProductMovement";
+import Movement from "./pages/transactions/Movement";
 import NotFound from "./pages/NotFound";
-import ProductMovementReport from "./pages/reports/ProductMovementReport";
-import MissingProductReport from "./pages/reports/MissingProductReport";
+import MovementReport from "./pages/reports/MovementReport";
+import MissingReport from "./pages/reports/MissingReport";
 import DatabaseUtility from "./pages/utilities/DatabaseUtility";
 import { AuthProvider } from "@/hooks/useAuth";
 
@@ -43,15 +43,15 @@ function AppRoutes() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<Index />} />
       <Route path="/settings" element={<Settings />} />
-      <Route path="/masters/user" element={<UserMaster />} />
+      <Route path="/masters/user" element={<Users />} />
       <Route path="/masters/bin" element={<Products />} />
-      <Route path="/masters/product-locations" element={<ProductLocations />} />
-      <Route path="/masters/gates" element={<GatesMaster />} />
+      <Route path="/masters/locations" element={<Locations />} />
+      <Route path="/masters/gates" element={<Gates />} />
       <Route path="/masters/customers" element={<Customers />} />
       <Route path="/transactions/label-printing" element={<LabelPrinting />} />
-      <Route path="/transactions/product-movement" element={<ProductMovement />} />
-      <Route path="/reports/bin-movement" element={<ProductMovementReport />} />
-      <Route path="/reports/missing-bins" element={<MissingProductReport />} />
+      <Route path="/transactions/product-movement" element={<Movement />} />
+      <Route path="/reports/bin-movement" element={<MovementReport />} />
+      <Route path="/reports/missing-bins" element={<MissingReport />} />
       <Route path="/utilities/database" element={<DatabaseUtility />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

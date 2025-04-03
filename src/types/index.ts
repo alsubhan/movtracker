@@ -16,7 +16,7 @@ export interface Permission {
   modules: string[];
 }
 
-export interface ProductLocation {
+export interface Location {
   id: string;
   name: string;
   description?: string;
@@ -61,7 +61,7 @@ export interface Gate {
   status: 'active' | 'inactive';
 }
 
-export interface ProductMovement {
+export interface Movement {
   id: string;
   productId: string;
   gateId: string;

@@ -38,7 +38,7 @@ import {
 import { Box, PlusCircle, Pencil, Trash2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Customer, ProductLocation } from "@/types";
+import { Customer, Location } from "@/types";
 
 // Mock data
 const initialProducts = [
@@ -81,7 +81,7 @@ const initialProducts = [
 ];
 
 // Mock locations for demo
-const mockLocations: ProductLocation[] = [
+const mockLocations: Location[] = [
   { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
   { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
   { id: "3", name: "Customer Site", description: "Client location", status: "active" },
@@ -111,7 +111,7 @@ const Products = () => {
     lastScanGate: "",
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [locations, setLocations] = useState<ProductLocation[]>(mockLocations);
+  const [locations, setLocations] = useState<Location[]>(mockLocations);
   const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
   const { toast } = useToast();
 

@@ -44,7 +44,7 @@ import { getPermissionsForRole, permissionsList } from "@/utils/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-const UserMaster = () => {
+const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<User & { password?: string }>({
@@ -653,4 +653,4 @@ const UserMaster = () => {
   );
 };
 
-export default UserMaster;
+export default Users;

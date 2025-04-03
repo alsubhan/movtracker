@@ -29,24 +29,24 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ProductLocation } from "@/types";
+import { Location } from "@/types";
 
 // Sample data for demonstration
-const demoLocations: ProductLocation[] = [
+const demoLocations: Location[] = [
   { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
   { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
   { id: "3", name: "Customer Site", description: "Client location", status: "active" },
   { id: "4", name: "Repair Center", description: "Maintenance and repairs", status: "inactive" },
 ];
 
-const ProductLocations = () => {
+const Locations = () => {
   const { toast } = useToast();
-  const [locations, setLocations] = useState<ProductLocation[]>(demoLocations);
+  const [locations, setLocations] = useState<Location[]>(demoLocations);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentLocation, setCurrentLocation] = useState<ProductLocation | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
 
   // Filter locations based on search term
   const filteredLocations = locations.filter((location) =>
@@ -59,12 +59,12 @@ const ProductLocations = () => {
     setIsDialogOpen(true);
   };
 
-  const handleEditLocation = (location: ProductLocation) => {
+  const handleEditLocation = (location: Location) => {
     setCurrentLocation(location);
     setIsDialogOpen(true);
   };
 
-  const handleDeleteLocation = (location: ProductLocation) => {
+  const handleDeleteLocation = (location: Location) => {
     setCurrentLocation(location);
     setIsDeleteDialogOpen(true);
   };
@@ -74,7 +74,7 @@ const ProductLocations = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const locationData: ProductLocation = {
+    const locationData: Location = {
       id: currentLocation?.id || `${locations.length + 1}`,
       name: formData.get("name") as string,
       description: formData.get("description") as string,
@@ -125,14 +125,14 @@ const ProductLocations = () => {
     <Layout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Product Locations</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Locations</h2>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Location Management</CardTitle>
             <CardDescription>
-              Manage product locations in the system
+              Manage locations in the system
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -220,7 +220,7 @@ const ProductLocations = () => {
             <DialogDescription>
               {currentLocation
                 ? "Update location details"
-                : "Add a new product location to the system"}
+                : "Add a new location to the system"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveLocation}>
@@ -303,4 +303,4 @@ const ProductLocations = () => {
   );
 };
 
-export default ProductLocations;
+export default Locations;

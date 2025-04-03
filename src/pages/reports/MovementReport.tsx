@@ -83,7 +83,7 @@ const mockMovements = [
   },
 ];
 
-const ProductMovementReport = () => {
+const MovementReport = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>({
     from: addDays(new Date(), -7),
@@ -323,4 +323,4 @@ const ProductMovementReport = () => {
   );
 };
 
-export default ProductMovementReport;
+export default MovementReport;
