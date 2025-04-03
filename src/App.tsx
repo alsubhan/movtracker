@@ -7,7 +7,7 @@ import Login from "./pages/Login";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import Users from "./pages/masters/Users";
-import Products from "./pages/masters/Products";
+import Inventory from "./pages/masters/Inventory";
 import Locations from "./pages/masters/Locations";
 import Gates from "./pages/masters/Gates";
 import Customers from "./pages/masters/Customers";
@@ -44,7 +44,7 @@ function AppRoutes() {
       <Route path="/" element={<Index />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/masters/user" element={<Users />} />
-      <Route path="/masters/bin" element={<Products />} />
+      <Route path="/masters/bin" element={<Inventory />} />
       <Route path="/masters/locations" element={<Locations />} />
       <Route path="/masters/gates" element={<Gates />} />
       <Route path="/masters/customers" element={<Customers />} />

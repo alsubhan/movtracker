@@ -29,11 +29,11 @@ const LabelPrinting = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<string[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedInventory, setSelectedInventory] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("generate");
 
   // Mock product database for search
-  const mockProducts = [
+  const mockInventory = [
     "TOY100108001",
     "TOY100108002",
     "HON200104001",
@@ -56,8 +56,8 @@ const LabelPrinting = () => {
       return;
     }
 
-    // Filter products based on search query
-    const results = mockProducts.filter(id => 
+    // Filter inventory based on search query
+    const results = mockInventory.filter(id => 
       id.toLowerCase().includes(searchQuery.toLowerCase())
     );
     
@@ -66,13 +66,13 @@ const LabelPrinting = () => {
     if (results.length === 0) {
       toast({
         title: "No Results",
-        description: "No products found matching your search",
+        description: "No inventory found matching your search",
         variant: "destructive",
       });
     } else {
       toast({
         title: "Search Complete",
-        description: `Found ${results.length} matching products`,
+        description: `Found ${results.length} matching inventory`,
       });
     }
   };
@@ -148,30 +148,30 @@ const LabelPrinting = () => {
     });
   };
 
-  const toggleProductSelection = (productId: string) => {
-    if (selectedProducts.includes(productId)) {
-      setSelectedProducts(selectedProducts.filter(id => id !== productId));
+  const toggleInventoryelection = (productId: string) => {
+    if (selectedInventory.includes(productId)) {
+      setSelectedInventory(selectedInventory.filter(id => id !== productId));
     } else {
-      setSelectedProducts([...selectedProducts, productId]);
+      setSelectedInventory([...selectedInventory, productId]);
     }
   };
 
   const handleAddSelectedToPreview = () => {
-    if (selectedProducts.length === 0) {
+    if (selectedInventory.length === 0) {
       toast({
-        title: "No Products Selected",
+        title: "No Inventory Selected",
         description: "Please select at least one product to add to preview",
         variant: "destructive",
       });
       return;
     }
     
-    setPreviewData([...selectedProducts]);
+    setPreviewData([...selectedInventory]);
     setActiveTab("preview");
     
     toast({
-      title: "Products Added to Preview",
-      description: `${selectedProducts.length} products ready for printing`,
+      title: "Inventory Added to Preview",
+      description: `${selectedInventory.length} inventory ready for printing`,
     });
   };
 
@@ -213,7 +213,7 @@ const LabelPrinting = () => {
     setPreviewData([]);
     setSearchQuery("");
     setSearchResults([]);
-    setSelectedProducts([]);
+    setSelectedInventory([]);
   };
 
   const handleBarcodeScan = (e: React.FormEvent) => {
@@ -229,10 +229,10 @@ const LabelPrinting = () => {
     }
     
     // Check if scanned barcode exists in our mock database
-    if (mockProducts.includes(searchQuery)) {
-      // Add to selected products if not already there
-      if (!selectedProducts.includes(searchQuery)) {
-        setSelectedProducts([...selectedProducts, searchQuery]);
+    if (mockInventory.includes(searchQuery)) {
+      // Add to selected inventory if not already there
+      if (!selectedInventory.includes(searchQuery)) {
+        setSelectedInventory([...selectedInventory, searchQuery]);
         toast({
           title: "Product Added",
           description: `Product ${searchQuery} added to selection`,
@@ -263,7 +263,7 @@ const LabelPrinting = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="generate">Generate New Labels</TabsTrigger>
-          <TabsTrigger value="search">Search Products</TabsTrigger>
+          <TabsTrigger value="search">Search Inventory</TabsTrigger>
           <TabsTrigger value="preview">Preview & Print</TabsTrigger>
         </TabsList>
 
@@ -349,9 +349,9 @@ const LabelPrinting = () => {
         <TabsContent value="search" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Search Existing Products</CardTitle>
+              <CardTitle>Search Existing Inventory</CardTitle>
               <CardDescription>
-                Find products by ID to print their barcode labels
+                Find inventory by ID to print their barcode labels
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -390,11 +390,11 @@ const LabelPrinting = () => {
                           <span>{product}</span>
                         </div>
                         <Button
-                          variant={selectedProducts.includes(product) ? "default" : "outline"}
+                          variant={selectedInventory.includes(product) ? "default" : "outline"}
                           size="sm"
-                          onClick={() => toggleProductSelection(product)}
+                          onClick={() => toggleInventoryelection(product)}
                         >
-                          {selectedProducts.includes(product) ? "Selected" : "Select"}
+                          {selectedInventory.includes(product) ? "Selected" : "Select"}
                         </Button>
                       </div>
                     ))}
@@ -402,13 +402,13 @@ const LabelPrinting = () => {
                 </div>
               )}
               
-              {selectedProducts.length > 0 && (
+              {selectedInventory.length > 0 && (
                 <div className="border rounded-md">
                   <div className="py-2 px-4 bg-muted text-sm font-medium">
-                    Selected Products ({selectedProducts.length})
+                    Selected Inventory ({selectedInventory.length})
                   </div>
                   <div className="p-4 space-y-2">
-                    {selectedProducts.map((product, index) => (
+                    {selectedInventory.map((product, index) => (
                       <div key={index} className="flex items-center justify-between border-b py-2 last:border-0">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
@@ -417,7 +417,7 @@ const LabelPrinting = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => toggleProductSelection(product)}
+                          onClick={() => toggleInventoryelection(product)}
                         >
                           Remove
                         </Button>
@@ -431,7 +431,7 @@ const LabelPrinting = () => {
               <Button variant="outline" onClick={handleClear}>Clear Selection</Button>
               <Button 
                 onClick={handleAddSelectedToPreview} 
-                disabled={selectedProducts.length === 0}
+                disabled={selectedInventory.length === 0}
               >
                 Add to Preview
               </Button>
@@ -499,7 +499,7 @@ const LabelPrinting = () => {
                 <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground">
                   <Barcode className="h-16 w-16 mb-4 text-muted" />
                   <p>No labels previewed yet</p>
-                  <p className="text-sm">Generate new labels or search for existing products</p>
+                  <p className="text-sm">Generate new labels or search for existing inventory</p>
                 </div>
               )}
             </CardContent>

@@ -72,14 +72,14 @@ export interface Movement {
 }
 
 export interface Dashboard {
-  warehouseProducts: {
-    fgProducts: number;
-    emptyProducts: number;
+  warehouseInventory: {
+    fgInventory: number;
+    emptyInventory: number;
   };
-  wipProducts: number;
-  customerProducts: {
+  wipInventory: number;
+  customerInventory: {
     [customer: string]: number;
   };
-  overdueProducts: number;
-  unusedProducts: number;
+  overdueInventory: number;
+  unusedInventory: number;
 }

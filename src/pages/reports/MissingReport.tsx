@@ -122,7 +122,7 @@ const MissingReport = () => {
           <div>
             <CardTitle>Missing Report</CardTitle>
             <CardDescription>
-              Track and locate products that have not been scanned recently
+              Track and locate Inventory that have not been scanned recently
             </CardDescription>
           </div>
         </CardHeader>

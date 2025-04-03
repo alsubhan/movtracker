@@ -111,7 +111,7 @@ export const Sidebar = () => {
                 />
                 <SidebarItem
                   icon={<Box size={20} />}
-                  label="Products"
+                  label="Inventory"
                   href="/masters/bin"
                   active={pathname === "/masters/bin"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
@@ -147,7 +147,7 @@ export const Sidebar = () => {
               <div className="space-y-1">
                 <SidebarItem
                   icon={<Barcode size={20} />}
-                  label="Barcode Label Printing"
+                  label="Printing"
                   href="/transactions/label-printing"
                   active={pathname === "/transactions/label-printing"}
                   requiredPermission={PERMISSIONS.BARCODE_PRINTING}

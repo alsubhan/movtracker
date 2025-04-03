@@ -156,7 +156,7 @@ const Movement = () => {
           <CardHeader>
             <CardTitle>Product Scanner</CardTitle>
             <CardDescription>
-              Scan products coming into or going out of the warehouse
+              Scan inventory coming into or going out of the warehouse
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -328,7 +328,7 @@ const Movement = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Total Products</CardTitle>
+                        <CardTitle className="text-sm">Total Inventory</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">{filteredMovements.length}</div>
