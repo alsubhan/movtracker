@@ -24,7 +24,7 @@ export const Header = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([
-    { id: 1, title: "Movement Alert", message: "Product #1234 moved to Gate A", read: false, time: "10 min ago" },
+    { id: 1, title: "Movement Alert", message: "Inventory #1234 moved to Gate A", read: false, time: "10 min ago" },
     { id: 2, title: "New User Added", message: "Admin added a new user account", read: true, time: "1 hour ago" },
     { id: 3, title: "System Update", message: "System will be updated tonight at 10PM", read: false, time: "2 hours ago" },
   ]);

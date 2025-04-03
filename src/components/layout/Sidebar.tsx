@@ -112,29 +112,29 @@ export const Sidebar = () => {
                 <SidebarItem
                   icon={<Box size={20} />}
                   label="Inventory"
-                  href="/masters/bin"
-                  active={pathname === "/masters/bin"}
+                  href="/inventory"
+                  active={pathname === "/inventory"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<MapPin size={20} />}
                   label="Locations"
-                  href="/masters/locations"
-                  active={pathname === "/masters/locations"}
+                  href="/locations"
+                  active={pathname === "/locations"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<DoorOpen size={20} />}
                   label="Gates"
-                  href="/masters/gates"
-                  active={pathname === "/masters/gates"}
+                  href="/gates"
+                  active={pathname === "/gates"}
                   requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
                 />
                 <SidebarItem
                   icon={<Building size={20} />}
                   label="Customers"
-                  href="/masters/customers"
-                  active={pathname === "/masters/customers"}
+                  href="/customers"
+                  active={pathname === "/customers"}
                   requiredPermission={PERMISSIONS.BIN_MANAGEMENT}
                 />
               </div>
@@ -148,15 +148,15 @@ export const Sidebar = () => {
                 <SidebarItem
                   icon={<Barcode size={20} />}
                   label="Printing"
-                  href="/transactions/label-printing"
-                  active={pathname === "/transactions/label-printing"}
+                  href="/label-printing"
+                  active={pathname === "/label-printing"}
                   requiredPermission={PERMISSIONS.BARCODE_PRINTING}
                 />
                 <SidebarItem
                   icon={<Box size={20} />}
                   label="Movement"
-                  href="/transactions/product-movement"
-                  active={pathname === "/transactions/product-movement"}
+                  href="/movement"
+                  active={pathname === "/movement"}
                   requiredPermission={PERMISSIONS.BIN_MOVEMENT}
                 />
               </div>
@@ -170,15 +170,15 @@ export const Sidebar = () => {
                 <SidebarItem
                   icon={<FileText size={20} />}
                   label="Movements Report"
-                  href="/reports/bin-movement"
-                  active={pathname === "/reports/bin-movement"}
+                  href="/movement-report"
+                  active={pathname === "/movement-report"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
                 <SidebarItem
                   icon={<FileText size={20} />}
                   label="Missing Report"
-                  href="/reports/missing-bins"
-                  active={pathname === "/reports/missing-bins"}
+                  href="/missing-report"
+                  active={pathname === "/missing-report"}
                   requiredPermission={PERMISSIONS.REPORTS_VIEW}
                 />
               </div>
@@ -192,8 +192,8 @@ export const Sidebar = () => {
                 <SidebarItem
                   icon={<Database size={20} />}
                   label="Database Utilities"
-                  href="/utilities/database"
-                  active={pathname === "/utilities/database"}
+                  href="/database"
+                  active={pathname === "/database"}
                   requiredPermission={PERMISSIONS.DATABASE_UTILITIES}
                 />
                 <SidebarItem

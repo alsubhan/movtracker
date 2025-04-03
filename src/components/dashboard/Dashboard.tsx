@@ -279,7 +279,7 @@ export const Dashboard = () => {
             
             <Card>
               <CardHeader>
-                <CardTitle>Customer Product Distribution</CardTitle>
+                <CardTitle>Customer  Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
