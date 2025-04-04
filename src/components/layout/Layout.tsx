@@ -14,8 +14,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-hidden">
-          {children}
+        <main className="flex-1 overflow-auto">
+          <ScrollArea className="h-full">
+            {children}
+          </ScrollArea>
         </main>
       </div>
     </div>

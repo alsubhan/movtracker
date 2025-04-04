@@ -14,7 +14,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Box, Barcode, Scan } from "lucide-react";
+import { ArrowRight, Box, Barcode, Scan, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -32,7 +32,31 @@ interface MovementData {
   previousLocation: string;
   customer: string;
   project: string;
+  rentalStartDate?: Date | null;
+  rentalCost?: number;
 }
+
+// Mock inventory data for rental calculation
+const mockInventoryItems = [
+  {
+    id: "TOY100108001",
+    customer: "TOY",
+    status: "in-stock",
+    rentalCost: 50,
+  },
+  {
+    id: "HON200104002",
+    customer: "HON",
+    status: "in-wip",
+    rentalCost: 75,
+  },
+  {
+    id: "NIS300102003",
+    customer: "NIS", 
+    status: "dispatched",
+    rentalCost: 25,
+  },
+];
 
 // Mock data for demo purposes
 const mockMovements: MovementData[] = [
@@ -46,6 +70,8 @@ const mockMovements: MovementData[] = [
     previousLocation: "warehouse",
     customer: "Toyota",
     project: "1001",
+    rentalStartDate: new Date(),
+    rentalCost: 50,
   },
   {
     id: "2",
@@ -57,6 +83,8 @@ const mockMovements: MovementData[] = [
     previousLocation: "warehouse",
     customer: "Honda",
     project: "2001",
+    rentalStartDate: null,
+    rentalCost: 75,
   },
 ];
 
@@ -79,17 +107,40 @@ const Movement = () => {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [movementType, setMovementType] = useState<"in" | "out">(defaultMovementType as "in" | "out");
+  const [rentalCostSummary, setRentalCostSummary] = useState<{[customer: string]: number}>({});
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   // Load all movements initially
   useEffect(() => {
     setMovements(mockMovements);
+    calculateRentalSummary(mockMovements);
   }, []);
+
+  // Calculate rental cost summary
+  const calculateRentalSummary = (movements: MovementData[]) => {
+    const summary: {[customer: string]: number} = {};
+    
+    movements.forEach(movement => {
+      if (movement.movementType === "out" && movement.location === "customer" && movement.rentalCost) {
+        if (!summary[movement.customer]) {
+          summary[movement.customer] = 0;
+        }
+        summary[movement.customer] += movement.rentalCost;
+      }
+    });
+    
+    setRentalCostSummary(summary);
+  };
 
   // Filter movements based on selected type
   const filteredMovements = movements.filter(
     (movement) => movement.movementType === movementType
   );
+
+  // Find inventory item by ID and get rental cost
+  const getInventoryDetails = (inventoryId: string) => {
+    return mockInventoryItems.find(item => item.id === inventoryId) || null;
+  };
 
   // Handle barcode scan
   const handleBarcodeScan = (e: React.FormEvent) => {
@@ -104,14 +155,19 @@ const Movement = () => {
       return;
     }
     
-    if (!selectedCustomer && barcodeInput.length >= 3) {
-      // Try to extract customer code from barcode
-      const customerCode = barcodeInput.substring(0, 3);
-      const customer = mockCustomers.find(c => c.id === customerCode);
-      if (customer) {
-        setSelectedCustomer(customer.id);
-      }
-    }
+    // Try to extract customer code from barcode
+    const customerCode = barcodeInput.substring(0, 3);
+    const customer = mockCustomers.find(c => c.id === customerCode);
+    const customerName = customer ? customer.name : customerCode;
+    
+    // Get inventory details including rental cost
+    const inventoryDetails = getInventoryDetails(barcodeInput);
+    const rentalCost = inventoryDetails?.rentalCost || 0;
+    
+    // For out movements to customer, start rental period
+    const rentalStartDate = (movementType === "out" && inventoryDetails?.status !== "dispatched") 
+      ? new Date() 
+      : null;
     
     const newMovement: MovementData = {
       id: `manual-${Date.now()}`,
@@ -121,19 +177,33 @@ const Movement = () => {
       timestamp: new Date(),
       location: movementType === "in" ? "warehouse" : "customer",
       previousLocation: movementType === "in" ? "customer" : "warehouse",
-      customer: selectedCustomer || barcodeInput.substring(0, 3),
+      customer: customerName,
       project: barcodeInput.length >= 7 ? barcodeInput.substring(3, 7) : "",
+      rentalStartDate: rentalStartDate,
+      rentalCost: rentalCost,
     };
     
     // Save to database (mock)
-    // In a real implementation, we would save to Supabase here
     
     // Add to local state
-    setMovements((prev) => [newMovement, ...prev]);
+    const updatedMovements = [newMovement, ...movements];
+    setMovements(updatedMovements);
     
+    // Update rental summary
+    calculateRentalSummary(updatedMovements);
+    
+    // Show rental cost notification for out movements
+    if (movementType === "out" && rentalCost > 0) {
+      toast({
+        title: "Rental Started",
+        description: `Rental cost for ${barcodeInput}: $${rentalCost.toFixed(2)}/month`,
+      });
+    }
+    
+    // General notification
     toast({
       title: "Barcode Scanned",
-      description: `Inventory ${barcodeInput} registered as ${movementType === "in" ? "In" : "Inventory Out"} movement`,
+      description: `Inventory ${barcodeInput} registered as ${movementType === "in" ? "In" : "Out"} movement`,
     });
     
     // Reset input and focus for next scan
@@ -264,6 +334,7 @@ const Movement = () => {
               <TabsList>
                 <TabsTrigger value="list">List View</TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="rental">Rental Costs</TabsTrigger>
               </TabsList>
               
               <TabsContent value="list">
@@ -352,6 +423,59 @@ const Movement = () => {
                         </div>
                       </CardContent>
                     </Card>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="rental">
+                <div className="space-y-6">
+                  <Card className="border-amber-200 bg-amber-50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center">
+                        <DollarSign className="h-4 w-4 mr-2 text-amber-600" />
+                        Monthly Rental Costs
+                      </CardTitle>
+                      <CardDescription>
+                        Current rental costs for inventory at customer locations
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="border-b pb-2">
+                          <div className="flex justify-between items-center text-sm font-medium">
+                            <span>Customer</span>
+                            <span>Monthly Cost</span>
+                          </div>
+                        </div>
+                        {Object.keys(rentalCostSummary).length > 0 ? (
+                          <div className="space-y-2">
+                            {Object.entries(rentalCostSummary).map(([customer, cost], i) => (
+                              <div key={i} className="flex justify-between items-center text-sm">
+                                <span>{customer}</span>
+                                <span className="font-medium">${cost.toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="border-t pt-2 flex justify-between items-center font-bold">
+                              <span>Total</span>
+                              <span>
+                                ${Object.values(rentalCostSummary).reduce((sum, cost) => sum + cost, 0).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-sm text-muted-foreground">
+                            No rental costs to display
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    <p>
+                      Rental costs are calculated from the moment inventory is moved out to a customer location.
+                      Costs are displayed per month and are charged until inventory is returned.
+                    </p>
                   </div>
                 </div>
               </TabsContent>

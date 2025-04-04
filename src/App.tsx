@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import Users from "./pages/masters/Users";
 import Inventory from "./pages/masters/Inventory";
+import InventoryTypes from "./pages/masters/InventoryTypes";
 import Locations from "./pages/masters/Locations";
 import Gates from "./pages/masters/Gates";
 import Customers from "./pages/masters/Customers";
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route path="/settings" element={<Layout><Settings /></Layout>} />
       <Route path="/users" element={<Layout><Users /></Layout>} />
       <Route path="/inventory" element={<Layout><Inventory /></Layout>} />
+      <Route path="/inventory-types" element={<Layout><InventoryTypes /></Layout>} />
       <Route path="/locations" element={<Layout><Locations /></Layout>} />
       <Route path="/gates" element={<Layout><Gates /></Layout>} />
       <Route path="/customers" element={<Layout><Customers /></Layout>} />

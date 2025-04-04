@@ -11,6 +11,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Import the DatabaseUtility component content
 import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
+// Import company settings component
+import CompanySettings from "./settings/CompanySettings";
 
 const Settings = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -69,6 +71,7 @@ const Settings = () => {
           <TabsList>
             <TabsTrigger value="general">General Settings</TabsTrigger>
             <TabsTrigger value="scanning">Scanning Settings</TabsTrigger>
+            <TabsTrigger value="company">Company</TabsTrigger>
             <TabsTrigger value="account">Account Settings</TabsTrigger>
             <TabsTrigger value="database">Database Utilities</TabsTrigger>
           </TabsList>
@@ -138,6 +141,10 @@ const Settings = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="company" className="space-y-6">
+            <CompanySettings />
           </TabsContent>
 
           <TabsContent value="account" className="space-y-6">
