@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import type { RentalReport } from "@/types";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Mock data for rental report
