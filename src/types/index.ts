@@ -43,6 +43,14 @@ export interface Inventory {
   createdAt: Date;
 }
 
+export interface InventoryType {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: 'active' | 'inactive';
+}
+
 export interface Customer {
   id: string;
   code: string;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +37,7 @@ import {
 import { Box, PlusCircle, Pencil, Trash2, Search, IndianRupee } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Customer, Location } from "@/types";
+import { Customer, Location, InventoryType } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -109,7 +108,7 @@ const mockCustomers: Customer[] = [
 ];
 
 // Mock inventory types
-const initialInventoryTypes = [
+const initialInventoryTypes: InventoryType[] = [
   { 
     id: "1", 
     code: "PLT", 
@@ -140,15 +139,6 @@ const mockCompanyCodes = [
   { code: "DEF", name: "DEF Enterprises" },
 ];
 
-// Inventory Type interface
-interface InventoryType {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  status: "active" | "inactive";
-}
-
 const Inventory = () => {
   const [inventory, setInventory] = useState(initialInventory);
   const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>(initialInventoryTypes);
@@ -171,7 +161,7 @@ const Inventory = () => {
     rentalCost: 50,
     lastScanGate: "",
   });
-  const [typeFormData, setTypeFormData] = useState({
+  const [typeFormData, setTypeFormData] = useState<InventoryType>({
     id: "",
     code: "",
     name: "",
@@ -186,7 +176,6 @@ const Inventory = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load the default code type from localStorage or use "company"
     const settings = localStorage.getItem("settings");
     if (settings) {
       try {
@@ -199,7 +188,6 @@ const Inventory = () => {
       }
     }
     
-    // Load the company code from localStorage
     const companyInfo = localStorage.getItem("companyInfo");
     if (companyInfo) {
       try {
@@ -210,7 +198,6 @@ const Inventory = () => {
             companyCode: parsedCompanyInfo.code
           }));
 
-          // Update company codes list if needed
           const companyExists = companyCodes.some(c => c.code === parsedCompanyInfo.code);
           if (!companyExists && parsedCompanyInfo.name) {
             setCompanyCodes([
@@ -225,16 +212,13 @@ const Inventory = () => {
     }
   }, []);
 
-  // Filter out inactive customers and locations
   const activeCustomers = customers.filter(customer => customer.status === "Active");
   const activeLocations = locations.filter(location => location.status === "active");
   const activeInventoryTypes = inventoryTypes.filter(type => type.status === "active");
 
-  // Inventory form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    // For rental cost, convert to number
     if (name === "rentalCost") {
       const numValue = parseFloat(value);
       setFormData((prev) => ({ ...prev, [name]: isNaN(numValue) ? 0 : numValue }));
@@ -243,7 +227,6 @@ const Inventory = () => {
     }
   };
 
-  // Inventory type form handlers
   const handleTypeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setTypeFormData((prev) => ({ ...prev, [name]: value }));
@@ -284,7 +267,6 @@ const Inventory = () => {
 
   const handleEditInventory = (inventory: any) => {
     setFormData(inventory);
-    // Set code type based on which code is being used
     if (inventory.customer) {
       setCodeType("customer");
     } else if (inventory.inventoryType) {
@@ -321,7 +303,6 @@ const Inventory = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Determine which code to use based on the selected code type
     let codePrefix;
     switch (codeType) {
       case "customer":
@@ -335,7 +316,6 @@ const Inventory = () => {
         break;
     }
     
-    // Generate inventory ID based on code prefix, project, partition, and serial number
     const inventoryId = `${codePrefix}${formData.project}${formData.partition}${formData.serialNumber}`;
     
     if (isEditing) {
@@ -358,7 +338,7 @@ const Inventory = () => {
     } else {
       const newInventory = {
         ...formData,
-        id: inventoryId, // Using the generated inventoryId
+        id: inventoryId,
         lastScanTime: new Date(),
         createdAt: new Date(),
       };
@@ -385,7 +365,6 @@ const Inventory = () => {
       return;
     }
 
-    // Check if code already exists (when adding new or editing with different code)
     const codeExists = inventoryTypes.some(
       type => type.code === typeFormData.code && (!isTypeEditing || type.id !== typeFormData.id)
     );
@@ -402,7 +381,7 @@ const Inventory = () => {
     if (isTypeEditing) {
       setInventoryTypes(
         inventoryTypes.map((type) =>
-          type.id === typeFormData.id ? { ...typeFormData } as InventoryType : type
+          type.id === typeFormData.id ? { ...typeFormData } : type
         )
       );
       toast({
@@ -410,10 +389,10 @@ const Inventory = () => {
         description: "Inventory type has been updated successfully",
       });
     } else {
-      const newInventoryType = {
+      const newInventoryType: InventoryType = {
         ...typeFormData,
         id: `${inventoryTypes.length + 1}`,
-      } as InventoryType;
+      };
       
       setInventoryTypes([...inventoryTypes, newInventoryType]);
       toast({
@@ -449,19 +428,16 @@ const Inventory = () => {
     return searchableValues.includes(typeSearchTerm.toLowerCase());
   });
 
-  // Get customer name from code
   const getCustomerName = (code: string) => {
     const customer = customers.find(c => c.code === code);
     return customer ? customer.name : code;
   };
 
-  // Get inventory type name from code
   const getTypeName = (code: string) => {
     const type = inventoryTypes.find(t => t.code === code);
     return type ? type.name : code;
   };
 
-  // Get company name from code
   const getCompanyName = (code: string) => {
     const company = companyCodes.find(c => c.code === code);
     return company ? company.name : code;
@@ -528,7 +504,6 @@ const Inventory = () => {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                        {/* Code Type Selection */}
                         <div className="grid gap-2">
                           <Label>Code Type</Label>
                           <RadioGroup 
@@ -551,7 +526,6 @@ const Inventory = () => {
                           </RadioGroup>
                         </div>
 
-                        {/* Code Selection based on type */}
                         {codeType === "customer" && (
                           <div className="grid gap-2">
                             <Label htmlFor="customer">Customer</Label>

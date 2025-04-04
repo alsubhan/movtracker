@@ -31,15 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { PlusCircle, Pencil, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Inventory Type interface
-interface InventoryType {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  status: "active" | "inactive";
-}
+import { InventoryType } from "@/types";
 
 // Mock data for inventory types
 const initialInventoryTypes: InventoryType[] = [
@@ -70,7 +62,7 @@ const InventoryTypes = () => {
   const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>(initialInventoryTypes);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<InventoryType>({
     id: "",
     code: "",
     name: "",
@@ -139,7 +131,7 @@ const InventoryTypes = () => {
     if (isEditing) {
       setInventoryTypes(
         inventoryTypes.map((type) =>
-          type.id === formData.id ? { ...formData } as InventoryType : type
+          type.id === formData.id ? { ...formData } : type
         )
       );
       toast({
@@ -147,10 +139,10 @@ const InventoryTypes = () => {
         description: "Inventory type has been updated successfully",
       });
     } else {
-      const newInventoryType = {
+      const newInventoryType: InventoryType = {
         ...formData,
         id: `${inventoryTypes.length + 1}`,
-      } as InventoryType;
+      };
       
       setInventoryTypes([...inventoryTypes, newInventoryType]);
       toast({
