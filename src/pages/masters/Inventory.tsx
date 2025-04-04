@@ -35,12 +35,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Box, PlusCircle, Pencil, Trash2, Search } from "lucide-react";
+import { Box, PlusCircle, Pencil, Trash2, Search, IndianRupee } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Customer, Location } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 
 // Mock data
 const initialInventory = [
@@ -108,10 +109,28 @@ const mockCustomers: Customer[] = [
 ];
 
 // Mock inventory types
-const mockInventoryTypes = [
-  { id: "1", code: "PLT", name: "Pallet", status: "active" },
-  { id: "2", code: "BIN", name: "Bin", status: "active" },
-  { id: "3", code: "BOX", name: "Box", status: "active" },
+const initialInventoryTypes = [
+  { 
+    id: "1", 
+    code: "PLT", 
+    name: "Pallet", 
+    description: "Standard wooden pallet", 
+    status: "active" 
+  },
+  { 
+    id: "2", 
+    code: "BIN", 
+    name: "Bin", 
+    description: "Storage bin container", 
+    status: "active" 
+  },
+  { 
+    id: "3", 
+    code: "BOX", 
+    name: "Box", 
+    description: "Cardboard box container", 
+    status: "active" 
+  },
 ];
 
 // Mock company codes
@@ -121,12 +140,24 @@ const mockCompanyCodes = [
   { code: "DEF", name: "DEF Enterprises" },
 ];
 
+// Inventory Type interface
+interface InventoryType {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: "active" | "inactive";
+}
+
 const Inventory = () => {
   const [inventory, setInventory] = useState(initialInventory);
+  const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>(initialInventoryTypes);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeSearchTerm, setTypeSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("inventory");
-  const [codeType, setCodeType] = useState<"customer" | "type" | "company">("customer");
+  const [codeType, setCodeType] = useState<"customer" | "type" | "company">("company");
   const [formData, setFormData] = useState({
     id: "",
     customer: "",
@@ -140,18 +171,66 @@ const Inventory = () => {
     rentalCost: 50,
     lastScanGate: "",
   });
+  const [typeFormData, setTypeFormData] = useState({
+    id: "",
+    code: "",
+    name: "",
+    description: "",
+    status: "active",
+  });
   const [isEditing, setIsEditing] = useState(false);
+  const [isTypeEditing, setIsTypeEditing] = useState(false);
   const [locations, setLocations] = useState<Location[]>(mockLocations);
   const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
-  const [inventoryTypes, setInventoryTypes] = useState(mockInventoryTypes);
   const [companyCodes, setCompanyCodes] = useState(mockCompanyCodes);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Load the default code type from localStorage or use "company"
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      try {
+        const parsedSettings = JSON.parse(settings);
+        if (parsedSettings.defaultCodeType) {
+          setCodeType(parsedSettings.defaultCodeType);
+        }
+      } catch (error) {
+        console.error("Error parsing settings from localStorage", error);
+      }
+    }
+    
+    // Load the company code from localStorage
+    const companyInfo = localStorage.getItem("companyInfo");
+    if (companyInfo) {
+      try {
+        const parsedCompanyInfo = JSON.parse(companyInfo);
+        if (parsedCompanyInfo.code) {
+          setFormData(prev => ({
+            ...prev,
+            companyCode: parsedCompanyInfo.code
+          }));
+
+          // Update company codes list if needed
+          const companyExists = companyCodes.some(c => c.code === parsedCompanyInfo.code);
+          if (!companyExists && parsedCompanyInfo.name) {
+            setCompanyCodes([
+              ...companyCodes,
+              { code: parsedCompanyInfo.code, name: parsedCompanyInfo.name }
+            ]);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing company info from localStorage", error);
+      }
+    }
+  }, []);
 
   // Filter out inactive customers and locations
   const activeCustomers = customers.filter(customer => customer.status === "Active");
   const activeLocations = locations.filter(location => location.status === "active");
   const activeInventoryTypes = inventoryTypes.filter(type => type.status === "active");
 
+  // Inventory form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
@@ -162,6 +241,12 @@ const Inventory = () => {
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  // Inventory type form handlers
+  const handleTypeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setTypeFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -182,8 +267,19 @@ const Inventory = () => {
       rentalCost: 50,
       lastScanGate: "",
     });
-    setCodeType("customer");
+    setCodeType("company");
     setIsEditing(false);
+  };
+
+  const resetTypeForm = () => {
+    setTypeFormData({
+      id: "",
+      code: "",
+      name: "",
+      description: "",
+      status: "active",
+    });
+    setIsTypeEditing(false);
   };
 
   const handleEditInventory = (inventory: any) => {
@@ -200,11 +296,25 @@ const Inventory = () => {
     setIsDialogOpen(true);
   };
 
+  const handleEditInventoryType = (type: InventoryType) => {
+    setTypeFormData(type);
+    setIsTypeEditing(true);
+    setIsTypeDialogOpen(true);
+  };
+
   const handleDeleteInventory = (id: string) => {
     setInventory(inventory.filter((inventory) => inventory.id !== id));
     toast({
       title: "Inventory Deleted",
       description: "Inventory has been deleted successfully",
+    });
+  };
+
+  const handleDeleteInventoryType = (id: string) => {
+    setInventoryTypes(inventoryTypes.filter((type) => type.id !== id));
+    toast({
+      title: "Inventory Type Deleted",
+      description: "Inventory type has been deleted successfully",
     });
   };
 
@@ -263,6 +373,59 @@ const Inventory = () => {
     setIsDialogOpen(false);
   };
 
+  const handleTypeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (typeFormData.code.length !== 3) {
+      toast({
+        title: "Invalid Code",
+        description: "Type code must be exactly 3 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if code already exists (when adding new or editing with different code)
+    const codeExists = inventoryTypes.some(
+      type => type.code === typeFormData.code && (!isTypeEditing || type.id !== typeFormData.id)
+    );
+
+    if (codeExists) {
+      toast({
+        title: "Code Already Exists",
+        description: "Please use a unique type code",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isTypeEditing) {
+      setInventoryTypes(
+        inventoryTypes.map((type) =>
+          type.id === typeFormData.id ? { ...typeFormData } as InventoryType : type
+        )
+      );
+      toast({
+        title: "Inventory Type Updated",
+        description: "Inventory type has been updated successfully",
+      });
+    } else {
+      const newInventoryType = {
+        ...typeFormData,
+        id: `${inventoryTypes.length + 1}`,
+      } as InventoryType;
+      
+      setInventoryTypes([...inventoryTypes, newInventoryType]);
+      toast({
+        title: "Inventory Type Added",
+        description: `New inventory type ${typeFormData.name} has been added successfully`,
+      });
+    }
+    
+    resetTypeForm();
+    setIsTypeDialogOpen(false);
+  };
+
   const filteredInventory = inventory.filter((inventory) => {
     const inventoryId = `${inventory.customer || inventory.inventoryType || inventory.companyCode}${inventory.project}${inventory.partition}${inventory.serialNumber}`;
     const searchableValues = [
@@ -274,6 +437,16 @@ const Inventory = () => {
     ].join(" ").toLowerCase();
     
     return searchableValues.includes(searchTerm.toLowerCase());
+  });
+
+  const filteredInventoryTypes = inventoryTypes.filter((type) => {
+    const searchableValues = [
+      type.code,
+      type.name,
+      type.description,
+    ].join(" ").toLowerCase();
+    
+    return searchableValues.includes(typeSearchTerm.toLowerCase());
   });
 
   // Get customer name from code
@@ -521,17 +694,21 @@ const Inventory = () => {
                             </Select>
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="rentalCost">Rental Cost/Month</Label>
-                            <Input
-                              id="rentalCost"
-                              name="rentalCost"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formData.rentalCost}
-                              onChange={handleInputChange}
-                              placeholder="e.g. 50.00"
-                            />
+                            <Label htmlFor="rentalCost">Rental Cost/Month (₹)</Label>
+                            <div className="relative">
+                              <IndianRupee className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="rentalCost"
+                                name="rentalCost"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.rentalCost}
+                                onChange={handleInputChange}
+                                placeholder="e.g. 50.00"
+                                className="pl-8"
+                              />
+                            </div>
                           </div>
                         </div>
                         {isEditing && (
@@ -636,7 +813,7 @@ const Inventory = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          ${inventory.rentalCost ? inventory.rentalCost.toFixed(2) : '0.00'}
+                          ₹{inventory.rentalCost ? inventory.rentalCost.toFixed(2) : '0.00'}
                         </TableCell>
                         <TableCell>
                           {inventory.lastScanTime.toLocaleString()}
@@ -670,24 +847,173 @@ const Inventory = () => {
 
         <TabsContent value="types">
           <Card>
-            <CardHeader>
-              <CardTitle>Inventory Types</CardTitle>
-              <CardDescription>
-                Manage inventory types used in the system
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Inventory Types</CardTitle>
+                <CardDescription>
+                  Manage inventory types used in the system
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search types..."
+                    className="pl-8 w-[250px]"
+                    value={typeSearchTerm}
+                    onChange={(e) => setTypeSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Dialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      onClick={() => {
+                        resetTypeForm();
+                        setIsTypeDialogOpen(true);
+                      }}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Type
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <form onSubmit={handleTypeSubmit}>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {isTypeEditing ? "Edit Inventory Type" : "Add New Inventory Type"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {isTypeEditing
+                            ? "Update inventory type details"
+                            : "Create a new inventory type"}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="code">Type Code (3)</Label>
+                            <Input
+                              id="code"
+                              name="code"
+                              value={typeFormData.code}
+                              onChange={handleTypeInputChange}
+                              placeholder="e.g. PLT"
+                              maxLength={3}
+                              pattern="[A-Za-z0-9]{3}"
+                              title="3 characters (letters and numbers only)"
+                              required
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="name">Type Name</Label>
+                            <Input
+                              id="name"
+                              name="name"
+                              value={typeFormData.name}
+                              onChange={handleTypeInputChange}
+                              placeholder="e.g. Pallet"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Input
+                            id="description"
+                            name="description"
+                            value={typeFormData.description}
+                            onChange={handleTypeInputChange}
+                            placeholder="Enter description"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="status">Status: </Label>
+                          <Switch
+                            id="status"
+                            checked={typeFormData.status === "active"}
+                            onCheckedChange={(checked) =>
+                              setTypeFormData((prev) => ({
+                                ...prev,
+                                status: checked ? "active" : "inactive",
+                              }))
+                            }
+                          />
+                          <span>{typeFormData.status === "active" ? "Active" : "Inactive"}</span>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" type="button" onClick={() => setIsTypeDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit">
+                          {isTypeEditing ? "Update" : "Add"} Inventory Type
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="mb-4 text-muted-foreground">
-                Inventory types are managed in the Inventory Types page.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  window.location.href = "/inventory-types";
-                }}
-              >
-                Go to Inventory Types
-              </Button>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type Code</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInventoryTypes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        No inventory types found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredInventoryTypes.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">{type.code}</TableCell>
+                        <TableCell>{type.name}</TableCell>
+                        <TableCell>{type.description}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              type.status === "active"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                            }
+                          >
+                            {type.status === "active" ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditInventoryType(type)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteInventoryType(type.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
