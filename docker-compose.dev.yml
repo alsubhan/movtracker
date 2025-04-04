@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # Mount source code for hot reloading
+      - ./:/app
+      # Prevent node_modules from being overwritten by the mount
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      # Add your Supabase environment variables here
+      # - VITE_SUPABASE_URL=your-supabase-url
+      # - VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+    restart: unless-stopped

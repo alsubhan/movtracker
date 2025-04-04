@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"  # Changed from 80:80 to 3000:80
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      # Add your Supabase environment variables here
+      # - VITE_SUPABASE_URL=your-supabase-url
+      # - VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
