@@ -18,10 +18,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RentalReport } from "@/types";
+import type { RentalReport } from "@/types";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Mock data for rental report
