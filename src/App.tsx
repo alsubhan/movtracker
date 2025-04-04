@@ -18,12 +18,18 @@ import Movement from "./pages/transactions/Movement";
 import NotFound from "./pages/NotFound";
 import MovementReport from "./pages/reports/MovementReport";
 import MissingReport from "./pages/reports/MissingReport";
+import RentalReport from "./pages/reports/RentalReport";
 import { AuthProvider } from "@/hooks/useAuth";
 
 function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
+    // Check if user is logged in
+    const loggedIn = localStorage.getItem("isLoggedIn") === "true";
+    setIsLoggedIn(loggedIn);
+    
     // Shorter loading time to avoid blank screen
     setTimeout(() => {
       setIsLoading(false);
@@ -44,6 +50,17 @@ function AppRoutes() {
   
   // Check if current path is a public route that doesn't need layout
   const isPublicRoute = publicRoutes.includes(currentPath);
+
+  // If not logged in and not on a public route, redirect to login
+  if (!isLoggedIn && !isPublicRoute) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
+  }
 
   if (isPublicRoute) {
     return (
@@ -70,6 +87,7 @@ function AppRoutes() {
       <Route path="/movement" element={<Layout><Movement /></Layout>} />
       <Route path="/movement-report" element={<Layout><MovementReport /></Layout>} />
       <Route path="/missing-report" element={<Layout><MissingReport /></Layout>} />
+      <Route path="/rental-report" element={<Layout><RentalReport /></Layout>} />
     </Routes>
   );
 }

@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-auto">
-          <ScrollArea className="h-full w-full">
+          <ScrollArea className="h-full w-full" type="auto">
             {children}
           </ScrollArea>
         </main>

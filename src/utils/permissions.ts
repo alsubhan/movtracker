@@ -6,11 +6,13 @@ export const PERMISSIONS = {
   USER_MANAGEMENT: 'user_management',
   INVENTORY_MANAGEMENT: 'inventory_management',
   GATE_MANAGEMENT: 'gate_management',
-  BARCODE_PRINTING: 'barcode_printing', // This is now the primary permission
+  BARCODE_PRINTING: 'barcode_printing',
   INVENTORY_MOVEMENT: 'inventory_movement',
   REPORTS_VIEW: 'reports_view',
+  RENTAL_REPORT: 'rental_report',
   DATABASE_UTILITIES: 'database_utilities',
   SETTINGS: 'settings',
+  COMPANY_SETTINGS: 'company_settings',
 };
 
 // Define role-based permissions
@@ -21,6 +23,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.INVENTORY_MOVEMENT,
     PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.RENTAL_REPORT,
   ],
   operator: [
     PERMISSIONS.BARCODE_PRINTING,
@@ -40,7 +43,7 @@ export const permissionsList: Permission[] = [
     id: '2',
     name: PERMISSIONS.INVENTORY_MANAGEMENT,
     description: 'Manage Inventory',
-    modules: ['Inventory'],
+    modules: ['Inventory', 'Inventory Types'],
   },
   {
     id: '3',
@@ -77,6 +80,18 @@ export const permissionsList: Permission[] = [
     name: PERMISSIONS.SETTINGS,
     description: 'Manage application settings',
     modules: ['Settings'],
+  },
+  {
+    id: '9',
+    name: PERMISSIONS.COMPANY_SETTINGS,
+    description: 'Manage company settings',
+    modules: ['Company Settings'],
+  },
+  {
+    id: '10',
+    name: PERMISSIONS.RENTAL_REPORT,
+    description: 'View rental cost reports',
+    modules: ['Rental Report'],
   },
 ];
 

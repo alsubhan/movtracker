@@ -38,9 +38,11 @@ export interface Inventory {
   serialNumber: string;
   status: 'in-stock' | 'in-wip' | 'dispatched' | 'damaged';
   location: string;
+  inventoryType?: string;
   lastScanTime: Date;
   lastScanGate: string;
   createdAt: Date;
+  rentalCost?: number;
 }
 
 export interface InventoryType {
@@ -77,6 +79,10 @@ export interface Movement {
   timestamp: Date;
   location: string;
   previousLocation: string;
+  customer?: string;
+  project?: string;
+  rentalStartDate?: Date | null;
+  rentalCost?: number;
 }
 
 export interface Dashboard {
@@ -90,4 +96,29 @@ export interface Dashboard {
   };
   overdueInventory: number;
   unusedInventory: number;
+}
+
+export interface RentalReport {
+  inventoryId: string;
+  inventoryType?: string;
+  customer: string;
+  location: string;
+  status: string;
+  rentalStartDate?: Date | null;
+  rentalCost: number;
+  daysRented: number;
+  monthlyTotal: number;
+  dailyAverage: number;
+}
+
+export interface CompanyInfo {
+  code: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  taxId: string;
+  headerText: string;
+  footerText: string;
 }

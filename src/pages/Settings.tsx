@@ -8,6 +8,7 @@ import { ArrowLeft, Save, Barcode } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Import the DatabaseUtility component content
 import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
@@ -18,14 +19,34 @@ const Settings = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [enableNotifications, setEnableNotifications] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
-  const [enableManualScanning, setEnableManualScanning] = useState(false);
+  const [enableManualScanning, setEnableManualScanning] = useState(true); // Default to true
+  const [defaultCodeType, setDefaultCodeType] = useState<'customer' | 'type' | 'company'>('company');
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check current theme on component mount
+  // Check current theme and settings on component mount
   useEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
     setIsDarkMode(isDark);
+
+    const settings = localStorage.getItem("settings");
+    if (settings) {
+      try {
+        const parsedSettings = JSON.parse(settings);
+        if (parsedSettings.notifications !== undefined) 
+          setEnableNotifications(parsedSettings.notifications);
+        if (parsedSettings.autoSave !== undefined) 
+          setAutoSave(parsedSettings.autoSave);
+        if (parsedSettings.manualScanning !== undefined) 
+          setEnableManualScanning(parsedSettings.manualScanning);
+        if (parsedSettings.defaultCodeType) 
+          setDefaultCodeType(parsedSettings.defaultCodeType);
+        else
+          setDefaultCodeType('company'); // Default to company if not set
+      } catch (error) {
+        console.error("Error parsing settings from localStorage", error);
+      }
+    }
   }, []);
 
   // Update theme when isDarkMode changes
@@ -43,7 +64,8 @@ const Settings = () => {
       darkMode: isDarkMode,
       notifications: enableNotifications,
       autoSave: autoSave,
-      manualScanning: enableManualScanning
+      manualScanning: enableManualScanning,
+      defaultCodeType: defaultCodeType
     }));
 
     toast({
@@ -53,7 +75,7 @@ const Settings = () => {
   };
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="h-full w-full">
       <div className="p-6">
         <div className="flex items-center mb-6">
           <Button 
@@ -68,9 +90,10 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList>
+          <TabsList className="overflow-x-auto">
             <TabsTrigger value="general">General Settings</TabsTrigger>
             <TabsTrigger value="scanning">Scanning Settings</TabsTrigger>
+            <TabsTrigger value="inventory">Inventory Settings</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
             <TabsTrigger value="account">Account Settings</TabsTrigger>
             <TabsTrigger value="database">Database Utilities</TabsTrigger>
@@ -138,6 +161,40 @@ const Settings = () => {
                     checked={enableManualScanning}
                     onCheckedChange={setEnableManualScanning}
                   />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <div className="bg-card p-6 rounded-lg shadow">
+              <h2 className="text-xl font-semibold mb-4">Inventory Settings</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-base font-medium mb-2">Default Code Type</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Select the default code type for inventory items
+                  </p>
+                  
+                  <RadioGroup 
+                    value={defaultCodeType}
+                    onValueChange={(value) => setDefaultCodeType(value as 'customer' | 'type' | 'company')}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="customer" id="default-customer" />
+                      <Label htmlFor="default-customer">Customer Code</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="type" id="default-type" />
+                      <Label htmlFor="default-type">Type Code</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="company" id="default-company" />
+                      <Label htmlFor="default-company">Company Code</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </div>
             </div>
