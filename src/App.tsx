@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import Layout from "./components/layout/Layout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Auth from "./pages/Auth";
@@ -37,23 +38,38 @@ function AppRoutes() {
     );
   }
 
+  // Routes that should not use the layout
+  const publicRoutes = ["/login", "/auth"];
+  const currentPath = window.location.pathname;
+  
+  // Check if current path is a public route that doesn't need layout
+  const isPublicRoute = publicRoutes.includes(currentPath);
+
+  if (isPublicRoute) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    );
+  }
+
+  // All other routes use the layout
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/" element={<Index />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/users" element={<Users />} />
-      <Route path="/inventory" element={<Inventory />} />
-      <Route path="/locations" element={<Locations />} />
-      <Route path="/gates" element={<Gates />} />
-      <Route path="/customers" element={<Customers />} />
-      <Route path="/label-printing" element={<LabelPrinting />} />
-      <Route path="/movement" element={<Movement />} />
-      <Route path="/movement-report" element={<MovementReport />} />
-      <Route path="/missing-report" element={<MissingReport />} />
-      <Route path="/database" element={<DatabaseUtility />} />
-      <Route path="*" element={<NotFound />} />
+      <Route path="/" element={<Layout><Index /></Layout>} />
+      <Route path="/settings" element={<Layout><Settings /></Layout>} />
+      <Route path="/users" element={<Layout><Users /></Layout>} />
+      <Route path="/inventory" element={<Layout><Inventory /></Layout>} />
+      <Route path="/locations" element={<Layout><Locations /></Layout>} />
+      <Route path="/gates" element={<Layout><Gates /></Layout>} />
+      <Route path="/customers" element={<Layout><Customers /></Layout>} />
+      <Route path="/label-printing" element={<Layout><LabelPrinting /></Layout>} />
+      <Route path="/movement" element={<Layout><Movement /></Layout>} />
+      <Route path="/movement-report" element={<Layout><MovementReport /></Layout>} />
+      <Route path="/missing-report" element={<Layout><MissingReport /></Layout>} />
+      <Route path="/database" element={<Layout><DatabaseUtility /></Layout>} />
     </Routes>
   );
 }
