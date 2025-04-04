@@ -17,7 +17,6 @@ import Movement from "./pages/transactions/Movement";
 import NotFound from "./pages/NotFound";
 import MovementReport from "./pages/reports/MovementReport";
 import MissingReport from "./pages/reports/MissingReport";
-import DatabaseUtility from "./pages/utilities/DatabaseUtility";
 import { AuthProvider } from "@/hooks/useAuth";
 
 function AppRoutes() {
@@ -69,7 +68,6 @@ function AppRoutes() {
       <Route path="/movement" element={<Layout><Movement /></Layout>} />
       <Route path="/movement-report" element={<Layout><MovementReport /></Layout>} />
       <Route path="/missing-report" element={<Layout><MissingReport /></Layout>} />
-      <Route path="/database" element={<Layout><DatabaseUtility /></Layout>} />
     </Routes>
   );
 }

@@ -1,13 +1,16 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Barcode } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Import the DatabaseUtility component content
+import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
 
 const Settings = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -48,27 +51,29 @@ const Settings = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <div className="w-64">
-        <Sidebar />
-      </div>
+    <ScrollArea className="flex-1">
+      <div className="p-6">
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="mr-2" 
+            onClick={() => navigate("/")}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Settings</h1>
+        </div>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6 bg-muted/10">
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="mr-2" 
-              onClick={() => navigate("/")}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold">Settings</h1>
-          </div>
+        <Tabs defaultValue="general" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="general">General Settings</TabsTrigger>
+            <TabsTrigger value="scanning">Scanning Settings</TabsTrigger>
+            <TabsTrigger value="account">Account Settings</TabsTrigger>
+            <TabsTrigger value="database">Database Utilities</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-6">
+          <TabsContent value="general" className="space-y-6">
             <div className="bg-card p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">General Settings</h2>
               
@@ -110,7 +115,9 @@ const Settings = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
 
+          <TabsContent value="scanning" className="space-y-6">
             <div className="bg-card p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Scanning Settings</h2>
               
@@ -131,7 +138,9 @@ const Settings = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
 
+          <TabsContent value="account" className="space-y-6">
             <div className="bg-card p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
               
@@ -155,15 +164,19 @@ const Settings = () => {
                 </Button>
               </div>
             </div>
+          </TabsContent>
 
-            <Button className="flex items-center" onClick={handleSaveSettings}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Settings
-            </Button>
-          </div>
-        </main>
+          <TabsContent value="database" className="space-y-6">
+            <DatabaseUtilityContent />
+          </TabsContent>
+        </Tabs>
+
+        <Button className="flex items-center mt-6" onClick={handleSaveSettings}>
+          <Save className="mr-2 h-4 w-4" />
+          Save Settings
+        </Button>
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 
