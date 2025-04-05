@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,12 +32,21 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
 
+// Mock data - in a real app, this would come from an API
 const mockLocations = [
   { id: "1", name: "Warehouse", code: "WH", rentalRate: { "PLT": 10, "CTN": 5, "CRT": 8 } },
   { id: "2", name: "Store A", code: "STA", rentalRate: { "PLT": 15, "CTN": 7, "CRT": 10 } },
   { id: "3", name: "Store B", code: "STB", rentalRate: { "PLT": 12, "CTN": 6, "CRT": 9 } },
   { id: "4", name: "Customer Site 1", code: "CS1", rentalRate: { "PLT": 20, "CTN": 10, "CRT": 15 } },
   { id: "5", name: "Customer Site 2", code: "CS2", rentalRate: { "PLT": 18, "CTN": 9, "CRT": 14 } },
+];
+
+const mockCustomers = [
+  { id: "TOY", name: "Toyota", locationId: "4" },
+  { id: "HON", name: "Honda", locationId: "5" },
+  { id: "DEF", name: "Defense Corp", locationId: "3" },
+  { id: "GHI", name: "GHI Limited", locationId: "2" },
+  { id: "JKL", name: "JKL Industries", locationId: "1" },
 ];
 
 const mockInventoryItems = [
@@ -55,6 +64,7 @@ const Movement = () => {
   const [barcode, setBarcode] = useState("");
   const [scannedItems, setScannedItems] = useState<any[]>([]);
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedInventory, setSelectedInventory] = useState<any | null>(null);
@@ -65,6 +75,26 @@ const Movement = () => {
     items: [] as any[],
   });
   const [showChallan, setShowChallan] = useState(false);
+
+  // Update location when customer is selected (for Out movements)
+  useEffect(() => {
+    if (activeTab === "out" && selectedCustomer) {
+      const customer = mockCustomers.find(c => c.id === selectedCustomer);
+      if (customer) {
+        const location = mockLocations.find(l => l.id === customer.locationId);
+        if (location) {
+          setSelectedLocation(location.name);
+        }
+      }
+    }
+  }, [selectedCustomer, activeTab]);
+
+  // Reset selections when tab changes
+  useEffect(() => {
+    setSelectedLocation("");
+    setSelectedCustomer("");
+    setScannedItems([]);
+  }, [activeTab]);
 
   const handleScan = () => {
     if (!barcode) {
@@ -95,9 +125,18 @@ const Movement = () => {
       return;
     }
 
-    // Add rental cost based on inventory type and selected location
-    const location = mockLocations.find(loc => loc.name === selectedLocation);
-    const dailyRentalCost = location?.rentalRate[found.type as keyof typeof location.rentalRate] || 0;
+    // Calculate rental cost based on inventory type and location (for when a location is selected)
+    let dailyRentalCost = 0;
+    
+    if (activeTab === "out"  && selectedCustomer) {
+      const customer = mockCustomers.find(c => c.id === selectedCustomer);
+      if (customer) {
+        const location = mockLocations.find(l => l.id === customer.locationId);
+        if (location && location.rentalRate[found.type as keyof typeof location.rentalRate]) {
+          dailyRentalCost = location.rentalRate[found.type as keyof typeof location.rentalRate];
+        }
+      }
+    }
 
     setScannedItems([...scannedItems, { 
       ...found, 
@@ -123,10 +162,21 @@ const Movement = () => {
       return;
     }
 
+    const locationRequired = activeTab === "in" ? "Source" : "Destination";
+    
+    if (activeTab === "out" && !selectedCustomer) {
+      toast({
+        title: "Customer Required",
+        description: "Please select a customer for out movement",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!selectedLocation) {
       toast({
         title: "Location Required",
-        description: "Please select a location",
+        description: `Please select a ${locationRequired} location`,
         variant: "destructive",
       });
       return;
@@ -137,6 +187,7 @@ const Movement = () => {
     // Simulate processing
     setTimeout(() => {
       const movementType = activeTab === "in" ? "In Movement" : "Out Movement";
+      const locationDesc = activeTab === "in" ? "from" : "to";
       
       toast({
         title: "Movement Processed",
@@ -147,11 +198,12 @@ const Movement = () => {
       if (activeTab === "out" && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
         // Create challan
         const challanNo = "DC" + Math.floor(Math.random() * 10000).toString().padStart(5, '0');
-        const customer = scannedItems[0]?.customer || "Unknown";
+        const customer = selectedCustomer || scannedItems[0]?.customer || "Unknown";
+        const customerObj = mockCustomers.find(c => c.id === customer);
         
         setChallanDetails({
           challanNo,
-          customerName: customer,
+          customerName: customerObj?.name || customer,
           customerAddress: selectedLocation,
           items: scannedItems.map(item => ({
             ...item,
@@ -166,6 +218,7 @@ const Movement = () => {
       // Reset form
       setScannedItems([]);
       setSelectedLocation("");
+      setSelectedCustomer("");
       setNotes("");
       setIsProcessing(false);
     }, 1500);
@@ -361,7 +414,7 @@ const Movement = () => {
                     <span>{activeTab === "in" ? "In Movement" : "Out Movement"}</span>
                   </div>
                   <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Destination:</span>
+                    <span className="font-medium">{activeTab === "in" ? "Source" : "Destination"}:</span>
                     <span>{selectedLocation || "Not set"}</span>
                   </div>
                 </div>
@@ -409,16 +462,38 @@ const Movement = () => {
                     </div>
                   </div>
 
+                  {activeTab === "out" && (
+                    <div>
+                      <Label htmlFor="customer">Customer</Label>
+                      <Select
+                        value={selectedCustomer}
+                        onValueChange={setSelectedCustomer}
+                      >
+                        <SelectTrigger id="customer">
+                          <SelectValue placeholder="Select customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mockCustomers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div>
                     <Label htmlFor="location">
-                      {activeTab === "in" ? "Destination Location" : "Source Location"}
+                      {activeTab === "in" ? "Source Location" : "Destination Location"}
                     </Label>
                     <Select
                       value={selectedLocation}
                       onValueChange={setSelectedLocation}
+                      disabled={activeTab === "out" && selectedCustomer !== ""}
                     >
                       <SelectTrigger id="location">
-                        <SelectValue placeholder="Select location" />
+                        <SelectValue placeholder={`Select ${activeTab === "in" ? "source" : "destination"}`} />
                       </SelectTrigger>
                       <SelectContent>
                         {mockLocations.map((location) => (
@@ -428,6 +503,11 @@ const Movement = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {activeTab === "out" && selectedCustomer && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Location is automatically set based on customer selection
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -445,7 +525,7 @@ const Movement = () => {
                 <Button 
                   className="w-full" 
                   onClick={handleProcess}
-                  disabled={isProcessing || scannedItems.length === 0 || !selectedLocation}
+                  disabled={isProcessing || scannedItems.length === 0 || !selectedLocation || (activeTab === "out" && !selectedCustomer)}
                 >
                   {isProcessing ? (
                     <>

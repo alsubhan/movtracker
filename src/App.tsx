@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import Layout from "./components/layout/Layout";
@@ -16,9 +17,6 @@ import LabelPrinting from "./pages/transactions/LabelPrinting";
 import Movement from "./pages/transactions/Movement";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
-import MovementReport from "./pages/reports/MovementReport";
-import MissingReport from "./pages/reports/MissingReport";
-import RentalReport from "./pages/reports/RentalReport";
 import { AuthProvider } from "@/hooks/useAuth";
 
 function AppRoutes() {
@@ -57,7 +55,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="*" element={<Auth />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     );
   }
@@ -86,10 +84,6 @@ function AppRoutes() {
       <Route path="/label-printing" element={<Layout><LabelPrinting /></Layout>} />
       <Route path="/movement" element={<Layout><Movement /></Layout>} />
       <Route path="/reports" element={<Layout><Reports /></Layout>} />
-      {/* Keep legacy routes for direct access */}
-      <Route path="/movement-report" element={<Layout><Reports /></Layout>} />
-      <Route path="/missing-report" element={<Layout><Reports /></Layout>} />
-      <Route path="/rental-report" element={<Layout><Reports /></Layout>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
