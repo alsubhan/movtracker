@@ -7,17 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Save, IndianRupee } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CompanyInfo {
   code: string;
   name: string;
   headerInfo: string;
   footerInfo: string;
-}
-
-interface InventorySettings {
-  defaultCodeType: "customer" | "type" | "company";
 }
 
 // Mock initial company data
@@ -28,13 +23,8 @@ const initialCompanyData: CompanyInfo = {
   footerInfo: "Thank you for your business!\nContact: info@acme.com | Phone: (555) 123-4567",
 };
 
-const initialInventorySettings: InventorySettings = {
-  defaultCodeType: "company"
-};
-
 const CompanySettings = () => {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(initialCompanyData);
-  const [inventorySettings, setInventorySettings] = useState<InventorySettings>(initialInventorySettings);
   const { toast } = useToast();
 
   // Load saved company info from localStorage on component mount
@@ -48,33 +38,11 @@ const CompanySettings = () => {
         console.error('Error parsing company info from localStorage', error);
       }
     }
-
-    const savedSettings = localStorage.getItem('settings');
-    if (savedSettings) {
-      try {
-        const parsedSettings = JSON.parse(savedSettings);
-        if (parsedSettings.defaultCodeType) {
-          setInventorySettings(prev => ({
-            ...prev,
-            defaultCodeType: parsedSettings.defaultCodeType
-          }));
-        }
-      } catch (error) {
-        console.error('Error parsing settings from localStorage', error);
-      }
-    }
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setCompanyInfo(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCodeTypeChange = (value: string) => {
-    setInventorySettings(prev => ({ 
-      ...prev, 
-      defaultCodeType: value as "customer" | "type" | "company" 
-    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -93,28 +61,11 @@ const CompanySettings = () => {
     // Save company info to localStorage
     localStorage.setItem('companyInfo', JSON.stringify(companyInfo));
 
-    // Save inventory settings to localStorage by updating the existing settings
-    const savedSettings = localStorage.getItem('settings');
-    let settings = {};
-    
-    if (savedSettings) {
-      try {
-        settings = JSON.parse(savedSettings);
-      } catch (error) {
-        console.error('Error parsing settings from localStorage', error);
-      }
-    }
-
-    localStorage.setItem('settings', JSON.stringify({
-      ...settings,
-      defaultCodeType: inventorySettings.defaultCodeType
-    }));
-
     // In a real application, save to database here
     // For now, we'll just show a success toast
     toast({
       title: "Company Settings Saved",
-      description: "Your company information and inventory settings have been updated",
+      description: "Your company information has been updated",
     });
   };
 
@@ -183,31 +134,6 @@ const CompanySettings = () => {
             />
             <p className="text-sm text-muted-foreground">
               This information will appear at the bottom of your invoices
-            </p>
-          </div>
-
-          <div className="grid gap-2 pt-4 border-t">
-            <Label>Default Inventory Code Type</Label>
-            <RadioGroup 
-              value={inventorySettings.defaultCodeType} 
-              onValueChange={handleCodeTypeChange}
-              className="flex space-x-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="customer" id="default-customer" />
-                <label htmlFor="default-customer" className="cursor-pointer">Customer Code</label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="type" id="default-type" />
-                <label htmlFor="default-type" className="cursor-pointer">Type Code</label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="company" id="default-company" />
-                <label htmlFor="default-company" className="cursor-pointer">Company Code</label>
-              </div>
-            </RadioGroup>
-            <p className="text-sm text-muted-foreground">
-              This setting determines which code type will be selected by default when creating new inventory items
             </p>
           </div>
 

@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +31,8 @@ const BarcodeLabelPrinting = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Array<{ id: string, copies: number }>>([]);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [prnFileName, setPrnFileName] = useState<string | null>(null);
-  const [prnFileContent, setPrnFileContent] = useState<string | null>(null);
+  const [prnFileContent, setPrnFileContent] = useState<string | null>("DEMO PRN CONTENT");
+  const [prnFileName, setPrnFileName] = useState<string | null>("demo.prn");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadPrnFile = (e: React.ChangeEvent<HTMLInputElement>) => {

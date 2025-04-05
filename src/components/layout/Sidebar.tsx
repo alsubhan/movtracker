@@ -1,230 +1,134 @@
-
-import { cn } from "@/lib/utils";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
-  User, 
-  Box, 
-  Barcode, 
-  ArrowRight, 
-  ArrowLeft, 
+  BarChart4, 
+  Home, 
+  CircleUser, 
+  Layers, 
+  Boxes, 
+  BoxSelect, 
+  MapPin, 
+  Store, 
+  Tag, 
   FileText, 
-  LayoutDashboard,
-  DoorOpen,
   Settings,
-  LogOut,
-  Building,
-  MapPin,
-  ChevronLeft,
-  ChevronRight
+  Truck
 } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "../ui/scroll-area";
+import { Button } from "../ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  active?: boolean;
-  requiredPermission?: string;
-  collapsed?: boolean;
-}
-
-const SidebarItem = ({ 
-  icon, 
-  label, 
-  href, 
-  active,
-  requiredPermission,
-  collapsed = false 
-}: SidebarItemProps) => {
-  const { hasPermission } = useAuth();
-  
-  if (requiredPermission && !hasPermission(requiredPermission)) {
-    return null;
-  }
-  
-  return (
-    <Link
-      to={href}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-rfid-blue",
-        active ? "bg-accent text-rfid-blue font-medium" : "text-muted-foreground",
-        collapsed ? "justify-center" : ""
-      )}
-      title={collapsed ? label : undefined}
-    >
-      {icon}
-      {!collapsed && <span>{label}</span>}
-    </Link>
-  );
-};
 
 export const Sidebar = () => {
-  const location = useLocation();
-  const pathname = location.pathname;
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [collapsed, setCollapsed] = useState(false);
+  const { user, hasPermission, logout } = useAuth();
 
-  const handleLogout = async () => {
-    await logout();
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
-    navigate("/auth");
-  };
-
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
+  // Navigation items with icons
+  const navItems = [
+    {
+      icon: Home,
+      label: "Dashboard",
+      href: "/",
+    },
+    {
+      icon: CircleUser,
+      label: "Users",
+      href: "/users",
+      permission: PERMISSIONS.VIEW_USERS,
+    },
+    {
+      icon: Boxes,
+      label: "Inventory",
+      href: "/inventory",
+      permission: PERMISSIONS.VIEW_INVENTORY,
+    },
+    {
+      icon: BoxSelect,
+      label: "Inventory Types",
+      href: "/inventory-types",
+      permission: PERMISSIONS.VIEW_INVENTORY_TYPES,
+    },
+    {
+      icon: MapPin,
+      label: "Locations",
+      href: "/locations",
+      permission: PERMISSIONS.VIEW_LOCATIONS,
+    },
+    {
+      icon: Store,
+      label: "Gates",
+      href: "/gates",
+      permission: PERMISSIONS.VIEW_GATES,
+    },
+    {
+      icon: Tag,
+      label: "Customers",
+      href: "/customers",
+      permission: PERMISSIONS.VIEW_CUSTOMERS,
+    },
+    {
+      icon: Layers,
+      label: "Label Printing",
+      href: "/label-printing",
+      permission: PERMISSIONS.LABEL_PRINTING,
+    },
+    {
+      icon: Truck,
+      label: "Movement",
+      href: "/movement",
+      permission: PERMISSIONS.INVENTORY_MOVEMENT,
+    },
+    {
+      icon: FileText,
+      label: "Reports",
+      href: "/reports",
+      permission: PERMISSIONS.VIEW_REPORTS,
+    },
+    {
+      icon: Settings,
+      label: "Settings",
+      href: "/settings",
+    },
+  ];
 
   return (
-    <div className={cn(
-      "h-full flex flex-col bg-sidebar border-r transition-all duration-300",
-      collapsed ? "w-[60px]" : "w-64"
-    )}>
-      <div className="space-y-4 py-4 flex flex-col h-full">
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-6">
-            {!collapsed && (
-              <Link to="/" className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight text-rfid-blue">
-                  MovTracker
-                </h2>
-              </Link>
-            )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={toggleSidebar} 
-              className="ml-auto"
-            >
-              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </Button>
-          </div>
-          
-          {user && !collapsed && (
-            <div className="mb-6 px-3 py-2 bg-muted/30 rounded-md">
-              <p className="text-sm font-medium">{user.full_name}</p>
-              <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
-            </div>
-          )}
-          
-          <ScrollArea className={cn(
-            "overflow-y-auto",
-            collapsed ? "h-[calc(100vh-120px)]" : "h-[calc(100vh-160px)]"
-          )}>
-            <div className="space-y-1">
-              <SidebarItem
-                icon={<LayoutDashboard size={20} />}
-                label="Dashboard"
-                href="/"
-                active={pathname === "/"}
-                collapsed={collapsed}
-              />
-              
-              <div className="space-y-1 mt-6">
-                <SidebarItem
-                  icon={<User size={20} />}
-                  label="Users"
-                  href="/users"
-                  active={pathname === "/users"}
-                  requiredPermission={PERMISSIONS.USER_MANAGEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<Box size={20} />}
-                  label="Inventory"
-                  href="/inventory"
-                  active={pathname === "/inventory"}
-                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<MapPin size={20} />}
-                  label="Locations"
-                  href="/locations"
-                  active={pathname === "/locations"}
-                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<DoorOpen size={20} />}
-                  label="Gates"
-                  href="/gates"
-                  active={pathname === "/gates"}
-                  requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<Building size={20} />}
-                  label="Customers"
-                  href="/customers"
-                  active={pathname === "/customers"}
-                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<Barcode size={20} />}
-                  label="Printing"
-                  href="/label-printing"
-                  active={pathname === "/label-printing"}
-                  requiredPermission={PERMISSIONS.BARCODE_PRINTING}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<Box size={20} />}
-                  label="Movement"
-                  href="/movement"
-                  active={pathname === "/movement"}
-                  requiredPermission={PERMISSIONS.INVENTORY_MOVEMENT}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<FileText size={20} />}
-                  label="Reports"
-                  href="/reports"
-                  active={pathname.includes("/reports") || pathname === "/movement-report" || pathname === "/missing-report" || pathname === "/rental-report"}
-                  requiredPermission={PERMISSIONS.REPORTS_VIEW}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  icon={<Settings size={20} />}
-                  label="Settings"
-                  href="/settings"
-                  active={pathname === "/settings"}
-                  requiredPermission={PERMISSIONS.SETTINGS}
-                  collapsed={collapsed}
-                />
-              </div>
-            </div>
-          </ScrollArea>
-          
-          <div className="mt-auto pt-6">
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full", 
-                collapsed ? "justify-center" : "justify-start",
-                "text-muted-foreground hover:text-destructive"
-              )}
-              onClick={handleLogout}
-              title={collapsed ? "Logout" : undefined}
-            >
-              <LogOut size={20} className={collapsed ? "" : "mr-2"} />
-              {!collapsed && "Logout"}
-            </Button>
-          </div>
-        </div>
+    <div className="flex flex-col h-screen bg-secondary border-r">
+      <div className="p-4 flex items-center justify-center">
+        <span className="font-bold text-lg">MovTracker</span>
       </div>
+      <ScrollArea className="flex-1">
+        <div className="py-4">
+          {navItems.map((item, index) => {
+            if (item.permission && !hasPermission(item.permission)) {
+              return null;
+            }
+
+            return (
+              <NavLink
+                key={index}
+                to={item.href}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center space-x-2 px-4 py-2 hover:bg-secondary/50 rounded-md transition-colors duration-200",
+                    isActive
+                      ? "bg-secondary/50 font-medium"
+                      : "text-muted-foreground"
+                  )
+                }
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </ScrollArea>
+      {user && (
+        <div className="p-4">
+          <Button variant="outline" className="w-full" onClick={() => logout()}>
+            Logout
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
-
-export default Sidebar;
