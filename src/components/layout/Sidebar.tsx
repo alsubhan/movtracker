@@ -1,3 +1,4 @@
+
 import { 
   BarChart4, 
   Home, 
@@ -33,43 +34,43 @@ export const Sidebar = () => {
       icon: CircleUser,
       label: "Users",
       href: "/users",
-      permission: PERMISSIONS.VIEW_USERS,
+      permission: PERMISSIONS.USER_MANAGEMENT,
     },
     {
       icon: Boxes,
       label: "Inventory",
       href: "/inventory",
-      permission: PERMISSIONS.VIEW_INVENTORY,
+      permission: PERMISSIONS.INVENTORY_MANAGEMENT,
     },
     {
       icon: BoxSelect,
       label: "Inventory Types",
       href: "/inventory-types",
-      permission: PERMISSIONS.VIEW_INVENTORY_TYPES,
+      permission: PERMISSIONS.INVENTORY_MANAGEMENT,
     },
     {
       icon: MapPin,
       label: "Locations",
       href: "/locations",
-      permission: PERMISSIONS.VIEW_LOCATIONS,
+      permission: PERMISSIONS.LOCATION_MANAGEMENT,
     },
     {
       icon: Store,
       label: "Gates",
       href: "/gates",
-      permission: PERMISSIONS.VIEW_GATES,
+      permission: PERMISSIONS.GATE_MANAGEMENT,
     },
     {
       icon: Tag,
       label: "Customers",
       href: "/customers",
-      permission: PERMISSIONS.VIEW_CUSTOMERS,
+      permission: PERMISSIONS.CUSTOMER_MANAGEMENT,
     },
     {
       icon: Layers,
       label: "Label Printing",
       href: "/label-printing",
-      permission: PERMISSIONS.LABEL_PRINTING,
+      permission: PERMISSIONS.BARCODE_PRINTING,
     },
     {
       icon: Truck,
@@ -81,7 +82,7 @@ export const Sidebar = () => {
       icon: FileText,
       label: "Reports",
       href: "/reports",
-      permission: PERMISSIONS.VIEW_REPORTS,
+      permission: PERMISSIONS.REPORTS_VIEW,
     },
     {
       icon: Settings,
