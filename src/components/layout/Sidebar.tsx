@@ -2,7 +2,7 @@
 import { 
   BarChart4, 
   Home, 
-  CircleUser, 
+  LayoutDashboard,
   Layers, 
   Boxes, 
   BoxSelect, 
@@ -12,7 +12,10 @@ import {
   FileText, 
   Settings,
   Truck,
-  Barcode
+  Barcode,
+  DoorOpenIcon,
+  BookUserIcon,
+  BoxIcon
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -20,6 +23,8 @@ import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
+import Dashboard from "../dashboard/Dashboard";
+import { KeyRoundIcon, UserRound, UsersRoundIcon } from "lucide-react";
 
 export const Sidebar = () => {
   const { user, hasPermission, logout } = useAuth();
@@ -27,18 +32,18 @@ export const Sidebar = () => {
   // Navigation items with icons
   const navItems = [
     {
-      icon: Home,
+      icon: LayoutDashboard,
       label: "Dashboard",
       href: "/",
     },
     {
-      icon: CircleUser,
+      icon: UsersRoundIcon,
       label: "Users",
       href: "/users",
       permission: PERMISSIONS.USER_MANAGEMENT,
     },
     {
-      icon: Boxes,
+      icon: BoxIcon,
       label: "Inventory",
       href: "/inventory",
       permission: PERMISSIONS.INVENTORY_MANAGEMENT,
@@ -50,20 +55,20 @@ export const Sidebar = () => {
       permission: PERMISSIONS.LOCATION_MANAGEMENT,
     },
     {
-      icon: Store,
+      icon: DoorOpenIcon,
       label: "Gates",
       href: "/gates",
       permission: PERMISSIONS.GATE_MANAGEMENT,
     },
     {
-      icon: Tag,
+      icon: BookUserIcon,
       label: "Customers",
       href: "/customers",
       permission: PERMISSIONS.CUSTOMER_MANAGEMENT,
     },
     {
       icon: Barcode,
-      label: "Label Printing",
+      label: "Printing",
       href: "/label-printing",
       permission: PERMISSIONS.BARCODE_PRINTING,
     },
@@ -89,7 +94,9 @@ export const Sidebar = () => {
   return (
     <div className="flex flex-col h-screen bg-secondary border-r">
       <div className="p-4 flex items-center justify-center">
-        <span className="text-xl font-bold tracking-tight text-rfid-blue">RENTracker</span>
+      <a className="flex items-center gap-2 mb-6" href="/">
+      <h2 className="text-xl font-bold tracking-tight text-rfid-blue">RENTracker</h2>
+      </a>
       </div>
       <ScrollArea className="flex-1">
         <div className="py-4">
