@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,175 +11,50 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Printer, CheckCircle, AlertTriangle, Barcode, Search } from "lucide-react";
+import { Barcode, Printer, CheckCircle, AlertTriangle, FileUp, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const LabelPrinting = () => {
+const BarcodeLabelPrinting = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    customer: "",
-    project: "",
-    partition: "",
-    serialStart: "",
-    quantity: "1",
-  });
-  const [previewData, setPreviewData] = useState<string[]>([]);
+  const [inventoryId, setInventoryId] = useState("");
   const [isPrinting, setIsPrinting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<string[]>([]);
-  const [selectedInventory, setSelectedInventory] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("generate");
+  const [prnFileName, setPrnFileName] = useState<string | null>(null);
+  const [prnFileContent, setPrnFileContent] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock inventory database for search
-  const mockInventory = [
-    "TOY100108001",
-    "TOY100108002",
-    "HON200104001",
-    "HON200104002",
-    "NIS300102001",
-  ];
+  const handleUploadPrnFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      toast({
-        title: "Search Error",
-        description: "Please enter a inventory ID to search",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Filter inventory based on search query
-    const results = mockInventory.filter(id => 
-      id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    setPrnFileName(file.name);
     
-    setSearchResults(results);
-    
-    if (results.length === 0) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setPrnFileContent(content);
       toast({
-        title: "No Results",
-        description: "No inventory found matching your search",
-        variant: "destructive",
+        title: "PRN File Loaded",
+        description: `File "${file.name}" loaded successfully`,
       });
-    } else {
-      toast({
-        title: "Search Complete",
-        description: `Found ${results.length} matching inventory`,
-      });
-    }
-  };
-
-  const handlePreview = () => {
-    // Validate fields
-    if (
-      !formData.customer ||
-      !formData.project ||
-      !formData.partition ||
-      !formData.serialStart ||
-      !formData.quantity
-    ) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check field lengths
-    if (
-      formData.customer.length !== 3 ||
-      formData.project.length !== 4 ||
-      formData.partition.length !== 2 ||
-      formData.serialStart.length !== 3
-    ) {
-      toast({
-        title: "Validation Error",
-        description:
-          "Customer (3), Project (4), Partition (2), and Serial (3) must have correct lengths",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Generate preview data
-    const quantity = parseInt(formData.quantity);
-    const serialStart = parseInt(formData.serialStart);
-    
-    if (isNaN(quantity) || quantity < 1 || quantity > 100) {
-      toast({
-        title: "Invalid Quantity",
-        description: "Quantity must be between 1 and 100",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (isNaN(serialStart)) {
-      toast({
-        title: "Invalid Serial Number",
-        description: "Serial number must be numeric",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Generate preview list
-    const previews: string[] = [];
-    for (let i = 0; i < quantity; i++) {
-      const serial = (serialStart + i).toString().padStart(3, "0");
-      const inventoryId = `${formData.customer}${formData.project}${formData.partition}${serial}`;
-      previews.push(inventoryId);
-    }
-    
-    setPreviewData(previews);
-    
-    toast({
-      title: "Preview Generated",
-      description: `${quantity} barcode labels ready for printing`,
-    });
-  };
-
-  const toggleInventoryelection = (inventoryId: string) => {
-    if (selectedInventory.includes(inventoryId)) {
-      setSelectedInventory(selectedInventory.filter(id => id !== inventoryId));
-    } else {
-      setSelectedInventory([...selectedInventory, inventoryId]);
-    }
-  };
-
-  const handleAddSelectedToPreview = () => {
-    if (selectedInventory.length === 0) {
-      toast({
-        title: "No Inventory Selected",
-        description: "Please select at least one inventory to add to preview",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setPreviewData([...selectedInventory]);
-    setActiveTab("preview");
-    
-    toast({
-      title: "Inventory Added to Preview",
-      description: `${selectedInventory.length} inventory ready for printing`,
-    });
+    };
+    reader.readAsText(file);
   };
 
   const handlePrint = () => {
-    if (previewData.length === 0) {
+    if (!prnFileContent) {
       toast({
-        title: "No Labels to Print",
-        description: "Please generate a preview first",
+        title: "No PRN File",
+        description: "Please upload a PRN file first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!inventoryId) {
+      toast({
+        title: "No Inventory ID",
+        description: "Please enter an inventory ID",
         variant: "destructive",
       });
       return;
@@ -187,71 +62,33 @@ const LabelPrinting = () => {
     
     setIsPrinting(true);
     
-    // Simulate printing process
+    // Simulate printing process - we'd replace placeholder in PRN file with actual inventory ID
+    const modifiedPrn = prnFileContent.replace(/\{\{INVENTORY_ID\}\}/g, inventoryId);
+    
+    // In a real app, we would send this to a printer service
+    console.log("Modified PRN content:", modifiedPrn);
+    
     toast({
       title: "Printing Started",
-      description: `Printing ${previewData.length} barcode labels...`,
+      description: `Printing barcode label for ${inventoryId}...`,
     });
     
     setTimeout(() => {
       setIsPrinting(false);
       toast({
         title: "Printing Complete",
-        description: `Successfully printed ${previewData.length} barcode labels`,
+        description: `Successfully printed barcode label for ${inventoryId}`,
       });
     }, 2000);
   };
 
   const handleClear = () => {
-    setFormData({
-      customer: "",
-      project: "",
-      partition: "",
-      serialStart: "",
-      quantity: "1",
-    });
-    setPreviewData([]);
-    setSearchQuery("");
-    setSearchResults([]);
-    setSelectedInventory([]);
-  };
-
-  const handleBarcodeScan = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!searchQuery.trim()) {
-      toast({
-        title: "Error",
-        description: "Please scan or enter a inventory ID",
-        variant: "destructive",
-      });
-      return;
+    setInventoryId("");
+    setPrnFileName(null);
+    setPrnFileContent(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
-    
-    // Check if scanned barcode exists in our mock database
-    if (mockInventory.includes(searchQuery)) {
-      // Add to selected inventory if not already there
-      if (!selectedInventory.includes(searchQuery)) {
-        setSelectedInventory([...selectedInventory, searchQuery]);
-        toast({
-          title: "Inventory Added",
-          description: `Inventory ${searchQuery} added to selection`,
-        });
-      } else {
-        toast({
-          title: "Already Selected",
-          description: `Inventory ${searchQuery} is already in your selection`,
-        });
-      }
-    } else {
-      toast({
-        title: "Inventory Not Found",
-        description: `Inventory ${searchQuery} not found in database`,
-        variant: "destructive",
-      });
-    }
-    
-    setSearchQuery("");
   };
 
   return (
@@ -260,273 +97,133 @@ const LabelPrinting = () => {
         <h2 className="text-3xl font-bold tracking-tight">Barcode Label Printing</h2>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="generate">Generate New Labels</TabsTrigger>
-          <TabsTrigger value="search">Search Inventory</TabsTrigger>
-          <TabsTrigger value="preview">Preview & Print</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="generate" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate New Barcode Labels</CardTitle>
-              <CardDescription>
-                Create new barcode labels based on inventory information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="customer">Customer Code (3 chars)</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Print Barcode Labels</CardTitle>
+            <CardDescription>
+              Upload PRN file template and print barcode labels for inventory
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="prnFile">PRN Template File</Label>
+                  <div className="flex items-center gap-2">
                     <Input
-                      id="customer"
-                      name="customer"
-                      value={formData.customer}
-                      onChange={handleInputChange}
-                      placeholder="e.g. TOY"
-                      maxLength={3}
+                      id="prnFile"
+                      type="file"
+                      accept=".prn"
+                      onChange={handleUploadPrnFile}
+                      ref={fileInputRef}
+                      className="flex-1"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="project">Project Code (4 chars)</Label>
-                    <Input
-                      id="project"
-                      name="project"
-                      value={formData.project}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 1001"
-                      maxLength={4}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="partition">Inventory Partition (2 chars)</Label>
-                    <Input
-                      id="partition"
-                      name="partition"
-                      value={formData.partition}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 08"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="serialStart">Starting Serial (3 chars)</Label>
-                    <Input
-                      id="serialStart"
-                      name="serialStart"
-                      value={formData.serialStart}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 001"
-                      maxLength={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity to Print</Label>
-                    <Input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={formData.quantity}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handleClear}>Clear</Button>
-              <Button onClick={handlePreview}>
-                Preview Labels
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="search" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Search Existing Inventory</CardTitle>
-              <CardDescription>
-                Find inventory by ID to print their barcode labels
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form onSubmit={handleBarcodeScan} className="space-y-4">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search or scan inventory ID"
-                      className="pl-8"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Button type="button" onClick={handleSearch}>
-                    Search
-                  </Button>
-                  <Button type="submit" variant="outline">
-                    <Barcode className="h-4 w-4" />
-                    Scan
-                  </Button>
-                </div>
-              </form>
-              
-              {searchResults.length > 0 && (
-                <div className="border rounded-md">
-                  <div className="py-2 px-4 bg-muted text-sm font-medium">
-                    Search Results ({searchResults.length})
-                  </div>
-                  <div className="p-4 space-y-2">
-                    {searchResults.map((inventory, index) => (
-                      <div key={index} className="flex items-center justify-between border-b py-2 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <Barcode className="h-4 w-4 text-muted-foreground" />
-                          <span>{inventory}</span>
-                        </div>
-                        <Button
-                          variant={selectedInventory.includes(inventory) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => toggleInventoryelection(inventory)}
-                        >
-                          {selectedInventory.includes(inventory) ? "Selected" : "Select"}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {selectedInventory.length > 0 && (
-                <div className="border rounded-md">
-                  <div className="py-2 px-4 bg-muted text-sm font-medium">
-                    Selected Inventory ({selectedInventory.length})
-                  </div>
-                  <div className="p-4 space-y-2">
-                    {selectedInventory.map((inventory, index) => (
-                      <div key={index} className="flex items-center justify-between border-b py-2 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>{inventory}</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleInventoryelection(inventory)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handleClear}>Clear Selection</Button>
-              <Button 
-                onClick={handleAddSelectedToPreview} 
-                disabled={selectedInventory.length === 0}
-              >
-                Add to Preview
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="preview">
-          <Card>
-            <CardHeader>
-              <CardTitle>Label Preview</CardTitle>
-              <CardDescription>
-                Preview of barcode labels to be printed
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {previewData.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {previewData.slice(0, 6).map((inventoryId, index) => (
-                      <div 
-                        key={index} 
-                        className="border rounded-md p-4 flex flex-col items-center justify-center bg-white"
-                      >
-                        <div className="text-xs text-gray-500 mb-1">Barcode Label</div>
-                        <div className="text-lg font-bold">{inventoryId}</div>
-                        <div className="mt-2">
-                          <Barcode className="h-12 w-32" />
-                        </div>
-                        <div className="mt-2 text-xs rounded-sm text-center">
-                          {inventoryId}
-                        </div>
-                        <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {previewData.length > 6 && (
-                    <div className="text-center text-sm text-muted-foreground">
-                      +{previewData.length - 6} more labels
+                  {prnFileName && (
+                    <div className="flex items-center mt-2 text-sm text-muted-foreground">
+                      <File className="h-4 w-4 mr-2" />
+                      {prnFileName}
                     </div>
                   )}
-                  
-                  <Separator />
-                  
-                  <div className="bg-muted rounded-md p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      <span className="text-sm font-medium">Label Format</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a PRN file with {{INVENTORY_ID}} placeholder to be replaced with the inventory ID.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="inventoryId">Inventory ID</Label>
+                  <Input
+                    id="inventoryId"
+                    name="inventoryId"
+                    value={inventoryId}
+                    onChange={(e) => setInventoryId(e.target.value)}
+                    placeholder="e.g. TOY100108001"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={handleClear}>Clear</Button>
+            <Button 
+              onClick={handlePrint} 
+              disabled={!prnFileContent || !inventoryId || isPrinting}
+            >
+              {isPrinting ? (
+                <>
+                  <Printer className="mr-2 h-4 w-4 animate-pulse" />
+                  Printing...
+                </>
+              ) : (
+                <>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Label
+                </>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Label Preview</CardTitle>
+            <CardDescription>
+              Preview of barcode label to be printed
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {inventoryId ? (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <div 
+                    className="border rounded-md p-4 flex flex-col items-center justify-center bg-white w-64"
+                  >
+                    <div className="text-xs text-gray-500 mb-1">Barcode Label</div>
+                    <div className="text-lg font-bold">{inventoryId}</div>
+                    <div className="mt-2">
+                      <Barcode className="h-12 w-32" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Format: XXX-YYYY-ZZ-NNN where:
-                      <br />
-                      XXX = Customer code (3 chars)
-                      <br />
-                      YYYY = Project code (4 chars)
-                      <br />
-                      ZZ = Inventory partition (2 chars)
-                      <br />
-                      NNN = Serial number (3 chars)
-                    </p>
+                    <div className="mt-2 text-xs rounded-sm text-center">
+                      {inventoryId}
+                    </div>
+                    <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
                   </div>
                 </div>
-              ) : (
-                <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground">
-                  <Barcode className="h-16 w-16 mb-4 text-muted" />
-                  <p>No labels previewed yet</p>
-                  <p className="text-sm">Generate new labels or search for existing inventory</p>
+                
+                <Separator />
+                
+                <div className="bg-muted rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">PRN File Format</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    PRN files should contain a placeholder {{INVENTORY_ID}} that will be replaced with the actual inventory ID when printing.
+                  </p>
                 </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handleClear}>Clear</Button>
-              <Button 
-                onClick={handlePrint} 
-                disabled={previewData.length === 0 || isPrinting}
-              >
-                {isPrinting ? (
-                  <>
-                    <Printer className="mr-2 h-4 w-4 animate-pulse" />
-                    Printing...
-                  </>
-                ) : (
-                  <>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Labels
-                  </>
+                
+                {prnFileName && (
+                  <div className="bg-muted/50 rounded-md p-3">
+                    <div className="flex items-center gap-2">
+                      <File className="h-4 w-4" />
+                      <span className="text-sm font-medium">File loaded: {prnFileName}</span>
+                    </div>
+                  </div>
                 )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </div>
+            ) : (
+              <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground">
+                <Barcode className="h-16 w-16 mb-4 text-muted" />
+                <p>No inventory ID entered</p>
+                <p className="text-sm">Enter an inventory ID and upload a PRN file</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
 
-export default LabelPrinting;
+export default BarcodeLabelPrinting;

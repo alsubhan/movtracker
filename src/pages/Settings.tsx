@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/utils/permissions";
 
 // Import the DatabaseUtility component content
 import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
@@ -23,6 +25,7 @@ const Settings = () => {
   const [defaultCodeType, setDefaultCodeType] = useState<'customer' | 'type' | 'company'>('company');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
 
   // Check current theme and settings on component mount
   useEffect(() => {
@@ -92,11 +95,11 @@ const Settings = () => {
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="overflow-x-auto">
             <TabsTrigger value="general">General Settings</TabsTrigger>
-            <TabsTrigger value="scanning">Scanning Settings</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory Settings</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
             <TabsTrigger value="account">Account Settings</TabsTrigger>
-            <TabsTrigger value="database">Database Utilities</TabsTrigger>
+            {hasPermission(PERMISSIONS.DATABASE_UTILITIES) && (
+              <TabsTrigger value="database">Database Utilities</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
@@ -139,15 +142,7 @@ const Settings = () => {
                     onCheckedChange={setAutoSave}
                   />
                 </div>
-              </div>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="scanning" className="space-y-6">
-            <div className="bg-card p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Scanning Settings</h2>
-              
-              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-2">
                     <Barcode className="h-5 w-5 mt-0.5 text-muted-foreground" />
@@ -162,15 +157,7 @@ const Settings = () => {
                     onCheckedChange={setEnableManualScanning}
                   />
                 </div>
-              </div>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="inventory" className="space-y-6">
-            <div className="bg-card p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Inventory Settings</h2>
-              
-              <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-medium mb-2">Default Code Type</h3>
                   <p className="text-sm text-muted-foreground mb-3">
@@ -209,15 +196,17 @@ const Settings = () => {
               <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
               
               <div className="space-y-4">
-                <Button variant="outline" onClick={() => navigate("/users")}>
-                  Manage Users
-                </Button>
+                {hasPermission(PERMISSIONS.USER_MANAGEMENT) && (
+                  <Button variant="outline" onClick={() => navigate("/users")}>
+                    Manage Users
+                  </Button>
+                )}
                 
                 <Button 
                   variant="destructive" 
                   onClick={() => {
                     localStorage.removeItem("isLoggedIn");
-                    navigate("/login");
+                    navigate("/auth");
                     toast({
                       title: "Logged Out",
                       description: "You have been logged out successfully",
@@ -230,9 +219,11 @@ const Settings = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="database" className="space-y-6">
-            <DatabaseUtilityContent />
-          </TabsContent>
+          {hasPermission(PERMISSIONS.DATABASE_UTILITIES) && (
+            <TabsContent value="database" className="space-y-6">
+              <DatabaseUtilityContent />
+            </TabsContent>
+          )}
         </Tabs>
 
         <Button className="flex items-center mt-6" onClick={handleSaveSettings}>

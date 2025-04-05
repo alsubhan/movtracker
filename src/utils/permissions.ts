@@ -5,7 +5,9 @@ import { Permission } from '@/types';
 export const PERMISSIONS = {
   USER_MANAGEMENT: 'user_management',
   INVENTORY_MANAGEMENT: 'inventory_management',
+  INVENTORY_EDIT: 'inventory_edit',     // New permission for edit/delete operations
   GATE_MANAGEMENT: 'gate_management',
+  GATE_EDIT: 'gate_edit',               // New permission for edit/delete operations
   BARCODE_PRINTING: 'barcode_printing',
   INVENTORY_MOVEMENT: 'inventory_movement',
   REPORTS_VIEW: 'reports_view',
@@ -13,6 +15,9 @@ export const PERMISSIONS = {
   DATABASE_UTILITIES: 'database_utilities',
   SETTINGS: 'settings',
   COMPANY_SETTINGS: 'company_settings',
+  CUSTOMER_EDIT: 'customer_edit',       // New permission for edit/delete operations
+  LOCATION_EDIT: 'location_edit',       // New permission for edit/delete operations
+  DELIVERY_CHALLAN: 'delivery_challan', // New permission for delivery challans
 };
 
 // Define role-based permissions
@@ -24,10 +29,12 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.INVENTORY_MOVEMENT,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.RENTAL_REPORT,
+    PERMISSIONS.DELIVERY_CHALLAN,
   ],
   operator: [
     PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.INVENTORY_MOVEMENT,
+    PERMISSIONS.DELIVERY_CHALLAN,
   ],
 };
 
@@ -47,51 +54,81 @@ export const permissionsList: Permission[] = [
   },
   {
     id: '3',
+    name: PERMISSIONS.INVENTORY_EDIT,
+    description: 'Edit or delete inventory items',
+    modules: ['Inventory'],
+  },
+  {
+    id: '4',
     name: PERMISSIONS.GATE_MANAGEMENT,
     description: 'Manage gates',
     modules: ['Gates','Gate Types'],
   },
   {
-    id: '4',
+    id: '5',
+    name: PERMISSIONS.GATE_EDIT,
+    description: 'Edit or delete gates',
+    modules: ['Gates'],
+  },
+  {
+    id: '6',
     name: PERMISSIONS.BARCODE_PRINTING,
     description: 'Print barcode labels',
     modules: ['Barcode Label Printing'],
   },
   {
-    id: '5',
+    id: '7',
     name: PERMISSIONS.INVENTORY_MOVEMENT,
     description: 'Movements',
     modules: ['In Movement', 'Out Movement'],
   },
   {
-    id: '6',
+    id: '8',
     name: PERMISSIONS.REPORTS_VIEW,
     description: 'View reports',
     modules: ['Movements Report', 'Missing Report'],
   },
   {
-    id: '7',
+    id: '9',
     name: PERMISSIONS.DATABASE_UTILITIES,
     description: 'Database utility functions',
     modules: ['Database Utilities'],
   },
   {
-    id: '8',
+    id: '10',
     name: PERMISSIONS.SETTINGS,
     description: 'Manage application settings',
     modules: ['Settings'],
   },
   {
-    id: '9',
+    id: '11',
     name: PERMISSIONS.COMPANY_SETTINGS,
     description: 'Manage company settings',
     modules: ['Company Settings'],
   },
   {
-    id: '10',
+    id: '12',
     name: PERMISSIONS.RENTAL_REPORT,
     description: 'View rental cost reports',
     modules: ['Rental Report'],
+  },
+  {
+    id: '13',
+    name: PERMISSIONS.CUSTOMER_EDIT,
+    description: 'Edit or delete customers',
+    modules: ['Customers'],
+  },
+  {
+    id: '14',
+    name: PERMISSIONS.LOCATION_EDIT,
+    description: 'Edit or delete locations',
+    modules: ['Locations'],
+  },
+  {
+    id: '15',
+    name: PERMISSIONS.DELIVERY_CHALLAN,
+    description: 'Create delivery challans',
+    modules: ['Movement'],
   },
 ];
 

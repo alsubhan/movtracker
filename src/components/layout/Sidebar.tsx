@@ -129,106 +129,79 @@ export const Sidebar = () => {
                 collapsed={collapsed}
               />
               
-              <div className="mt-6">
-                {!collapsed && (
-                  <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight text-foreground">
-                    Masters
-                  </h2>
-                )}
-                <div className="space-y-1">
-                  <SidebarItem
-                    icon={<User size={20} />}
-                    label="Users"
-                    href="/users"
-                    active={pathname === "/users"}
-                    requiredPermission={PERMISSIONS.USER_MANAGEMENT}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<Box size={20} />}
-                    label="Inventory"
-                    href="/inventory"
-                    active={pathname === "/inventory"}
-                    requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<MapPin size={20} />}
-                    label="Locations"
-                    href="/locations"
-                    active={pathname === "/locations"}
-                    requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<DoorOpen size={20} />}
-                    label="Gates"
-                    href="/gates"
-                    active={pathname === "/gates"}
-                    requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<Building size={20} />}
-                    label="Customers"
-                    href="/customers"
-                    active={pathname === "/customers"}
-                    requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
-                    collapsed={collapsed}
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                {!collapsed && (
-                  <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight text-foreground">
-                    Transactions
-                  </h2>
-                )}
-                <div className="space-y-1">
-                  <SidebarItem
-                    icon={<Barcode size={20} />}
-                    label="Printing"
-                    href="/label-printing"
-                    active={pathname === "/label-printing"}
-                    requiredPermission={PERMISSIONS.BARCODE_PRINTING}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<Box size={20} />}
-                    label="Movement"
-                    href="/movement"
-                    active={pathname === "/movement"}
-                    requiredPermission={PERMISSIONS.INVENTORY_MOVEMENT}
-                    collapsed={collapsed}
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                {!collapsed && (
-                  <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight text-foreground">
-                    Reports
-                  </h2>
-                )}
-                <div className="space-y-1">
-                  <SidebarItem
-                    icon={<FileText size={20} />}
-                    label="Movements Report"
-                    href="/movement-report"
-                    active={pathname === "/movement-report"}
-                    requiredPermission={PERMISSIONS.REPORTS_VIEW}
-                    collapsed={collapsed}
-                  />
-                  <SidebarItem
-                    icon={<FileText size={20} />}
-                    label="Missing Report"
-                    href="/missing-report"
-                    active={pathname === "/missing-report"}
-                    requiredPermission={PERMISSIONS.REPORTS_VIEW}
-                    collapsed={collapsed}
-                  />
-                </div>
+              <div className="space-y-1 mt-6">
+                <SidebarItem
+                  icon={<User size={20} />}
+                  label="Users"
+                  href="/users"
+                  active={pathname === "/users"}
+                  requiredPermission={PERMISSIONS.USER_MANAGEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<Box size={20} />}
+                  label="Inventory"
+                  href="/inventory"
+                  active={pathname === "/inventory"}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<MapPin size={20} />}
+                  label="Locations"
+                  href="/locations"
+                  active={pathname === "/locations"}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<DoorOpen size={20} />}
+                  label="Gates"
+                  href="/gates"
+                  active={pathname === "/gates"}
+                  requiredPermission={PERMISSIONS.GATE_MANAGEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<Building size={20} />}
+                  label="Customers"
+                  href="/customers"
+                  active={pathname === "/customers"}
+                  requiredPermission={PERMISSIONS.INVENTORY_MANAGEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<Barcode size={20} />}
+                  label="Printing"
+                  href="/label-printing"
+                  active={pathname === "/label-printing"}
+                  requiredPermission={PERMISSIONS.BARCODE_PRINTING}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<Box size={20} />}
+                  label="Movement"
+                  href="/movement"
+                  active={pathname === "/movement"}
+                  requiredPermission={PERMISSIONS.INVENTORY_MOVEMENT}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<FileText size={20} />}
+                  label="Reports"
+                  href="/reports"
+                  active={pathname.includes("/reports") || pathname === "/movement-report" || pathname === "/missing-report" || pathname === "/rental-report"}
+                  requiredPermission={PERMISSIONS.REPORTS_VIEW}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  icon={<Settings size={20} />}
+                  label="Settings"
+                  href="/settings"
+                  active={pathname === "/settings"}
+                  requiredPermission={PERMISSIONS.SETTINGS}
+                  collapsed={collapsed}
+                />
               </div>
             </div>
           </ScrollArea>

@@ -1,512 +1,547 @@
 
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Box, Barcode, Scan, IndianRupee } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { 
+  Barcode, 
+  ArrowRight, 
+  ArrowLeft, 
+  CheckCircle, 
+  Box, 
+  ChevronRight, 
+  Truck,
+  FileText,
+  IndianRupee, 
+  Download
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/utils/permissions";
 
-interface MovementData {
-  id: string;
-  inventoryId: string;
-  gateId: string;
-  movementType: "in" | "out";
-  timestamp: Date;
-  location: string;
-  previousLocation: string;
-  customer: string;
-  project: string;
-  rentalStartDate?: Date | null;
-  rentalCost?: number;
-}
+const mockLocations = [
+  { id: "1", name: "Warehouse", code: "WH", rentalRate: { "PLT": 10, "CTN": 5, "CRT": 8 } },
+  { id: "2", name: "Store A", code: "STA", rentalRate: { "PLT": 15, "CTN": 7, "CRT": 10 } },
+  { id: "3", name: "Store B", code: "STB", rentalRate: { "PLT": 12, "CTN": 6, "CRT": 9 } },
+  { id: "4", name: "Customer Site 1", code: "CS1", rentalRate: { "PLT": 20, "CTN": 10, "CRT": 15 } },
+  { id: "5", name: "Customer Site 2", code: "CS2", rentalRate: { "PLT": 18, "CTN": 9, "CRT": 14 } },
+];
 
-// Mock inventory data for rental calculation
 const mockInventoryItems = [
-  {
-    id: "TOY100108001",
-    customer: "TOY",
-    status: "in-stock",
-    rentalCost: 50,
-  },
-  {
-    id: "HON200104002",
-    customer: "HON",
-    status: "in-wip",
-    rentalCost: 75,
-  },
-  {
-    id: "NIS300102003",
-    customer: "NIS", 
-    status: "dispatched",
-    rentalCost: 25,
-  },
-];
-
-// Mock data for demo purposes
-const mockMovements: MovementData[] = [
-  {
-    id: "1",
-    inventoryId: "TOY100108001",
-    gateId: "Gate 1",
-    movementType: "out",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    location: "customer",
-    previousLocation: "warehouse",
-    customer: "Toyota",
-    project: "1001",
-    rentalStartDate: new Date(),
-    rentalCost: 50,
-  },
-  {
-    id: "2",
-    inventoryId: "HON200104002",
-    gateId: "Gate 2",
-    movementType: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15),
-    location: "wip",
-    previousLocation: "warehouse",
-    customer: "Honda",
-    project: "2001",
-    rentalStartDate: null,
-    rentalCost: 75,
-  },
-];
-
-// Mock customers for demo
-const mockCustomers = [
-  { id: "TOY", name: "Toyota" },
-  { id: "HON", name: "Honda" },
-  { id: "NIS", name: "Nissan" },
-  { id: "SUZ", name: "Suzuki" },
+  { id: "TOY100108001", type: "PLT", customer: "TOY", project: "1001", location: "Warehouse" },
+  { id: "TOY100108002", type: "CTN", customer: "TOY", project: "1001", location: "Warehouse" },
+  { id: "DEF100208003", type: "CRT", customer: "DEF", project: "1002", location: "Store A" },
+  { id: "GHI100308004", type: "PLT", customer: "GHI", project: "1003", location: "Warehouse" },
+  { id: "JKL100408005", type: "CTN", customer: "JKL", project: "1004", location: "Store B" },
 ];
 
 const Movement = () => {
-  const [searchParams] = useSearchParams();
-  const defaultMovementType = searchParams.get("type") || "out";
   const { toast } = useToast();
-  const { user } = useAuth();
-  
-  const [movements, setMovements] = useState<MovementData[]>([]);
-  const [selectedGate, setSelectedGate] = useState("Gate 1");
-  const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [barcodeInput, setBarcodeInput] = useState("");
-  const [movementType, setMovementType] = useState<"in" | "out">(defaultMovementType as "in" | "out");
-  const [rentalCostSummary, setRentalCostSummary] = useState<{[customer: string]: number}>({});
-  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const { hasPermission } = useAuth();
+  const [activeTab, setActiveTab] = useState("in");
+  const [barcode, setBarcode] = useState("");
+  const [scannedItems, setScannedItems] = useState<any[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [selectedInventory, setSelectedInventory] = useState<any | null>(null);
+  const [challanDetails, setChallanDetails] = useState({
+    challanNo: "",
+    customerName: "",
+    customerAddress: "",
+    items: [] as any[],
+  });
+  const [showChallan, setShowChallan] = useState(false);
 
-  // Load all movements initially
-  useEffect(() => {
-    setMovements(mockMovements);
-    calculateRentalSummary(mockMovements);
-    
-    // Check for manual scanning setting in localStorage
-    const settings = localStorage.getItem("settings");
-    if (settings) {
-      try {
-        const parsedSettings = JSON.parse(settings);
-        if (parsedSettings.manualScanning === undefined) {
-          // Set manual scanning to true by default
-          const updatedSettings = { ...parsedSettings, manualScanning: true };
-          localStorage.setItem("settings", JSON.stringify(updatedSettings));
-        }
-      } catch (error) {
-        console.error("Error parsing settings from localStorage", error);
-        // Set default settings with manual scanning enabled
-        localStorage.setItem("settings", JSON.stringify({ manualScanning: true }));
-      }
-    } else {
-      // Set default settings with manual scanning enabled
-      localStorage.setItem("settings", JSON.stringify({ manualScanning: true }));
-    }
-  }, []);
-
-  // Calculate rental cost summary
-  const calculateRentalSummary = (movements: MovementData[]) => {
-    const summary: {[customer: string]: number} = {};
-    
-    movements.forEach(movement => {
-      if (movement.movementType === "out" && movement.location === "customer" && movement.rentalCost) {
-        if (!summary[movement.customer]) {
-          summary[movement.customer] = 0;
-        }
-        summary[movement.customer] += movement.rentalCost;
-      }
-    });
-    
-    setRentalCostSummary(summary);
-  };
-
-  // Filter movements based on selected type
-  const filteredMovements = movements.filter(
-    (movement) => movement.movementType === movementType
-  );
-
-  // Find inventory item by ID and get rental cost
-  const getInventoryDetails = (inventoryId: string) => {
-    return mockInventoryItems.find(item => item.id === inventoryId) || null;
-  };
-
-  // Handle barcode scan
-  const handleBarcodeScan = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!barcodeInput.trim()) {
+  const handleScan = () => {
+    if (!barcode) {
       toast({
-        title: "Error",
-        description: "Please enter a valid barcode",
+        title: "Scan Error",
+        description: "Please enter a barcode to scan",
         variant: "destructive",
       });
       return;
     }
-    
-    // Try to extract customer code from barcode
-    const customerCode = barcodeInput.substring(0, 3);
-    const customer = mockCustomers.find(c => c.id === customerCode);
-    const customerName = customer ? customer.name : customerCode;
-    
-    // Get inventory details including rental cost
-    const inventoryDetails = getInventoryDetails(barcodeInput);
-    const rentalCost = inventoryDetails?.rentalCost || 0;
-    
-    // For out movements to customer, start rental period
-    const rentalStartDate = (movementType === "out" && inventoryDetails?.status !== "dispatched") 
-      ? new Date() 
-      : null;
-    
-    const newMovement: MovementData = {
-      id: `manual-${Date.now()}`,
-      inventoryId: barcodeInput,
-      gateId: selectedGate,
-      movementType: movementType,
-      timestamp: new Date(),
-      location: movementType === "in" ? "warehouse" : "customer",
-      previousLocation: movementType === "in" ? "customer" : "warehouse",
-      customer: customerName,
-      project: barcodeInput.length >= 7 ? barcodeInput.substring(3, 7) : "",
-      rentalStartDate: rentalStartDate,
-      rentalCost: rentalCost,
-    };
-    
-    // Save to database (mock)
-    
-    // Add to local state
-    const updatedMovements = [newMovement, ...movements];
-    setMovements(updatedMovements);
-    
-    // Update rental summary
-    calculateRentalSummary(updatedMovements);
-    
-    // Show rental cost notification for out movements
-    if (movementType === "out" && rentalCost > 0) {
+
+    const found = mockInventoryItems.find(item => item.id === barcode);
+    if (!found) {
       toast({
-        title: "Rental Started",
-        description: `Rental cost for ${barcodeInput}: ₹${rentalCost.toFixed(2)}/month`,
+        title: "Item Not Found",
+        description: `No inventory found with barcode ${barcode}`,
+        variant: "destructive",
       });
+      return;
     }
+
+    if (scannedItems.some(item => item.id === found.id)) {
+      toast({
+        title: "Already Scanned",
+        description: `Item ${found.id} has already been scanned`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Add rental cost based on inventory type and selected location
+    const location = mockLocations.find(loc => loc.name === selectedLocation);
+    const dailyRentalCost = location?.rentalRate[found.type as keyof typeof location.rentalRate] || 0;
+
+    setScannedItems([...scannedItems, { 
+      ...found, 
+      scannedAt: new Date(),
+      dailyRentalCost
+    }]);
     
-    // General notification
+    setBarcode("");
+    
     toast({
-      title: "Barcode Scanned",
-      description: `Inventory ${barcodeInput} registered as ${movementType === "in" ? "In" : "Out"} movement`,
+      title: "Item Scanned",
+      description: `Added ${found.id} to scanned items`,
+    });
+  };
+
+  const handleProcess = () => {
+    if (scannedItems.length === 0) {
+      toast({
+        title: "No Items",
+        description: "Please scan items before processing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedLocation) {
+      toast({
+        title: "Location Required",
+        description: "Please select a location",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    // Simulate processing
+    setTimeout(() => {
+      const movementType = activeTab === "in" ? "In Movement" : "Out Movement";
+      
+      toast({
+        title: "Movement Processed",
+        description: `${scannedItems.length} item(s) ${activeTab === "in" ? "received into" : "sent from"} ${selectedLocation}`,
+      });
+
+      // For OUT movement, prepare delivery challan
+      if (activeTab === "out" && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
+        // Create challan
+        const challanNo = "DC" + Math.floor(Math.random() * 10000).toString().padStart(5, '0');
+        const customer = scannedItems[0]?.customer || "Unknown";
+        
+        setChallanDetails({
+          challanNo,
+          customerName: customer,
+          customerAddress: selectedLocation,
+          items: scannedItems.map(item => ({
+            ...item,
+            qty: 1,
+            rentalRate: item.dailyRentalCost
+          }))
+        });
+        
+        setShowChallan(true);
+      }
+
+      // Reset form
+      setScannedItems([]);
+      setSelectedLocation("");
+      setNotes("");
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setScannedItems(scannedItems.filter(item => item.id !== id));
+    
+    toast({
+      title: "Item Removed",
+      description: `Removed ${id} from scanned items`,
+    });
+  };
+
+  const viewItemDetails = (item: any) => {
+    setSelectedInventory(item);
+  };
+
+  const closeItemDetails = () => {
+    setSelectedInventory(null);
+  };
+
+  const handlePrintChallan = () => {
+    // Simulate printing
+    toast({
+      title: "Printing Challan",
+      description: `Delivery Challan ${challanDetails.challanNo} sent to printer`,
     });
     
-    // Reset input and focus for next scan
-    setBarcodeInput("");
-    if (barcodeInputRef.current) {
-      barcodeInputRef.current.focus();
-    }
+    // Close challan view after print
+    setTimeout(() => {
+      setShowChallan(false);
+    }, 1000);
+  };
+
+  const handleDownloadChallan = () => {
+    // Simulate download
+    toast({
+      title: "Downloading Challan",
+      description: `Delivery Challan ${challanDetails.challanNo} download started`,
+    });
+    
+    // In a real app, would generate PDF and trigger download
   };
 
   return (
-    <ScrollArea className="h-full">
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Movement
-          </h2>
-        </div>
+    <div className="p-4 md:p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold">Inventory Movement</h2>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Inventory Scanner</CardTitle>
+      {showChallan ? (
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Delivery Challan</CardTitle>
               <CardDescription>
-                Scan inventory coming into or going out of the warehouse
+                Challan # {challanDetails.challanNo} - {format(new Date(), "dd/MM/yyyy")}
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Movement Type Selection */}
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">Movement Type</label>
-                  <RadioGroup 
-                    value={movementType} 
-                    onValueChange={(value) => setMovementType(value as "in" | "out")}
-                    className="flex space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="in" id="in" />
-                      <label htmlFor="in" className="cursor-pointer">In</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="out" id="out" />
-                      <label htmlFor="out" className="cursor-pointer">Out</label>
-                    </div>
-                  </RadioGroup>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowChallan(false)}>
+                Back
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleDownloadChallan}>
+                <Download className="h-4 w-4 mr-1" /> Download
+              </Button>
+              <Button size="sm" onClick={handlePrintChallan}>
+                <FileText className="h-4 w-4 mr-1" /> Print
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-md p-6 space-y-6">
+              <div className="flex justify-between">
+                <div>
+                  <h3 className="font-bold text-lg">From:</h3>
+                  <p>MovTracker Warehouse</p>
+                  <p>123 Logistics Way</p>
+                  <p>Warehouse District</p>
                 </div>
+                <div>
+                  <h3 className="font-bold text-lg">To:</h3>
+                  <p>Customer: {challanDetails.customerName}</p>
+                  <p>Location: {challanDetails.customerAddress}</p>
+                </div>
+              </div>
 
-                {/* Customer Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="customer">Select Customer</Label>
-                  <Select
-                    value={selectedCustomer}
-                    onValueChange={setSelectedCustomer}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockCustomers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.id})
-                        </SelectItem>
+              <Separator />
+              
+              <div>
+                <h3 className="font-bold text-lg mb-2">Items:</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Item ID</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Qty</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Rate (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-card divide-y divide-border">
+                      {challanDetails.items.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">{item.id}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">{item.qty}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-right">₹{item.rentalRate}</td>
+                        </tr>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </tbody>
+                  </table>
                 </div>
+              </div>
 
-                {/* Gate Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Select Gate</label>
-                  <select 
-                    className="w-full p-2 border rounded-md bg-background"
-                    value={selectedGate}
-                    onChange={(e) => setSelectedGate(e.target.value)}
-                  >
-                    <option value="Gate 1">Gate 1 - Warehouse</option>
-                    <option value="Gate 2">Gate 2 - Production</option>
-                    <option value="Gate 3">Gate 3 - Dispatch</option>
-                  </select>
+              <div className="flex justify-between mt-6">
+                <div>
+                  <h3 className="font-bold">Terms & Conditions:</h3>
+                  <ol className="list-decimal list-inside text-sm text-muted-foreground ml-2 mt-2">
+                    <li>Rental will be charged based on daily rates</li>
+                    <li>Items must be returned in original condition</li>
+                    <li>Customer is responsible for items while in their possession</li>
+                  </ol>
                 </div>
-                
-                {/* Barcode Scanner */}
-                <form onSubmit={handleBarcodeScan} className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="barcode-input" className="text-sm font-medium">Scan or Enter Barcode</label>
-                    <div className="flex gap-2">
+                <div className="text-right">
+                  <div className="mb-6">
+                    <p className="text-sm">Signature:</p>
+                    <div className="w-40 h-10 border-b border-dashed mt-6 mb-1"></div>
+                    <p className="text-sm">Authorized Signatory</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : selectedInventory ? (
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Inventory Details</CardTitle>
+              <CardDescription>
+                Details for item {selectedInventory.id}
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={closeItemDetails}>
+              Back to List
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2">Basic Information</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">ID:</span>
+                    <span>{selectedInventory.id}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Type:</span>
+                    <span>{selectedInventory.type}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Customer:</span>
+                    <span>{selectedInventory.customer}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Project:</span>
+                    <span>{selectedInventory.project}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Current Location:</span>
+                    <span>{selectedInventory.location}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Daily Rental Cost:</span>
+                    <span className="flex items-center">
+                      <IndianRupee className="h-3 w-3 mr-1" /> 
+                      {selectedInventory.dailyRentalCost}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Movement Information</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Scanned At:</span>
+                    <span>{format(selectedInventory.scannedAt, "dd MMM yyyy HH:mm:ss")}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Movement Type:</span>
+                    <span>{activeTab === "in" ? "In Movement" : "Out Movement"}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Destination:</span>
+                    <span>{selectedLocation || "Not set"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Scan Items</CardTitle>
+                <CardDescription>
+                  Scan inventory items for movement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="in" className="flex items-center gap-1">
+                      <ArrowLeft className="h-4 w-4" /> In
+                    </TabsTrigger>
+                    <TabsTrigger value="out" className="flex items-center gap-1">
+                      <ArrowRight className="h-4 w-4" /> Out
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <Label htmlFor="barcode">Scan Barcode</Label>
+                    <div className="flex mt-1">
                       <Input
-                        id="barcode-input"
-                        ref={barcodeInputRef}
-                        value={barcodeInput}
-                        onChange={(e) => setBarcodeInput(e.target.value)}
-                        placeholder="e.g. TOY100108001"
+                        id="barcode"
+                        placeholder="Scan or enter barcode"
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value)}
                         className="flex-1"
-                        autoComplete="off"
-                        autoFocus
                       />
-                      <Button type="submit" variant="outline" size="icon">
-                        <Scan className="h-4 w-4" />
+                      <Button onClick={handleScan} type="button" className="ml-2">
+                        <Barcode className="h-4 w-4 mr-2" />
+                        Scan
                       </Button>
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Point your barcode scanner at the inventory label or manually enter the inventory ID
-                  </div>
-                </form>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={() => barcodeInputRef.current?.focus()}
-                variant="default"
-              >
-                <Barcode className="mr-2 h-4 w-4" />
-                Focus Barcode Scanner
-              </Button>
-            </CardFooter>
-          </Card>
 
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Recent Movements</CardTitle>
-              <CardDescription>
-                Recently tracked inventory {movementType === "in" ? "in" : "out"} movements
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Tabs defaultValue="list" className="space-y-4">
-                <TabsList>
-                  <TabsTrigger value="list">List View</TabsTrigger>
-                  <TabsTrigger value="summary">Summary</TabsTrigger>
-                  <TabsTrigger value="rental">Rental Costs</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="list">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Inventory ID</TableHead>
-                        <TableHead>Gate</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Location Change</TableHead>
-                        <TableHead>Type</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredMovements.length > 0 ? (
-                        filteredMovements.map((movement) => (
-                          <TableRow key={movement.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <Box className="h-4 w-4 text-muted-foreground" />
-                                {movement.inventoryId}
-                              </div>
-                            </TableCell>
-                            <TableCell>{movement.gateId}</TableCell>
-                            <TableCell>
-                              {movement.timestamp.toLocaleTimeString()}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className="font-medium">{movement.previousLocation}</span>
-                                <ArrowRight className="h-3 w-3" />
-                                <span className="font-medium">{movement.location}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  movement.movementType === "in"
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : "bg-blue-50 text-blue-700 border-blue-200"
-                                }
-                              >
-                                {movement.movementType === "in" ? "In" : "Out"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4">
-                            No movements recorded yet
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-                
-                <TabsContent value="summary">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">Total Inventory</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{filteredMovements.length}</div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm">By Customer</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {Array.from(new Set(filteredMovements.map(m => m.customer))).map((customer, i) => (
-                              <div key={i} className="flex justify-between items-center text-sm">
-                                <span>{customer}</span>
-                                <span className="font-medium">
-                                  {filteredMovements.filter(m => m.customer === customer).length}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                  <div>
+                    <Label htmlFor="location">
+                      {activeTab === "in" ? "Destination Location" : "Source Location"}
+                    </Label>
+                    <Select
+                      value={selectedLocation}
+                      onValueChange={setSelectedLocation}
+                    >
+                      <SelectTrigger id="location">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockLocations.map((location) => (
+                          <SelectItem key={location.id} value={location.name}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </TabsContent>
-                
-                <TabsContent value="rental">
-                  <div className="space-y-6">
-                    <Card className="border-amber-200 bg-amber-50">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center">
-                          <IndianRupee className="h-4 w-4 mr-2 text-amber-600" />
-                          Monthly Rental Costs
-                        </CardTitle>
-                        <CardDescription>
-                          Current rental costs for inventory at customer locations
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="border-b pb-2">
-                            <div className="flex justify-between items-center text-sm font-medium">
-                              <span>Customer</span>
-                              <span>Monthly Cost</span>
-                            </div>
-                          </div>
-                          {Object.keys(rentalCostSummary).length > 0 ? (
-                            <div className="space-y-2">
-                              {Object.entries(rentalCostSummary).map(([customer, cost], i) => (
-                                <div key={i} className="flex justify-between items-center text-sm">
-                                  <span>{customer}</span>
-                                  <span className="font-medium">₹{cost.toFixed(2)}</span>
-                                </div>
-                              ))}
-                              <div className="border-t pt-2 flex justify-between items-center font-bold">
-                                <span>Total</span>
-                                <span>
-                                  ₹{Object.values(rentalCostSummary).reduce((sum, cost) => sum + cost, 0).toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-4 text-sm text-muted-foreground">
-                              No rental costs to display
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <div className="text-sm text-muted-foreground">
-                      <p>
-                        Rental costs are calculated from the moment inventory is moved out to a customer location.
-                        Costs are displayed per month and are charged until inventory is returned.
+
+                  <div>
+                    <Label htmlFor="notes">Notes (Optional)</Label>
+                    <Input
+                      id="notes"
+                      placeholder="Add notes about this movement"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full" 
+                  onClick={handleProcess}
+                  disabled={isProcessing || scannedItems.length === 0 || !selectedLocation}
+                >
+                  {isProcessing ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span> Processing...
+                    </>
+                  ) : (
+                    <>
+                      {activeTab === "in" ? (
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Truck className="mr-2 h-4 w-4" />
+                      )}
+                      Process {activeTab === "in" ? "In" : "Out"} Movement
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+
+          <div className="md:col-span-2">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Scanned Items</CardTitle>
+                <CardDescription>
+                  {scannedItems.length} item(s) scanned for {activeTab === "in" ? "in" : "out"} movement
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[350px] w-full rounded-md border">
+                  {scannedItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                      <Box className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No items scanned yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Scan items to see them listed here
                       </p>
                     </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <div className="p-4">
+                      {scannedItems.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 border-b last:border-0 hover:bg-muted/50 rounded-sm"
+                        >
+                          <div className="flex items-center">
+                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                            <div>
+                              <div className="font-medium">{item.id}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Type: {item.type} | Location: {item.location}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="text-sm font-medium flex items-center">
+                              <IndianRupee className="h-3 w-3 mr-1" /> 
+                              {item.dailyRentalCost}/day
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewItemDetails(item)}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+              <CardFooter>
+                <div className="text-sm text-muted-foreground">
+                  {activeTab === "out" && hasPermission(PERMISSIONS.DELIVERY_CHALLAN) && (
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2" />
+                      A delivery challan will be generated when processing out movements
+                    </div>
+                  )}
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
         </div>
-      </div>
-    </ScrollArea>
+      )}
+    </div>
   );
 };
 
