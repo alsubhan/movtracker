@@ -1,18 +1,12 @@
-# Welcome to your Lovable project
+# Welcome to your MovTracker project
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/13a6eff7-2072-4000-9cc3-b2123512a8bf
+**URL**: Coming soon..
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/13a6eff7-2072-4000-9cc3-b2123512a8bf) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
@@ -62,8 +56,4 @@ This project is built with .
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/13a6eff7-2072-4000-9cc3-b2123512a8bf) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Simply Run Docker Compose command.

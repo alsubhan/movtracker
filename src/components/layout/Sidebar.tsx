@@ -94,7 +94,7 @@ export const Sidebar = () => {
   return (
     <div className="flex flex-col h-screen bg-secondary border-r">
       <div className="p-4 flex items-center justify-center">
-        <span className="font-bold text-lg">MovTracker</span>
+        <span className="font-bold text-lg">RENTracker</span>
       </div>
       <ScrollArea className="flex-1">
         <div className="py-4">

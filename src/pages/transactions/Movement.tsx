@@ -296,7 +296,7 @@ const Movement = () => {
               <div className="flex justify-between">
                 <div>
                   <h3 className="font-bold text-lg">From:</h3>
-                  <p>MovTracker Warehouse</p>
+                  <p>RENTracker Warehouse</p>
                   <p>123 Logistics Way</p>
                   <p>Warehouse District</p>
                 </div>
