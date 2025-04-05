@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import Layout from "./components/layout/Layout";
@@ -21,14 +21,9 @@ import { AuthProvider } from "@/hooks/useAuth";
 
 function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if user is logged in
-    const loggedIn = localStorage.getItem("isLoggedIn") === "true";
-    setIsLoggedIn(loggedIn);
-    
-    // Shorter loading time to avoid blank screen
+    // Set a shorter loading time to avoid blank screen
     setTimeout(() => {
       setIsLoading(false);
     }, 100);
@@ -42,35 +37,7 @@ function AppRoutes() {
     );
   }
 
-  // Routes that should not use the layout
-  const publicRoutes = ["/login", "/auth"];
-  const currentPath = window.location.pathname;
-  
-  // Check if current path is a public route that doesn't need layout
-  const isPublicRoute = publicRoutes.includes(currentPath);
-
-  // If not logged in and not on a public route, redirect to login
-  if (!isLoggedIn && !isPublicRoute) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="*" element={<Navigate to="/auth" replace />} />
-      </Routes>
-    );
-  }
-
-  if (isPublicRoute) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    );
-  }
-
-  // All other routes use the layout
+  // All routes use the layout and are accessible without login
   return (
     <Routes>
       <Route path="/" element={<Layout><Index /></Layout>} />
@@ -84,6 +51,8 @@ function AppRoutes() {
       <Route path="/label-printing" element={<Layout><LabelPrinting /></Layout>} />
       <Route path="/movement" element={<Layout><Movement /></Layout>} />
       <Route path="/reports" element={<Layout><Reports /></Layout>} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth" element={<Auth />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
