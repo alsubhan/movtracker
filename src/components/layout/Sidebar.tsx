@@ -11,7 +11,8 @@ import {
   Tag, 
   FileText, 
   Settings,
-  Truck
+  Truck,
+  Barcode
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -43,12 +44,6 @@ export const Sidebar = () => {
       permission: PERMISSIONS.INVENTORY_MANAGEMENT,
     },
     {
-      icon: BoxSelect,
-      label: "Inventory Types",
-      href: "/inventory-types",
-      permission: PERMISSIONS.INVENTORY_MANAGEMENT,
-    },
-    {
       icon: MapPin,
       label: "Locations",
       href: "/locations",
@@ -67,7 +62,7 @@ export const Sidebar = () => {
       permission: PERMISSIONS.CUSTOMER_MANAGEMENT,
     },
     {
-      icon: Layers,
+      icon: Barcode,
       label: "Label Printing",
       href: "/label-printing",
       permission: PERMISSIONS.BARCODE_PRINTING,

@@ -1,4 +1,3 @@
-
 import { Permission } from '@/types';
 
 // Define application permissions
@@ -18,6 +17,8 @@ export const PERMISSIONS = {
   CUSTOMER_EDIT: 'customer_edit',       // New permission for edit/delete operations
   LOCATION_EDIT: 'location_edit',       // New permission for edit/delete operations
   DELIVERY_CHALLAN: 'delivery_challan', // New permission for delivery challans
+  LOCATION_MANAGEMENT: 'location_management', // New permission for managing locations
+  CUSTOMER_MANAGEMENT: 'customer_management', // New permission for managing customers
 };
 
 // Define role-based permissions
@@ -30,6 +31,8 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.RENTAL_REPORT,
     PERMISSIONS.DELIVERY_CHALLAN,
+    PERMISSIONS.LOCATION_MANAGEMENT,
+    PERMISSIONS.CUSTOMER_MANAGEMENT,
   ],
   operator: [
     PERMISSIONS.BARCODE_PRINTING,
@@ -129,6 +132,18 @@ export const permissionsList: Permission[] = [
     name: PERMISSIONS.DELIVERY_CHALLAN,
     description: 'Create delivery challans',
     modules: ['Movement'],
+  },
+  {
+    id: '16',
+    name: PERMISSIONS.LOCATION_MANAGEMENT,
+    description: 'Manage locations',
+    modules: ['Locations'],
+  },
+  {
+    id: '17',
+    name: PERMISSIONS.CUSTOMER_MANAGEMENT,
+    description: 'Manage customers',
+    modules: ['Customers'],
   },
 ];
 
