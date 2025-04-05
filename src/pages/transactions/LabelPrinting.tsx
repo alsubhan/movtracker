@@ -127,7 +127,7 @@ const BarcodeLabelPrinting = () => {
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Upload a PRN file with {{INVENTORY_ID}} placeholder to be replaced with the inventory ID.
+                    Upload a PRN file with {`{{INVENTORY_ID}}`} placeholder to be replaced with the inventory ID.
                   </p>
                 </div>
                 
@@ -199,7 +199,7 @@ const BarcodeLabelPrinting = () => {
                     <span className="text-sm font-medium">PRN File Format</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    PRN files should contain a placeholder {{INVENTORY_ID}} that will be replaced with the actual inventory ID when printing.
+                    PRN files should contain a placeholder {`{{INVENTORY_ID}}`} that will be replaced with the actual inventory ID when printing.
                   </p>
                 </div>
                 
