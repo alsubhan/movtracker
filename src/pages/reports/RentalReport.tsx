@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -18,14 +17,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { RentalReport } from "@/types";
+import type { RentalReport as RentalReportType } from "@/types";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Mock data for rental report
-const mockRentalData: RentalReport[] = [
+const mockRentalData: RentalReportType[] = [
   {
     inventoryId: "TOY100108001",
     inventoryType: "PLT",
@@ -89,8 +88,8 @@ const mockRentalData: RentalReport[] = [
 ];
 
 const RentalReport = () => {
-  const [reportData, setReportData] = useState<RentalReport[]>(mockRentalData);
-  const [filteredData, setFilteredData] = useState<RentalReport[]>(mockRentalData);
+  const [reportData, setReportData] = useState<RentalReportType[]>(mockRentalData);
+  const [filteredData, setFilteredData] = useState<RentalReportType[]>(mockRentalData);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: addDays(new Date(), -30),
@@ -304,10 +303,10 @@ const RentalReport = () => {
                 
                 <div>
                   <Label htmlFor="date-range" className="mb-2 block">Rental Start Date Range</Label>
-                  <DateRangePicker 
+                  <DatePickerWithRange 
                     id="date-range"
-                    value={dateRange}
-                    onChange={setDateRange}
+                    date={dateRange}
+                    setDate={setDateRange}
                   />
                 </div>
               </div>
