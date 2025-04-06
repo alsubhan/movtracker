@@ -30,7 +30,7 @@ import { KeyRoundIcon, UserRound, UsersRoundIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export const Sidebar = () => {
-  const { user, hasPermission, logout } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   
   // Load collapsed state from localStorage
@@ -157,18 +157,7 @@ export const Sidebar = () => {
           })}
         </div>
       </ScrollArea>
-      {user && (
-        <div className={cn("p-4", collapsed ? "flex justify-center" : "")}>
-          <Button 
-            variant="outline" 
-            className={collapsed ? "w-8 h-8 p-0" : "w-full"} 
-            onClick={() => logout()}
-            title={collapsed ? "Logout" : undefined}
-          >
-            {collapsed ? "↪" : "Logout"}
-          </Button>
-        </div>
-      )}
+      {/* Removed the logout button here */}
     </div>
   );
 };

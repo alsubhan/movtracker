@@ -42,7 +42,6 @@ export interface Inventory {
   lastScanTime: Date;
   lastScanGate: string;
   createdAt: Date;
-  rentalCost?: number;
 }
 
 export interface InventoryType {
@@ -122,15 +121,16 @@ export interface RentalReport {
 }
 
 export interface CompanyInfo {
+  id?: string;
   code: string;
   name: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  taxId: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  taxId?: string;
   headerText: string;
   footerText: string;
-  baseLocationId?: string; // Added base location ID
-  baseCustomerId?: string; // Added base customer ID
+  baseLocationId?: string;
+  baseCustomerId?: string;
 }
