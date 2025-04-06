@@ -20,7 +20,8 @@ import {
   Truck,
   FileText,
   IndianRupee, 
-  Download
+  Download,
+  DoorOpen
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,29 +33,57 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/utils/permissions";
 
-// Mock data - in a real app, this would come from an API
+// Updated mock data to match the new requirements
 const mockLocations = [
-  { id: "1", name: "Warehouse", code: "WH", rentalRate: { "PLT": 10, "CTN": 5, "CRT": 8 } },
-  { id: "2", name: "Store A", code: "STA", rentalRate: { "PLT": 15, "CTN": 7, "CRT": 10 } },
-  { id: "3", name: "Store B", code: "STB", rentalRate: { "PLT": 12, "CTN": 6, "CRT": 9 } },
-  { id: "4", name: "Customer Site 1", code: "CS1", rentalRate: { "PLT": 20, "CTN": 10, "CRT": 15 } },
-  { id: "5", name: "Customer Site 2", code: "CS2", rentalRate: { "PLT": 18, "CTN": 9, "CRT": 14 } },
+  { id: "1", name: "Main Warehouse", code: "WH" },
+  { id: "2", name: "Factory A", code: "FA" },
+  { id: "3", name: "Distribution Center B", code: "DCB" },
+  { id: "4", name: "Toyota Site", code: "TS" },
+  { id: "5", name: "Honda Factory", code: "HF" },
 ];
 
 const mockCustomers = [
-  { id: "TOY", name: "Toyota", locationId: "4" },
-  { id: "HON", name: "Honda", locationId: "5" },
-  { id: "DEF", name: "Defense Corp", locationId: "3" },
-  { id: "GHI", name: "GHI Limited", locationId: "2" },
-  { id: "JKL", name: "JKL Industries", locationId: "1" },
+  { 
+    id: "1", code: "TOY", name: "Toyota", 
+    locations: [
+      { id: "4", name: "Toyota Site", rentalRates: { "PLT": 10, "CTN": 5, "CRT": 8 } },
+      { id: "6", name: "Toyota Factory B", rentalRates: { "PLT": 12, "CTN": 6, "CRT": 9 } }
+    ]
+  },
+  { 
+    id: "2", code: "HON", name: "Honda", 
+    locations: [
+      { id: "5", name: "Honda Factory", rentalRates: { "PLT": 15, "CTN": 7, "CRT": 10 } }
+    ]
+  },
+  { 
+    id: "3", code: "DEF", name: "Defense Corp", 
+    locations: [
+      { id: "7", name: "Defense Site A", rentalRates: { "PLT": 20, "CTN": 10, "CRT": 15 } },
+      { id: "8", name: "Defense Site B", rentalRates: { "PLT": 18, "CTN": 9, "CRT": 14 } }
+    ]
+  },
+];
+
+// Mock gates linked to locations
+const mockGates = [
+  { id: "G1", name: "Gate 1", locationId: "1" },
+  { id: "G2", name: "Gate 2", locationId: "1" },
+  { id: "G3", name: "Gate 3", locationId: "2" },
+  { id: "G4", name: "Gate 4", locationId: "3" },
+  { id: "G5", name: "Gate 5", locationId: "4" },
+  { id: "G6", name: "Gate 6", locationId: "5" },
+  { id: "G7", name: "Gate 7", locationId: "6" },
+  { id: "G8", name: "Gate 8", locationId: "7" },
+  { id: "G9", name: "Gate 9", locationId: "8" },
 ];
 
 const mockInventoryItems = [
-  { id: "TOY100108001", type: "PLT", customer: "TOY", project: "1001", location: "Warehouse" },
-  { id: "TOY100108002", type: "CTN", customer: "TOY", project: "1001", location: "Warehouse" },
-  { id: "DEF100208003", type: "CRT", customer: "DEF", project: "1002", location: "Store A" },
-  { id: "GHI100308004", type: "PLT", customer: "GHI", project: "1003", location: "Warehouse" },
-  { id: "JKL100408005", type: "CTN", customer: "JKL", project: "1004", location: "Store B" },
+  { id: "TOY100108001", type: "PLT", customer: "TOY", project: "1001", location: "Main Warehouse" },
+  { id: "TOY100108002", type: "CTN", customer: "TOY", project: "1001", location: "Main Warehouse" },
+  { id: "DEF100208003", type: "CRT", customer: "DEF", project: "1002", location: "Factory A" },
+  { id: "HON100308004", type: "PLT", customer: "HON", project: "1003", location: "Main Warehouse" },
+  { id: "DEF100408005", type: "CTN", customer: "DEF", project: "1004", location: "Distribution Center B" },
 ];
 
 const Movement = () => {
@@ -65,6 +94,8 @@ const Movement = () => {
   const [scannedItems, setScannedItems] = useState<any[]>([]);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedGate, setSelectedGate] = useState("");
+  const [filteredGates, setFilteredGates] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedInventory, setSelectedInventory] = useState<any | null>(null);
@@ -75,32 +106,91 @@ const Movement = () => {
     items: [] as any[],
   });
   const [showChallan, setShowChallan] = useState(false);
-
-  // Update location when customer is selected (for Out movements)
-  useEffect(() => {
-    if (activeTab === "out" && selectedCustomer) {
-      const customer = mockCustomers.find(c => c.id === selectedCustomer);
-      if (customer) {
-        const location = mockLocations.find(l => l.id === customer.locationId);
-        if (location) {
-          setSelectedLocation(location.name);
-        }
-      }
-    }
-  }, [selectedCustomer, activeTab]);
+  const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
+  const [isDifferentCustomer, setIsDifferentCustomer] = useState(false);
 
   // Reset selections when tab changes
   useEffect(() => {
     setSelectedLocation("");
     setSelectedCustomer("");
+    setSelectedGate("");
     setScannedItems([]);
+    setFilteredGates([]);
+    setFilteredLocations([]);
   }, [activeTab]);
+
+  // Update available locations when customer is selected
+  useEffect(() => {
+    if (selectedCustomer) {
+      const customer = mockCustomers.find(c => c.id === selectedCustomer);
+      if (customer) {
+        setFilteredLocations(customer.locations);
+        setSelectedLocation(customer.locations[0]?.id || "");
+      }
+    } else {
+      setFilteredLocations([]);
+      setSelectedLocation("");
+    }
+    setSelectedGate("");
+  }, [selectedCustomer]);
+
+  // Update available gates when location is selected
+  useEffect(() => {
+    if (selectedLocation) {
+      const gates = mockGates.filter(gate => gate.locationId === selectedLocation);
+      setFilteredGates(gates);
+      setSelectedGate(gates[0]?.id || "");
+    } else {
+      setFilteredGates([]);
+      setSelectedGate("");
+    }
+  }, [selectedLocation]);
+
+  // Determine if it's a movement between different customers (for challan generation)
+  useEffect(() => {
+    if (scannedItems.length > 0 && selectedCustomer) {
+      // Check if any item belongs to a different customer than selected
+      const differentCustomer = scannedItems.some(item => 
+        item.customer !== mockCustomers.find(c => c.id === selectedCustomer)?.code
+      );
+      setIsDifferentCustomer(differentCustomer);
+    } else {
+      setIsDifferentCustomer(false);
+    }
+  }, [scannedItems, selectedCustomer]);
 
   const handleScan = () => {
     if (!barcode) {
       toast({
         title: "Scan Error",
         description: "Please enter a barcode to scan",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedCustomer) {
+      toast({
+        title: "Customer Required",
+        description: "Please select a customer before scanning items",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedLocation) {
+      toast({
+        title: "Location Required",
+        description: "Please select a location before scanning items",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedGate) {
+      toast({
+        title: "Gate Required",
+        description: "Please select a gate before scanning items",
         variant: "destructive",
       });
       return;
@@ -125,23 +215,25 @@ const Movement = () => {
       return;
     }
 
-    // Calculate rental cost based on inventory type and location (for when a location is selected)
-    let dailyRentalCost = 0;
-    
-    if (activeTab === "out"  && selectedCustomer) {
-      const customer = mockCustomers.find(c => c.id === selectedCustomer);
-      if (customer) {
-        const location = mockLocations.find(l => l.id === customer.locationId);
-        if (location && location.rentalRate[found.type as keyof typeof location.rentalRate]) {
-          dailyRentalCost = location.rentalRate[found.type as keyof typeof location.rentalRate];
-        }
-      }
+    // Get customer details
+    const customer = mockCustomers.find(c => c.id === selectedCustomer);
+    if (!customer) return;
+
+    // Get location details
+    const location = customer.locations.find(l => l.id === selectedLocation);
+    if (!location) return;
+
+    // Calculate rental cost based on inventory type and location
+    let hourlyRentalCost = 0;
+    if (location.rentalRates[found.type]) {
+      hourlyRentalCost = location.rentalRates[found.type];
     }
 
     setScannedItems([...scannedItems, { 
       ...found, 
       scannedAt: new Date(),
-      dailyRentalCost
+      hourlyRentalCost,
+      gate: mockGates.find(g => g.id === selectedGate)?.name || 'Unknown'
     }]);
     
     setBarcode("");
@@ -162,53 +254,34 @@ const Movement = () => {
       return;
     }
 
-    const locationRequired = activeTab === "in" ? "Source" : "Destination";
-    
-    if (activeTab === "out" && !selectedCustomer) {
-      toast({
-        title: "Customer Required",
-        description: "Please select a customer for out movement",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedLocation) {
-      toast({
-        title: "Location Required",
-        description: `Please select a ${locationRequired} location`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
 
     // Simulate processing
     setTimeout(() => {
       const movementType = activeTab === "in" ? "In Movement" : "Out Movement";
-      const locationDesc = activeTab === "in" ? "from" : "to";
       
       toast({
         title: "Movement Processed",
-        description: `${scannedItems.length} item(s) ${activeTab === "in" ? "received into" : "sent from"} ${selectedLocation}`,
+        description: `${scannedItems.length} item(s) ${activeTab === "in" ? "received at" : "sent from"} ${
+          mockLocations.find(l => l.id === selectedLocation)?.name || selectedLocation
+        }`,
       });
 
-      // For OUT movement, prepare delivery challan
-      if (activeTab === "out" && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
+      // For OUT movement between different customers, prepare delivery challan
+      if (activeTab === "out" && isDifferentCustomer && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
         // Create challan
         const challanNo = "DC" + Math.floor(Math.random() * 10000).toString().padStart(5, '0');
-        const customer = selectedCustomer || scannedItems[0]?.customer || "Unknown";
-        const customerObj = mockCustomers.find(c => c.id === customer);
+        const customerObj = mockCustomers.find(c => c.id === selectedCustomer);
+        const locationObj = customerObj?.locations.find(l => l.id === selectedLocation);
         
         setChallanDetails({
           challanNo,
-          customerName: customerObj?.name || customer,
-          customerAddress: selectedLocation,
+          customerName: customerObj?.name || "Unknown",
+          customerAddress: locationObj?.name || "Unknown",
           items: scannedItems.map(item => ({
             ...item,
             qty: 1,
-            rentalRate: item.dailyRentalCost
+            rentalRate: item.hourlyRentalCost
           }))
         });
         
@@ -219,6 +292,7 @@ const Movement = () => {
       setScannedItems([]);
       setSelectedLocation("");
       setSelectedCustomer("");
+      setSelectedGate("");
       setNotes("");
       setIsProcessing(false);
     }, 1500);
@@ -262,6 +336,14 @@ const Movement = () => {
     });
     
     // In a real app, would generate PDF and trigger download
+  };
+
+  const getLocationName = (locationId: string) => {
+    return mockLocations.find(l => l.id === locationId)?.name || locationId;
+  };
+
+  const getCustomerName = (customerId: string) => {
+    return mockCustomers.find(c => c.id === customerId)?.name || customerId;
   };
 
   return (
@@ -318,7 +400,7 @@ const Movement = () => {
                         <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Item ID</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Qty</th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Rate (₹)</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Hourly Rate (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-card divide-y divide-border">
@@ -339,7 +421,7 @@ const Movement = () => {
                 <div>
                   <h3 className="font-bold">Terms & Conditions:</h3>
                   <ol className="list-decimal list-inside text-sm text-muted-foreground ml-2 mt-2">
-                    <li>Rental will be charged based on daily rates</li>
+                    <li>Rental will be charged based on hourly rates</li>
                     <li>Items must be returned in original condition</li>
                     <li>Customer is responsible for items while in their possession</li>
                   </ol>
@@ -394,10 +476,10 @@ const Movement = () => {
                     <span>{selectedInventory.location}</span>
                   </div>
                   <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Daily Rental Cost:</span>
+                    <span className="font-medium">Hourly Rental Cost:</span>
                     <span className="flex items-center">
                       <IndianRupee className="h-3 w-3 mr-1" /> 
-                      {selectedInventory.dailyRentalCost}
+                      {selectedInventory.hourlyRentalCost}
                     </span>
                   </div>
                 </div>
@@ -414,8 +496,12 @@ const Movement = () => {
                     <span>{activeTab === "in" ? "In Movement" : "Out Movement"}</span>
                   </div>
                   <div className="flex justify-between border-b pb-1">
+                    <span className="font-medium">Gate:</span>
+                    <span>{selectedInventory.gate || "Not set"}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1">
                     <span className="font-medium">{activeTab === "in" ? "Source" : "Destination"}:</span>
-                    <span>{selectedLocation || "Not set"}</span>
+                    <span>{getLocationName(selectedLocation)}</span>
                   </div>
                 </div>
               </div>
@@ -446,6 +532,77 @@ const Movement = () => {
 
                 <div className="space-y-4 pt-2">
                   <div>
+                    <Label htmlFor="customer">Customer</Label>
+                    <Select
+                      value={selectedCustomer}
+                      onValueChange={setSelectedCustomer}
+                    >
+                      <SelectTrigger id="customer">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockCustomers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="location">
+                      {activeTab === "in" ? "Destination Location" : "Source Location"}
+                    </Label>
+                    <Select
+                      value={selectedLocation}
+                      onValueChange={setSelectedLocation}
+                      disabled={!selectedCustomer}
+                    >
+                      <SelectTrigger id="location">
+                        <SelectValue placeholder={`Select ${activeTab === "in" ? "destination" : "source"}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredLocations.map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!selectedCustomer && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select a customer first to see available locations
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gate">Gate</Label>
+                    <Select
+                      value={selectedGate}
+                      onValueChange={setSelectedGate}
+                      disabled={!selectedLocation}
+                    >
+                      <SelectTrigger id="gate">
+                        <SelectValue placeholder="Select gate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredGates.map((gate) => (
+                          <SelectItem key={gate.id} value={gate.id}>
+                            {gate.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedLocation && filteredGates.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        No gates available for this location
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
                     <Label htmlFor="barcode">Scan Barcode</Label>
                     <div className="flex mt-1">
                       <Input
@@ -454,58 +611,21 @@ const Movement = () => {
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
                         className="flex-1"
+                        disabled={!selectedGate}
                       />
-                      <Button onClick={handleScan} type="button" className="ml-2">
+                      <Button 
+                        onClick={handleScan} 
+                        type="button" 
+                        className="ml-2"
+                        disabled={!selectedGate}
+                      >
                         <Barcode className="h-4 w-4 mr-2" />
                         Scan
                       </Button>
                     </div>
-                  </div>
-
-                  {activeTab === "out" && (
-                    <div>
-                      <Label htmlFor="customer">Customer</Label>
-                      <Select
-                        value={selectedCustomer}
-                        onValueChange={setSelectedCustomer}
-                      >
-                        <SelectTrigger id="customer">
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockCustomers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  <div>
-                    <Label htmlFor="location">
-                      {activeTab === "in" ? "Source Location" : "Destination Location"}
-                    </Label>
-                    <Select
-                      value={selectedLocation}
-                      onValueChange={setSelectedLocation}
-                      disabled={activeTab === "out" && selectedCustomer !== ""}
-                    >
-                      <SelectTrigger id="location">
-                        <SelectValue placeholder={`Select ${activeTab === "in" ? "source" : "destination"}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockLocations.map((location) => (
-                          <SelectItem key={location.id} value={location.name}>
-                            {location.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {activeTab === "out" && selectedCustomer && (
+                    {!selectedGate && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Location is automatically set based on customer selection
+                        Select a gate before scanning items
                       </p>
                     )}
                   </div>
@@ -525,7 +645,7 @@ const Movement = () => {
                 <Button 
                   className="w-full" 
                   onClick={handleProcess}
-                  disabled={isProcessing || scannedItems.length === 0 || !selectedLocation || (activeTab === "out" && !selectedCustomer)}
+                  disabled={isProcessing || scannedItems.length === 0 || !selectedGate}
                 >
                   {isProcessing ? (
                     <>
@@ -552,6 +672,11 @@ const Movement = () => {
                 <CardTitle>Scanned Items</CardTitle>
                 <CardDescription>
                   {scannedItems.length} item(s) scanned for {activeTab === "in" ? "in" : "out"} movement
+                  {isDifferentCustomer && activeTab === "out" && (
+                    <span className="ml-2 text-amber-600 font-medium">
+                      Delivery challan will be generated (cross-customer movement)
+                    </span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -576,14 +701,14 @@ const Movement = () => {
                             <div>
                               <div className="font-medium">{item.id}</div>
                               <div className="text-sm text-muted-foreground">
-                                Type: {item.type} | Location: {item.location}
+                                Type: {item.type} | Location: {item.location} | Gate: {item.gate}
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <div className="text-sm font-medium flex items-center">
                               <IndianRupee className="h-3 w-3 mr-1" /> 
-                              {item.dailyRentalCost}/day
+                              {item.hourlyRentalCost}/hour
                             </div>
                             <Button
                               variant="ghost"
@@ -608,13 +733,11 @@ const Movement = () => {
                 </ScrollArea>
               </CardContent>
               <CardFooter>
-                <div className="text-sm text-muted-foreground">
-                  {activeTab === "out" && hasPermission(PERMISSIONS.DELIVERY_CHALLAN) && (
-                    <div className="flex items-center">
-                      <FileText className="h-4 w-4 mr-2" />
-                      A delivery challan will be generated when processing out movements
-                    </div>
-                  )}
+                <div className="text-sm text-muted-foreground flex items-center">
+                  <DoorOpen className="h-4 w-4 mr-2" />
+                  {selectedGate 
+                    ? `Selected gate: ${mockGates.find(g => g.id === selectedGate)?.name}`
+                    : "Select a gate to scan items"}
                 </div>
               </CardFooter>
             </Card>

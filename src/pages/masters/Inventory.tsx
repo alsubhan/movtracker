@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +44,6 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 
-// Mock data
 const initialInventory = [
   {
     id: "1",
@@ -94,14 +92,12 @@ const initialInventory = [
   },
 ];
 
-// Mock locations for demo
 const mockLocations: Location[] = [
   { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
   { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
   { id: "3", name: "Customer Site", description: "Client location", status: "active" },
 ];
 
-// Mock customer data
 const mockCustomers: Customer[] = [
   { id: "1", code: "TOY", name: "Toyota", contact_person: "John Smith", phone: "555-1234", email: "john@toyota.com", status: "Active" },
   { id: "2", code: "HON", name: "Honda", contact_person: "Jane Doe", phone: "555-2345", email: "jane@honda.com", status: "Active" },
@@ -110,7 +106,6 @@ const mockCustomers: Customer[] = [
   { id: "5", code: "TES", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
 ];
 
-// Mock inventory types
 const initialInventoryTypes: InventoryType[] = [
   { 
     id: "1", 
@@ -631,24 +626,28 @@ const Inventory = () => {
                               />
                             </div>
                           </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="inventoryType">Inventory Type</Label>
-                            <Select
-                              value={formData.inventoryType}
-                              onValueChange={(value) => handleSelectChange("inventoryType", value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select inventory type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {activeInventoryTypes.map((type) => (
-                                  <SelectItem key={type.id} value={type.code}>
-                                    {type.name} ({type.code})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          
+                          {codeType !== "type" && (
+                            <div className="grid gap-2">
+                              <Label htmlFor="inventoryType">Inventory Type</Label>
+                              <Select
+                                value={formData.inventoryType}
+                                onValueChange={(value) => handleSelectChange("inventoryType", value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select inventory type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {activeInventoryTypes.map((type) => (
+                                    <SelectItem key={type.id} value={type.code}>
+                                      {type.name} ({type.code})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                          
                           <div className="grid grid-cols-3 gap-4">
                             <div className="grid gap-2">
                               <Label htmlFor="status">Status</Label>

@@ -53,6 +53,15 @@ export interface InventoryType {
   status: 'active' | 'inactive';
 }
 
+export interface CustomerLocation {
+  id: string;
+  locationId: string;
+  locationName: string;
+  rentalRates: {
+    [key: string]: number; // Key is inventory type code, value is hourly rate
+  };
+}
+
 export interface Customer {
   id: string;
   code: string;
@@ -61,6 +70,7 @@ export interface Customer {
   phone: string;
   email: string;
   status: string;
+  locations?: CustomerLocation[];
 }
 
 export interface Gate {
