@@ -86,6 +86,12 @@ const mockInventoryItems = [
   { id: "DEF100408005", type: "CTN", customer: "DEF", project: "1004", location: "Distribution Center B" },
 ];
 
+// Mock company info for base customer and location
+const mockCompanyInfo = {
+  baseCustomerId: "1", // Toyota is the base customer
+  baseLocationId: "1"  // Main Warehouse is the base location
+};
+
 const Movement = () => {
   const { toast } = useToast();
   const { hasPermission } = useAuth();
@@ -108,6 +114,25 @@ const Movement = () => {
   const [showChallan, setShowChallan] = useState(false);
   const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
   const [isDifferentCustomer, setIsDifferentCustomer] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState(mockCompanyInfo);
+
+  // Load company info from localStorage
+  useEffect(() => {
+    const savedCompanyInfo = localStorage.getItem('companyInfo');
+    if (savedCompanyInfo) {
+      try {
+        const parsedInfo = JSON.parse(savedCompanyInfo);
+        if (parsedInfo.baseCustomerId && parsedInfo.baseLocationId) {
+          setCompanyInfo({
+            baseCustomerId: parsedInfo.baseCustomerId,
+            baseLocationId: parsedInfo.baseLocationId
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing company info from localStorage', error);
+      }
+    }
+  }, []);
 
   // Reset selections when tab changes
   useEffect(() => {
@@ -125,7 +150,9 @@ const Movement = () => {
       const customer = mockCustomers.find(c => c.id === selectedCustomer);
       if (customer) {
         setFilteredLocations(customer.locations);
-        setSelectedLocation(customer.locations[0]?.id || "");
+        if (customer.locations.length > 0) {
+          setSelectedLocation(customer.locations[0]?.id || "");
+        }
       }
     } else {
       setFilteredLocations([]);
@@ -139,7 +166,9 @@ const Movement = () => {
     if (selectedLocation) {
       const gates = mockGates.filter(gate => gate.locationId === selectedLocation);
       setFilteredGates(gates);
-      setSelectedGate(gates[0]?.id || "");
+      if (gates.length > 0) {
+        setSelectedGate(gates[0]?.id || "");
+      }
     } else {
       setFilteredGates([]);
       setSelectedGate("");
@@ -150,14 +179,17 @@ const Movement = () => {
   useEffect(() => {
     if (scannedItems.length > 0 && selectedCustomer) {
       // Check if any item belongs to a different customer than selected
-      const differentCustomer = scannedItems.some(item => 
-        item.customer !== mockCustomers.find(c => c.id === selectedCustomer)?.code
-      );
-      setIsDifferentCustomer(differentCustomer);
+      const customerCode = mockCustomers.find(c => c.id === selectedCustomer)?.code;
+      const differentCustomer = scannedItems.some(item => item.customer !== customerCode);
+      
+      // Also check if the selected customer is different from the base customer
+      const isNotBaseCustomer = selectedCustomer !== companyInfo.baseCustomerId;
+      
+      setIsDifferentCustomer(differentCustomer || isNotBaseCustomer);
     } else {
       setIsDifferentCustomer(false);
     }
-  }, [scannedItems, selectedCustomer]);
+  }, [scannedItems, selectedCustomer, companyInfo.baseCustomerId]);
 
   const handleScan = () => {
     if (!barcode) {
@@ -225,8 +257,12 @@ const Movement = () => {
 
     // Calculate rental cost based on inventory type and location
     let hourlyRentalCost = 0;
-    if (location.rentalRates[found.type]) {
-      hourlyRentalCost = location.rentalRates[found.type];
+    
+    // Only apply rental cost if the customer is the base customer (internal movement)
+    if (customer.id === companyInfo.baseCustomerId) {
+      if (location.rentalRates[found.type]) {
+        hourlyRentalCost = location.rentalRates[found.type];
+      }
     }
 
     setScannedItems([...scannedItems, { 
@@ -267,7 +303,10 @@ const Movement = () => {
         }`,
       });
 
-      // For OUT movement between different customers, prepare delivery challan
+      // Generate delivery challan if:
+      // 1. It's an OUT movement AND
+      // 2. Either it's a movement between different customers OR to a non-base customer
+      // 3. User has the delivery challan permission
       if (activeTab === "out" && isDifferentCustomer && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
         // Create challan
         const challanNo = "DC" + Math.floor(Math.random() * 10000).toString().padStart(5, '0');
@@ -339,6 +378,12 @@ const Movement = () => {
   };
 
   const getLocationName = (locationId: string) => {
+    // First check customer locations
+    for (const customer of mockCustomers) {
+      const location = customer.locations.find(l => l.id === locationId);
+      if (location) return location.name;
+    }
+    // Then check general locations
     return mockLocations.find(l => l.id === locationId)?.name || locationId;
   };
 
@@ -552,7 +597,7 @@ const Movement = () => {
 
                   <div>
                     <Label htmlFor="location">
-                      {activeTab === "in" ? "Destination Location" : "Source Location"}
+                      {activeTab === "in" ? "Source Location" : "Destination Location"}
                     </Label>
                     <Select
                       value={selectedLocation}
@@ -560,7 +605,7 @@ const Movement = () => {
                       disabled={!selectedCustomer}
                     >
                       <SelectTrigger id="location">
-                        <SelectValue placeholder={`Select ${activeTab === "in" ? "destination" : "source"}`} />
+                        <SelectValue placeholder={`Select ${activeTab === "in" ? "source" : "destination"}`} />
                       </SelectTrigger>
                       <SelectContent>
                         {filteredLocations.map((location) => (

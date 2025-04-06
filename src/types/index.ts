@@ -131,4 +131,6 @@ export interface CompanyInfo {
   taxId: string;
   headerText: string;
   footerText: string;
+  baseLocationId?: string; // Added base location ID
+  baseCustomerId?: string; // Added base customer ID
 }

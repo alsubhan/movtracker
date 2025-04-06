@@ -6,13 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Save, IndianRupee } from "lucide-react";
+import { Save, IndianRupee, Building, MapPin } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CompanyInfo {
   code: string;
   name: string;
   headerInfo: string;
   footerInfo: string;
+  baseLocationId?: string;
+  baseCustomerId?: string;
 }
 
 // Mock initial company data
@@ -21,7 +24,22 @@ const initialCompanyData: CompanyInfo = {
   name: "ACME Corporation",
   headerInfo: "ACME Corporation\n123 Main Street\nNew York, NY 10001",
   footerInfo: "Thank you for your business!\nContact: info@acme.com | Phone: (555) 123-4567",
+  baseLocationId: "1",
+  baseCustomerId: "1"
 };
+
+// Mock locations and customers data
+const mockLocations = [
+  { id: "1", name: "Main Warehouse", code: "WH" },
+  { id: "2", name: "Factory A", code: "FA" },
+  { id: "3", name: "Distribution Center B", code: "DCB" },
+];
+
+const mockCustomers = [
+  { id: "1", code: "TOY", name: "Toyota" },
+  { id: "2", code: "HON", name: "Honda" },
+  { id: "3", code: "DEF", name: "Defense Corp" },
+];
 
 const CompanySettings = () => {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(initialCompanyData);
@@ -42,6 +60,10 @@ const CompanySettings = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    setCompanyInfo(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
     setCompanyInfo(prev => ({ ...prev, [name]: value }));
   };
 
@@ -104,6 +126,57 @@ const CompanySettings = () => {
                 placeholder="e.g. ACME Corporation"
                 required
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="baseLocationId" className="flex items-center gap-1">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                Base Location
+              </Label>
+              <Select
+                value={companyInfo.baseLocationId}
+                onValueChange={(value) => handleSelectChange('baseLocationId', value)}
+              >
+                <SelectTrigger id="baseLocationId">
+                  <SelectValue placeholder="Select base location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Select your company's main location
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="baseCustomerId" className="flex items-center gap-1">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                Base Customer
+              </Label>
+              <Select
+                value={companyInfo.baseCustomerId}
+                onValueChange={(value) => handleSelectChange('baseCustomerId', value)}
+              >
+                <SelectTrigger id="baseCustomerId">
+                  <SelectValue placeholder="Select base customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockCustomers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Internal customer for rental calculations
+              </p>
             </div>
           </div>
 
