@@ -95,6 +95,200 @@ export type Database = {
         }
         Relationships: []
       }
+      company_info: {
+        Row: {
+          address: string | null
+          base_customer_id: string | null
+          base_location_id: string | null
+          code: string
+          created_at: string | null
+          email: string | null
+          footer_text: string
+          header_text: string
+          id: string
+          name: string
+          phone: string | null
+          tax_id: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          base_customer_id?: string | null
+          base_location_id?: string | null
+          code: string
+          created_at?: string | null
+          email?: string | null
+          footer_text: string
+          header_text: string
+          id?: string
+          name: string
+          phone?: string | null
+          tax_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          base_customer_id?: string | null
+          base_location_id?: string | null
+          code?: string
+          created_at?: string | null
+          email?: string | null
+          footer_text?: string
+          header_text?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          tax_id?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      customer_locations: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+          location_id: string
+          location_name: string
+          rental_rates: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          location_id: string
+          location_name: string
+          rental_rates?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          location_id?: string
+          location_name?: string
+          rental_rates?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_locations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          code: string
+          contact_person: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          code: string
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          code?: string
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      gates: {
+        Row: {
+          created_at: string | null
+          gate_location: string
+          id: string
+          name: string
+          status: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          gate_location: string
+          id?: string
+          name: string
+          status?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          gate_location?: string
+          id?: string
+          name?: string
+          status?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      inventory_types: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      locations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

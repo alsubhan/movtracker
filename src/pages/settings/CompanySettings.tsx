@@ -64,7 +64,7 @@ const CompanySettings = () => {
             variant: "destructive",
           });
         } else {
-          setLocations(locationsData || []);
+          setLocations(locationsData as Location[] || []);
         }
 
         // Fetch customers
@@ -81,12 +81,25 @@ const CompanySettings = () => {
             variant: "destructive",
           });
         } else {
-          setCustomers(customersData || []);
+          setCustomers(customersData as Customer[] || []);
         }
 
         // Set company info from database or fallback to localStorage
         if (companyData) {
-          setCompanyInfo(companyData);
+          setCompanyInfo({
+            id: companyData.id,
+            code: companyData.code,
+            name: companyData.name,
+            address: companyData.address,
+            phone: companyData.phone,
+            email: companyData.email,
+            website: companyData.website,
+            taxId: companyData.tax_id,
+            headerText: companyData.header_text,
+            footerText: companyData.footer_text,
+            baseLocationId: companyData.base_location_id,
+            baseCustomerId: companyData.base_customer_id
+          });
         } else {
           // Try loading from localStorage if no data in database
           const savedCompanyInfo = localStorage.getItem('companyInfo');
@@ -151,10 +164,15 @@ const CompanySettings = () => {
           {
             code: companyInfo.code,
             name: companyInfo.name,
-            headerText: companyInfo.headerText,
-            footerText: companyInfo.footerText,
-            baseLocationId: companyInfo.baseLocationId,
-            baseCustomerId: companyInfo.baseCustomerId
+            address: companyInfo.address,
+            phone: companyInfo.phone,
+            email: companyInfo.email,
+            website: companyInfo.website,
+            tax_id: companyInfo.taxId,
+            header_text: companyInfo.headerText,
+            footer_text: companyInfo.footerText,
+            base_location_id: companyInfo.baseLocationId,
+            base_customer_id: companyInfo.baseCustomerId
           },
           { onConflict: 'id' }
         )

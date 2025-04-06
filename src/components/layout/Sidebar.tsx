@@ -157,7 +157,6 @@ export const Sidebar = () => {
           })}
         </div>
       </ScrollArea>
-      {/* Removed the logout button here */}
     </div>
   );
 };

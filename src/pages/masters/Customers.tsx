@@ -35,14 +35,14 @@ import { SelectValue, SelectTrigger, Select, SelectContent, SelectItem } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock inventory types for rental rates
+// Mock inventory types for rental rates - this will be replaced with actual data from Supabase later
 const mockInventoryTypes: InventoryType[] = [
   { id: "1", code: "PLT", name: "Pallet", description: "Standard pallet", status: "active" },
   { id: "2", code: "CTN", name: "Carton", description: "Standard carton", status: "active" },
   { id: "3", code: "CRT", name: "Crate", description: "Standard crate", status: "active" },
 ];
 
-// Mock locations for selection
+// Mock locations for selection - this will be replaced with actual data from Supabase later
 const mockLocations = [
   { id: "1", name: "Toyota Factory A" },
   { id: "2", name: "Honda Warehouse" },
@@ -65,6 +65,10 @@ const Customers = () => {
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState("details");
   
+  // State for inventory types
+  const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>([]);
+  const [locations, setLocations] = useState<{id: string, name: string}[]>([]);
+  
   // Location management
   const [newLocation, setNewLocation] = useState<string>("");
   const [selectedInventoryType, setSelectedInventoryType] = useState<string>("");
@@ -76,43 +80,92 @@ const Customers = () => {
   // Load customers from Supabase on component mount
   useEffect(() => {
     fetchCustomers();
+    fetchInventoryTypes();
+    fetchLocations();
   }, []);
 
-  const fetchCustomers = async () => {
+  const fetchInventoryTypes = async () => {
     try {
-      setIsInitialLoading(true);
       const { data, error } = await supabase
-        .from('customers')
-        .select('*');
+        .from('inventory_types')
+        .select('*')
+        .eq('status', 'active');
       
       if (error) {
         throw error;
       }
       
       if (data) {
-        // Convert Supabase data to Customer type
-        const customersWithLocations = await Promise.all(data.map(async (customer) => {
-          const { data: locationData, error: locationError } = await supabase
-            .from('customer_locations')
-            .select('*')
-            .eq('customer_id', customer.id);
-          
-          if (locationError) {
-            console.error('Error fetching customer locations:', locationError);
-            return {
-              ...customer,
-              locations: []
-            };
-          }
-          
+        setInventoryTypes(data as InventoryType[]);
+      } else {
+        // If no data, use mock data as fallback
+        setInventoryTypes(mockInventoryTypes);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory types:', error);
+      setInventoryTypes(mockInventoryTypes); // Fallback to mock data
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('status', 'active');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setLocations(data.map(loc => ({
+          id: loc.id,
+          name: loc.name
+        })));
+      } else {
+        // If no data, use mock data as fallback
+        setLocations(mockLocations);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      setLocations(mockLocations); // Fallback to mock data
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      setIsInitialLoading(true);
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('*');
+      
+      if (customersError) {
+        throw customersError;
+      }
+      
+      // Convert Supabase data to Customer type and fetch their locations
+      const customersWithLocations = await Promise.all((customersData || []).map(async (customer) => {
+        const { data: locationData, error: locationError } = await supabase
+          .from('customer_locations')
+          .select('*')
+          .eq('customer_id', customer.id);
+        
+        if (locationError) {
+          console.error('Error fetching customer locations:', locationError);
           return {
             ...customer,
-            locations: locationData || []
-          };
-        }));
+            locations: []
+          } as Customer;
+        }
         
-        setCustomers(customersWithLocations);
-      }
+        return {
+          ...customer,
+          locations: locationData || []
+        } as Customer;
+      }));
+      
+      setCustomers(customersWithLocations);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -354,7 +407,7 @@ const Customers = () => {
       return;
     }
 
-    const selectedLocation = mockLocations.find(loc => loc.id === newLocation);
+    const selectedLocation = locations.find(loc => loc.id === newLocation);
     if (!selectedLocation) return;
 
     try {
@@ -428,7 +481,7 @@ const Customers = () => {
   const handleUpdateLocation = async () => {
     if (!currentCustomer || !editingLocationId) return;
     
-    const selectedLocation = mockLocations.find(loc => loc.id === newLocation);
+    const selectedLocation = locations.find(loc => loc.id === newLocation);
     if (!selectedLocation) return;
     
     try {
@@ -780,7 +833,7 @@ const Customers = () => {
                         <SelectValue placeholder="Select a location" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockLocations.map((loc) => (
+                        {locations.map((loc) => (
                           <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -804,7 +857,7 @@ const Customers = () => {
                             <SelectValue placeholder="Select inventory type" />
                           </SelectTrigger>
                           <SelectContent>
-                            {mockInventoryTypes.map((type) => (
+                            {inventoryTypes.map((type) => (
                               <SelectItem key={type.id} value={type.code}>{type.name}</SelectItem>
                             ))}
                           </SelectContent>
@@ -830,7 +883,7 @@ const Customers = () => {
                         <h5 className="text-sm font-medium mb-2">Current Rates:</h5>
                         <div className="space-y-2">
                           {Object.entries(locationRates).map(([typeCode, rate]) => {
-                            const inventoryType = mockInventoryTypes.find(t => t.code === typeCode);
+                            const inventoryType = inventoryTypes.find(t => t.code === typeCode);
                             return (
                               <div key={typeCode} className="flex items-center justify-between">
                                 <span>{inventoryType?.name || typeCode}: ₹{rate}/hour</span>
@@ -862,7 +915,7 @@ const Customers = () => {
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
                               Rates: {Object.entries(loc.rentalRates).map(([type, rate]) => {
-                                const inventoryType = mockInventoryTypes.find(t => t.code === type);
+                                const inventoryType = inventoryTypes.find(t => t.code === type);
                                 return (
                                   <span key={type} className="inline-flex items-center mr-2">
                                     <Tag className="h-3 w-3 mr-1" /> {inventoryType?.name || type}: ₹{rate}/hour
@@ -940,7 +993,7 @@ const Customers = () => {
                   <SelectValue placeholder="Select a location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockLocations.map((loc) => (
+                  {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -960,7 +1013,7 @@ const Customers = () => {
                         <SelectValue placeholder="Select inventory type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockInventoryTypes.map((type) => (
+                        {inventoryTypes.map((type) => (
                           <SelectItem key={type.id} value={type.code}>{type.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -986,7 +1039,7 @@ const Customers = () => {
                     <h5 className="text-sm font-medium mb-2">Current Rates:</h5>
                     <div className="space-y-2">
                       {Object.entries(locationRates).map(([typeCode, rate]) => {
-                        const inventoryType = mockInventoryTypes.find(t => t.code === typeCode);
+                        const inventoryType = inventoryTypes.find(t => t.code === typeCode);
                         return (
                           <div key={typeCode} className="flex items-center justify-between">
                             <span>{inventoryType?.name || typeCode}: ₹{rate}/hour</span>

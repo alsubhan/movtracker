@@ -21,6 +21,7 @@ export interface Location {
   name: string;
   description?: string;
   status: 'active' | 'inactive';
+  created_at?: string;
 }
 
 export interface GateType {
@@ -50,6 +51,7 @@ export interface InventoryType {
   name: string;
   description: string;
   status: 'active' | 'inactive';
+  created_at?: string;
 }
 
 export interface CustomerLocation {
@@ -59,6 +61,8 @@ export interface CustomerLocation {
   rentalRates: {
     [key: string]: number; // Key is inventory type code, value is hourly rate
   };
+  customer_id?: string; // Added for Supabase compatibility
+  created_at?: string; // Added for Supabase compatibility
 }
 
 export interface Customer {
@@ -69,6 +73,7 @@ export interface Customer {
   phone: string;
   email: string;
   status: string;
+  created_at?: string; // Added for Supabase compatibility
   locations?: CustomerLocation[];
 }
 
@@ -78,6 +83,7 @@ export interface Gate {
   gateLocation: string;
   type: string;
   status: 'active' | 'inactive';
+  created_at?: string; // Added for Supabase compatibility
 }
 
 export interface Movement {
@@ -133,4 +139,5 @@ export interface CompanyInfo {
   footerText: string;
   baseLocationId?: string;
   baseCustomerId?: string;
+  created_at?: string; // Added for Supabase compatibility
 }
