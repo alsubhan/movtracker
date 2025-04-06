@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,23 +29,48 @@ import {
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Location } from "@/types";
-
-// Sample data for demonstration
-const demoLocations: Location[] = [
-  { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
-  { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
-  { id: "3", name: "Customer Site", description: "Client location", status: "active" },
-  { id: "4", name: "Repair Center", description: "Maintenance and repairs", status: "inactive" },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const Locations = () => {
   const { toast } = useToast();
-  const [locations, setLocations] = useState<Location[]>(demoLocations);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+
+  // Fetch locations from Supabase
+  useEffect(() => {
+    const fetchLocations = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('*')
+          .order('name');
+          
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setLocations(data as Location[]);
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load locations. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchLocations();
+  }, [toast]);
 
   // Filter locations based on search term
   const filteredLocations = locations.filter((location) =>
@@ -67,56 +93,97 @@ const Locations = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSaveLocation = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveLocation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const locationData: Location = {
-      id: currentLocation?.id || `${locations.length + 1}`,
+    const locationData: Partial<Location> = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       status: formData.get("status") as "active" | "inactive",
     };
-
-    // Simulate API call
-    setTimeout(() => {
+    
+    try {
       if (currentLocation) {
         // Update existing location
+        const { error } = await supabase
+          .from('locations')
+          .update(locationData)
+          .eq('id', currentLocation.id);
+        
+        if (error) throw error;
+        
         setLocations(
-          locations.map((l) => (l.id === currentLocation.id ? locationData : l))
+          locations.map((l) => (l.id === currentLocation.id ? { ...l, ...locationData } : l))
         );
+        
         toast({
           title: "Location Updated",
           description: `${locationData.name} has been updated successfully.`,
         });
       } else {
         // Add new location
-        setLocations([...locations, locationData]);
-        toast({
-          title: "Location Added",
-          description: `${locationData.name} has been added successfully.`,
-        });
+        const { data, error } = await supabase
+          .from('locations')
+          .insert(locationData)
+          .select();
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setLocations([...locations, data[0] as Location]);
+          
+          toast({
+            title: "Location Added",
+            description: `${locationData.name} has been added successfully.`,
+          });
+        }
       }
-      setIsLoading(false);
+      
       setIsDialogOpen(false);
-    }, 500);
+    } catch (error) {
+      console.error('Error saving location:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save location. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!currentLocation) return;
     
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('locations')
+        .delete()
+        .eq('id', currentLocation.id);
+      
+      if (error) throw error;
+      
       setLocations(locations.filter((l) => l.id !== currentLocation.id));
+      
       toast({
         title: "Location Deleted",
         description: `${currentLocation.name} has been deleted successfully.`,
       });
-      setIsLoading(false);
+      
       setIsDeleteDialogOpen(false);
-    }, 500);
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete location. It may be in use by other records.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -158,7 +225,13 @@ const Locations = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLocations.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8">
+                      Loading locations...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredLocations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center">
                       No locations found
