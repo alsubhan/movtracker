@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,7 +69,9 @@ const Users = () => {
 
   const createProfilesRLSPolicy = async () => {
     try {
-      const { error } = await supabase.rpc('create_profiles_rls_policy');
+      // We're using a custom RPC function, so we need to specify the type as Record<string, never>
+      // to indicate that this function takes no parameters
+      const { error } = await supabase.rpc('create_profiles_rls_policy', {});
       
       if (error) {
         console.error('Error creating profiles RLS policy:', error);

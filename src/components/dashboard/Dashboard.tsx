@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -31,76 +30,65 @@ export const Dashboard = () => {
       setIsLoading(true);
       try {
         // Get inventory counts by status
-        const { data: countData, error: countError } = await supabase
+        const { data: binsData, error: countError } = await supabase
           .from('bins')
-          .select('status, count')
-          .select('id')
-          .then(response => {
-            const total = response.data?.length || 0;
-            const inStock = response.data?.filter(bin => bin.status === 'in-stock').length || 0;
-            const inWip = response.data?.filter(bin => bin.status === 'in-wip').length || 0;
-            const dispatched = response.data?.filter(bin => bin.status === 'dispatched').length || 0;
-            const damaged = response.data?.filter(bin => bin.status === 'damaged').length || 0;
-            
-            return {
-              data: { total, inStock, inWip, dispatched, damaged },
-              error: response.error
-            };
-          });
+          .select('id, status');
         
         if (countError) throw countError;
+        
+        if (binsData) {
+          const total = binsData.length || 0;
+          const inStock = binsData.filter(bin => bin.status === 'in-stock').length || 0;
+          const inWip = binsData.filter(bin => bin.status === 'in-wip').length || 0;
+          const dispatched = binsData.filter(bin => bin.status === 'dispatched').length || 0;
+          const damaged = binsData.filter(bin => bin.status === 'damaged').length || 0;
+          
+          setInventoryCounts({
+            total,
+            inStock,
+            inWip,
+            dispatched,
+            damaged
+          });
+        }
           
         // Get inventory counts by location
         const { data: locationData, error: locationError } = await supabase
           .from('bins')
-          .select('location, count')
-          .select('location')
-          .then(response => {
-            const locations = response.data?.reduce((acc, bin) => {
-              const locationName = bin.location;
-              acc[locationName] = (acc[locationName] || 0) + 1;
-              return acc;
-            }, {} as Record<string, number>);
-            
-            const formattedData = Object.entries(locations || {}).map(([location, count]) => ({
-              location,
-              count
-            }));
-            
-            return {
-              data: formattedData,
-              error: response.error
-            };
-          });
+          .select('location');
         
         if (locationError) throw locationError;
+        
+        if (locationData) {
+          const locations = locationData.reduce((acc, bin) => {
+            const locationName = bin.location;
+            acc[locationName] = (acc[locationName] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const formattedLocationData = Object.entries(locations).map(([location, count]) => ({
+            location,
+            count
+          }));
+          
+          setInventoryByLocation(formattedLocationData);
+        }
         
         // Calculate rental costs for WIP inventory
         const { data: rentalData, error: rentalError } = await supabase
           .from('bins')
           .select('id, customer_location_id, inventory_type')
-          .eq('status', 'in-wip')
-          .then(async response => {
-            if (response.error) return { data: 0, error: response.error };
-            
-            let totalRental = 0;
-            
-            // This is a simplified calculation - in a real app, you would need to
-            // join with customer_locations to get the actual rental rates
-            // Here we're assuming a fixed rate of 50 per item in WIP
-            totalRental = (response.data?.length || 0) * 50;
-            
-            return {
-              data: totalRental,
-              error: null
-            };
-          });
+          .eq('status', 'in-wip');
         
         if (rentalError) throw rentalError;
         
-        setInventoryCounts(countData);
-        setInventoryByLocation(locationData);
-        setWipRentalTotal(rentalData);
+        if (rentalData) {
+          // This is a simplified calculation - in a real app, you would need to
+          // join with customer_locations to get the actual rental rates
+          // Here we're assuming a fixed rate of 50 per item in WIP
+          const totalRental = (rentalData.length || 0) * 50;
+          setWipRentalTotal(totalRental);
+        }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {

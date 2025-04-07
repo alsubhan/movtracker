@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,8 +43,25 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
-const initialInventory = [
+type InventoryItem = {
+  id: string;
+  customer: string;
+  project: string;
+  partition: string;
+  serialNumber: string;
+  status: string;
+  location: string;
+  inventoryType: string;
+  companyCode: string;
+  rentalCost?: number;
+  lastScanTime: Date;
+  lastScanGate: string;
+  createdAt: Date;
+};
+
+const initialInventory: InventoryItem[] = [
   {
     id: "1",
     customer: "TOY",
@@ -132,7 +148,7 @@ const initialInventoryTypes: InventoryType[] = [
 ];
 
 const Inventory = () => {
-  const [inventory, setInventory] = useState(initialInventory);
+  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>(initialInventoryTypes);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
@@ -336,16 +352,17 @@ const Inventory = () => {
     
     if (isEditing) {
       setInventory(
-        inventory.map((inventory) =>
-          inventory.id === formData.id
+        inventory.map((inventoryItem) =>
+          inventoryItem.id === formData.id
             ? {
                 ...formData,
                 id: inventoryId,
-                lastScanTime: inventory.lastScanTime,
-                createdAt: inventory.createdAt,
-                companyCode: companyInfo?.code || formData.companyCode
+                lastScanTime: inventoryItem.lastScanTime,
+                createdAt: inventoryItem.createdAt,
+                companyCode: companyInfo?.code || formData.companyCode,
+                rentalCost: 50.00
               }
-            : inventory
+            : inventoryItem
         )
       );
       toast({
@@ -353,12 +370,13 @@ const Inventory = () => {
         description: "Inventory has been updated successfully",
       });
     } else {
-      const newInventory = {
+      const newInventory: InventoryItem = {
         ...formData,
         id: inventoryId,
         lastScanTime: new Date(),
         createdAt: new Date(),
-        companyCode: companyInfo?.code || formData.companyCode
+        companyCode: companyInfo?.code || formData.companyCode,
+        rentalCost: 50.00
       };
       setInventory([...inventory, newInventory]);
       toast({
@@ -459,7 +477,7 @@ const Inventory = () => {
   const createRLSPolicy = async () => {
     try {
       // Add an RLS policy to the profiles table to allow users to read all profiles
-      const { error } = await supabase.rpc('create_rls_policy_for_profiles');
+      const { error } = await supabase.rpc('create_profiles_rls_policy');
       
       if (error) throw error;
       
