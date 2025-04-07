@@ -61,95 +61,9 @@ type InventoryItem = {
   createdAt: Date;
 };
 
-const initialInventory: InventoryItem[] = [
-  {
-    id: "1",
-    customer: "TOY",
-    project: "1001",
-    partition: "08",
-    serialNumber: "001",
-    status: "in-stock",
-    location: "warehouse",
-    inventoryType: "PLT",
-    companyCode: "ABC",
-    rentalCost: 50.00,
-    lastScanTime: new Date("2023-06-15T10:30:00"),
-    lastScanGate: "Gate 1",
-    createdAt: new Date("2023-01-10"),
-  },
-  {
-    id: "2",
-    customer: "HON",
-    project: "2001",
-    partition: "04",
-    serialNumber: "002",
-    status: "in-wip",
-    location: "wip",
-    inventoryType: "BIN",
-    companyCode: "ABC",
-    rentalCost: 75.00,
-    lastScanTime: new Date("2023-06-16T11:45:00"),
-    lastScanGate: "Gate 3",
-    createdAt: new Date("2023-01-12"),
-  },
-  {
-    id: "3",
-    customer: "NIS",
-    project: "3001",
-    partition: "02",
-    serialNumber: "003",
-    status: "dispatched",
-    location: "customer",
-    inventoryType: "BOX",
-    companyCode: "ABC",
-    rentalCost: 25.00,
-    lastScanTime: new Date("2023-06-17T09:15:00"),
-    lastScanGate: "Gate 2",
-    createdAt: new Date("2023-01-15"),
-  },
-];
-
-const mockLocations: Location[] = [
-  { id: "1", name: "Main Warehouse", description: "Main storage facility", status: "active" },
-  { id: "2", name: "Production Line A", description: "Assembly line A", status: "active" },
-  { id: "3", name: "Customer Site", description: "Client location", status: "active" },
-];
-
-const mockCustomers: Customer[] = [
-  { id: "1", code: "TOY", name: "Toyota", contact_person: "John Smith", phone: "555-1234", email: "john@toyota.com", status: "Active" },
-  { id: "2", code: "HON", name: "Honda", contact_person: "Jane Doe", phone: "555-2345", email: "jane@honda.com", status: "Active" },
-  { id: "3", code: "NIS", name: "Nissan", contact_person: "Bob Johnson", phone: "555-3456", email: "bob@nissan.com", status: "Active" },
-  { id: "4", code: "FOR", name: "Ford", contact_person: "Alice Williams", phone: "555-4567", email: "alice@ford.com", status: "Inactive" },
-  { id: "5", code: "TES", name: "Tesla", contact_person: "Mark Davis", phone: "555-5678", email: "mark@tesla.com", status: "Active" },
-];
-
-const initialInventoryTypes: InventoryType[] = [
-  { 
-    id: "1", 
-    code: "PLT", 
-    name: "Pallet", 
-    description: "Standard wooden pallet", 
-    status: "active" 
-  },
-  { 
-    id: "2", 
-    code: "BIN", 
-    name: "Bin", 
-    description: "Storage bin container", 
-    status: "active" 
-  },
-  { 
-    id: "3", 
-    code: "BOX", 
-    name: "Box", 
-    description: "Cardboard box container", 
-    status: "active" 
-  },
-];
-
 const Inventory = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
-  const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>(initialInventoryTypes);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,42 +91,144 @@ const Inventory = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isTypeEditing, setIsTypeEditing] = useState(false);
-  const [locations, setLocations] = useState<Location[]>(mockLocations);
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
   const canEdit = user?.role === 'admin';
 
   useEffect(() => {
-    const settings = localStorage.getItem("settings");
-    if (settings) {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const parsedSettings = JSON.parse(settings);
-        if (parsedSettings.defaultCodeType) {
-          setCodeType(parsedSettings.defaultCodeType);
+        // Fetch inventory types
+        const { data: typesData, error: typesError } = await supabase
+          .from('inventory_types')
+          .select('*');
+        
+        if (typesError) throw typesError;
+        
+        if (typesData) {
+          setInventoryTypes(typesData as InventoryType[]);
         }
-      } catch (error) {
-        console.error("Error parsing settings from localStorage", error);
-      }
-    }
-    
-    const companyInfoData = localStorage.getItem("companyInfo");
-    if (companyInfoData) {
-      try {
-        const parsedCompanyInfo = JSON.parse(companyInfoData);
-        setCompanyInfo(parsedCompanyInfo);
-        if (parsedCompanyInfo.code) {
-          setFormData(prev => ({
-            ...prev,
-            companyCode: parsedCompanyInfo.code
-          }));
+
+        // Fetch locations
+        const { data: locationsData, error: locationsError } = await supabase
+          .from('locations')
+          .select('*');
+        
+        if (locationsError) throw locationsError;
+        
+        if (locationsData) {
+          setLocations(locationsData as Location[]);
         }
+
+        // Fetch customers
+        const { data: customersData, error: customersError } = await supabase
+          .from('customers')
+          .select('*');
+        
+        if (customersError) throw customersError;
+        
+        if (customersData) {
+          setCustomers(customersData as Customer[]);
+        }
+
+        // Fetch company info
+        const companyInfoData = localStorage.getItem("companyInfo");
+        if (companyInfoData) {
+          try {
+            const parsedCompanyInfo = JSON.parse(companyInfoData);
+            setCompanyInfo(parsedCompanyInfo);
+            if (parsedCompanyInfo.code) {
+              setFormData(prev => ({
+                ...prev,
+                companyCode: parsedCompanyInfo.code
+              }));
+            }
+          } catch (error) {
+            console.error("Error parsing company info from localStorage", error);
+          }
+        }
+
+        const settings = localStorage.getItem("settings");
+        if (settings) {
+          try {
+            const parsedSettings = JSON.parse(settings);
+            if (parsedSettings.defaultCodeType) {
+              setCodeType(parsedSettings.defaultCodeType);
+            }
+          } catch (error) {
+            console.error("Error parsing settings from localStorage", error);
+          }
+        }
+
+        // Create mock inventory data - in a real app you'd fetch this from your database
+        const mockInventory = [
+          {
+            id: "1",
+            customer: "TOY",
+            project: "1001",
+            partition: "08",
+            serialNumber: "001",
+            status: "in-stock",
+            location: "warehouse",
+            inventoryType: "PLT",
+            companyCode: "ABC",
+            rentalCost: 50.00,
+            lastScanTime: new Date("2023-06-15T10:30:00"),
+            lastScanGate: "Gate 1",
+            createdAt: new Date("2023-01-10"),
+          },
+          {
+            id: "2",
+            customer: "HON",
+            project: "2001",
+            partition: "04",
+            serialNumber: "002",
+            status: "in-wip",
+            location: "wip",
+            inventoryType: "BIN",
+            companyCode: "ABC",
+            rentalCost: 75.00,
+            lastScanTime: new Date("2023-06-16T11:45:00"),
+            lastScanGate: "Gate 3",
+            createdAt: new Date("2023-01-12"),
+          },
+          {
+            id: "3",
+            customer: "NIS",
+            project: "3001",
+            partition: "02",
+            serialNumber: "003",
+            status: "dispatched",
+            location: "customer",
+            inventoryType: "BOX",
+            companyCode: "ABC",
+            rentalCost: 25.00,
+            lastScanTime: new Date("2023-06-17T09:15:00"),
+            lastScanGate: "Gate 2",
+            createdAt: new Date("2023-01-15"),
+          },
+        ];
+        
+        setInventory(mockInventory);
       } catch (error) {
-        console.error("Error parsing company info from localStorage", error);
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, []);
+    };
+
+    fetchData();
+  }, [toast]);
 
   const activeCustomers = customers.filter(customer => customer.status === "Active");
   const activeLocations = locations.filter(location => location.status === "active");
@@ -315,7 +331,7 @@ const Inventory = () => {
     });
   };
 
-  const handleDeleteInventoryType = (id: string) => {
+  const handleDeleteInventoryType = async (id: string) => {
     if (!canEdit) {
       toast({
         title: "Permission Denied",
@@ -325,11 +341,28 @@ const Inventory = () => {
       return;
     }
     
-    setInventoryTypes(inventoryTypes.filter((type) => type.id !== id));
-    toast({
-      title: "Inventory Type Deleted",
-      description: "Inventory type has been deleted successfully",
-    });
+    try {
+      const { error } = await supabase
+        .from('inventory_types')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setInventoryTypes(inventoryTypes.filter(type => type.id !== id));
+      
+      toast({
+        title: "Inventory Type Deleted",
+        description: "Inventory type has been deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting inventory type:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete inventory type. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -389,7 +422,7 @@ const Inventory = () => {
     setIsDialogOpen(false);
   };
 
-  const handleTypeSubmit = (e: React.FormEvent) => {
+  const handleTypeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (typeFormData.code.length !== 3) {
@@ -414,31 +447,63 @@ const Inventory = () => {
       return;
     }
     
-    if (isTypeEditing) {
-      setInventoryTypes(
-        inventoryTypes.map((type) =>
-          type.id === typeFormData.id ? { ...typeFormData } : type
-        )
-      );
-      toast({
-        title: "Inventory Type Updated",
-        description: "Inventory type has been updated successfully",
-      });
-    } else {
-      const newInventoryType: InventoryType = {
-        ...typeFormData,
-        id: `${inventoryTypes.length + 1}`,
-      };
+    try {
+      if (isTypeEditing) {
+        const { error } = await supabase
+          .from('inventory_types')
+          .update({
+            code: typeFormData.code,
+            name: typeFormData.name,
+            description: typeFormData.description,
+            status: typeFormData.status
+          })
+          .eq('id', typeFormData.id);
+        
+        if (error) throw error;
+        
+        setInventoryTypes(
+          inventoryTypes.map((type) =>
+            type.id === typeFormData.id ? { ...typeFormData } : type
+          )
+        );
+        
+        toast({
+          title: "Inventory Type Updated",
+          description: "Inventory type has been updated successfully",
+        });
+      } else {
+        const { data, error } = await supabase
+          .from('inventory_types')
+          .insert({
+            code: typeFormData.code,
+            name: typeFormData.name,
+            description: typeFormData.description,
+            status: typeFormData.status
+          })
+          .select();
+        
+        if (error) throw error;
+        
+        if (data) {
+          setInventoryTypes([...inventoryTypes, data[0] as InventoryType]);
+          
+          toast({
+            title: "Inventory Type Added",
+            description: `New inventory type ${typeFormData.name} has been added successfully`,
+          });
+        }
+      }
       
-      setInventoryTypes([...inventoryTypes, newInventoryType]);
+      resetTypeForm();
+      setIsTypeDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving inventory type:', error);
       toast({
-        title: "Inventory Type Added",
-        description: `New inventory type ${typeFormData.name} has been added successfully`,
+        title: "Error",
+        description: "Failed to save inventory type. Please try again.",
+        variant: "destructive",
       });
     }
-    
-    resetTypeForm();
-    setIsTypeDialogOpen(false);
   };
 
   const filteredInventory = inventory.filter((inventory) => {
@@ -491,6 +556,14 @@ const Inventory = () => {
     // Check if the RLS policy exists and create it if needed
     createRLSPolicy();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <ScrollArea className="h-full">
