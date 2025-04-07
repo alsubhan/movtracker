@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,9 +134,9 @@ const Movement = () => {
           .from('company_info')
           .select('*')
           .limit(1)
-          .single();
+          .maybeSingle();
         
-        if (companyError && companyError.code !== 'PGRST116') {
+        if (companyError) {
           console.error('Error fetching company info:', companyError);
         }
         
@@ -512,15 +513,13 @@ const Movement = () => {
         const previousLocation = inventoryItem?.location || '';
         
         // Create movement record in database
-        const { error } = await getCustomTable('movements').insert({
-          inventory_id: item.id,
+        const { error } = await getCustomTable('bin_movements').insert({
+          bin_id: item.id,
           gate_id: selectedGate,
           movement_type: activeTab,
           timestamp: new Date().toISOString(),
           location: selectedLocation,
-          previous_location: previousLocation,
-          customer: item.customer,
-          project: item.project
+          previous_location: previousLocation
         });
         
         if (error) {
@@ -939,3 +938,115 @@ const Movement = () => {
                         disabled={!selectedGate}
                       >
                         <Barcode className="h-4 w-4 mr-2" />
+                        Scan
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleProcess} 
+                    disabled={scannedItems.length === 0 || isProcessing} 
+                    className="w-full"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <DoorOpen className="h-4 w-4 mr-2" />
+                        Process {activeTab === "in" ? "Receiving" : "Dispatch"}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="md:col-span-2">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Scanned Items</CardTitle>
+                <CardDescription>
+                  {scannedItems.length} item(s) scanned
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {scannedItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 border border-dashed rounded-md p-6">
+                    <Box className="h-12 w-12 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No items scanned yet</p>
+                    <p className="text-sm text-muted-foreground max-w-md text-center mt-1">
+                      Select a customer and location, then scan items to add them to the list.
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-4">
+                      {scannedItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex justify-between items-center p-3 border rounded-md hover:bg-accent transition-colors"
+                        >
+                          <div className="flex flex-col">
+                            <div className="flex items-center">
+                              <span className="font-medium">{item.id}</span>
+                              <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                                {item.type}
+                              </span>
+                            </div>
+                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                              <span>Customer: {item.customer}</span>
+                              {item.project && <span>Project: {item.project}</span>}
+                              <span className="flex items-center">
+                                <IndianRupee className="h-3 w-3 mr-1" /> 
+                                {item.hourlyRentalCost}/hr
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewItemDetails(item)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={1.5}
+                                stroke="currentColor"
+                                className="w-4 h-4 text-destructive"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Movement;
