@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +21,7 @@ import { SearchX, FileText, Download, Filter, AlertTriangle, Clock } from "lucid
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getCustomTable } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface MissingItem {
@@ -53,8 +52,7 @@ const MissingReport = () => {
     const fetchMissingItems = async () => {
       setIsLoading(true);
       try {
-        let query = supabase
-          .from('missing_inventory')
+        let query = getCustomTable('missing_inventory')
           .select('*');
         
         if (dateRange.from) {
@@ -171,7 +169,6 @@ const MissingReport = () => {
     fetchMissingItems();
   }, [dateRange, toast]);
 
-  // Filter missing items based on search term and date range
   const filteredMissings = missingItems.filter((inventory) => {
     const matchesSearch =
       inventory.inventoryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,13 +177,10 @@ const MissingReport = () => {
     return matchesSearch;
   });
 
-  // Export data as CSV
   const handleExport = () => {
     try {
-      // Create CSV header
       let csv = "Inventory ID,Customer,Project,Last Seen Location,Last Seen Gate,Last Scan Date,Missing Days,Status\n";
       
-      // Add data rows
       filteredMissings.forEach(item => {
         const row = [
           item.inventoryId,
@@ -202,7 +196,6 @@ const MissingReport = () => {
         csv += row + '\n';
       });
       
-      // Create a download link
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

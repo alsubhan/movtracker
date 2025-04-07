@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getCustomTable } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 // Define the movement type
@@ -53,8 +52,7 @@ const MovementReport = () => {
     const fetchMovements = async () => {
       setIsLoading(true);
       try {
-        let query = supabase
-          .from('movements')
+        let query = getCustomTable('movements')
           .select('*');
         
         if (dateRange.from) {
@@ -69,10 +67,17 @@ const MovementReport = () => {
         
         if (error) throw error;
         
-        if (data) {
+        if (data && data.length > 0) {
           const formattedData = data.map(item => ({
-            ...item,
-            timestamp: new Date(item.timestamp)
+            id: item.id,
+            inventoryId: item.inventory_id,
+            gateId: item.gate_id,
+            movementType: item.movement_type,
+            timestamp: new Date(item.timestamp),
+            location: item.location,
+            previousLocation: item.previous_location || "",
+            customer: item.customer || "",
+            project: item.project || ""
           })) as Movement[];
           
           setMovements(formattedData);
