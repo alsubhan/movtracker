@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,46 +34,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DoorOpen, PlusCircle, Pencil, Trash2, Settings } from "lucide-react";
+import { DoorOpen, PlusCircle, Pencil, Trash2, Settings, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase, getCustomTable } from "@/integrations/supabase/client";
 
-// Mock data
-const initialGates = [
-  {
-    id: "1",
-    name: "Gate 1",
-    gateLocation: "Finished Goods Warehouse",
-    type: "warehouse",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Gate 2",
-    gateLocation: "Production Line Exit",
-    type: "production",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Gate 3",
-    gateLocation: "Customer Dispatch Area",
-    type: "dispatch",
-    status: "inactive",
-  },
-];
+// Interface for Gates
+interface Gate {
+  id: string;
+  name: string;
+  gateLocation: string;
+  type: string;
+  status: string;
+}
 
-// Initial gate types
-const initialGateTypes = [
-  { id: "1", name: "warehouse", description: "Warehouse gates", status: "active" },
-  { id: "2", name: "production", description: "Production area gates", status: "active" },
-  { id: "3", name: "dispatch", description: "Dispatch area gates", status: "active" },
-];
+// Interface for Gate Types
+interface GateType {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+}
 
 const Gates = () => {
-  const [gates, setGates] = useState(initialGates);
-  const [gateTypes, setGateTypes] = useState(initialGateTypes);
+  const [gates, setGates] = useState<Gate[]>([]);
+  const [gateTypes, setGateTypes] = useState<GateType[]>([]);
   const [isGateDialogOpen, setIsGateDialogOpen] = useState(false);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("gates");
@@ -92,7 +78,87 @@ const Gates = () => {
   });
   const [isEditingGate, setIsEditingGate] = useState(false);
   const [isEditingType, setIsEditingType] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  // Fetch gates and gate types from Supabase
+  useEffect(() => {
+    const fetchGatesAndTypes = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Fetch gates
+        const { data: gatesData, error: gatesError } = await supabase
+          .from('gates')
+          .select('*');
+        
+        if (gatesError) throw gatesError;
+        
+        // Fetch gate types
+        const { data: gateTypesData, error: typesError } = await getCustomTable('gate_types')
+          .select('*');
+        
+        if (typesError) throw typesError;
+        
+        // Map Supabase data to our interfaces
+        if (gatesData) {
+          const formattedGates = gatesData.map(gate => ({
+            id: gate.id,
+            name: gate.name,
+            gateLocation: gate.gate_location,
+            type: gate.type,
+            status: gate.status || 'active'
+          }));
+          setGates(formattedGates);
+        }
+        
+        if (gateTypesData) {
+          const formattedTypes = gateTypesData.map((type: any) => ({
+            id: type.id,
+            name: type.name,
+            description: type.description || '',
+            status: type.status || 'active'
+          }));
+          setGateTypes(formattedTypes);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Error Loading Data",
+          description: "There was an error loading gates and gate types. Using sample data instead.",
+          variant: "destructive",
+        });
+        
+        // Fallback to sample data if DB connection fails
+        setGates([
+          {
+            id: "1",
+            name: "Gate 1",
+            gateLocation: "Finished Goods Warehouse",
+            type: "warehouse",
+            status: "active",
+          },
+          {
+            id: "2",
+            name: "Gate 2",
+            gateLocation: "Production Line Exit",
+            type: "production",
+            status: "active",
+          },
+        ]);
+        
+        setGateTypes([
+          { id: "1", name: "warehouse", description: "Warehouse gates", status: "active" },
+          { id: "2", name: "production", description: "Production area gates", status: "active" },
+          { id: "3", name: "dispatch", description: "Dispatch area gates", status: "active" },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchGatesAndTypes();
+  }, [toast]);
 
   const handleGateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -133,32 +199,49 @@ const Gates = () => {
     setIsEditingType(false);
   };
 
-  const handleEditGate = (gate: any) => {
+  const handleEditGate = (gate: Gate) => {
     setGateFormData(gate);
     setIsEditingGate(true);
     setIsGateDialogOpen(true);
   };
 
-  const handleEditType = (type: any) => {
+  const handleEditType = (type: GateType) => {
     setTypeFormData(type);
     setIsEditingType(true);
     setIsTypeDialogOpen(true);
   };
 
-  const handleDeleteGate = (id: string) => {
-    setGates(gates.filter((gate) => gate.id !== id));
-    toast({
-      title: "Gate Deleted",
-      description: "Gate has been deleted successfully",
-    });
+  const handleDeleteGate = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('gates')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setGates(gates.filter((gate) => gate.id !== id));
+      
+      toast({
+        title: "Gate Deleted",
+        description: "Gate has been deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting gate:', error);
+      toast({
+        title: "Delete Failed",
+        description: "There was an error deleting the gate. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteType = (id: string) => {
+  const handleDeleteType = async (id: string) => {
     // Check if any gate is using this type
-    const gatesUsingType = gates.filter(gate => {
-      const typeToDelete = gateTypes.find(type => type.id === id);
-      return gate.type === typeToDelete?.name;
-    });
+    const typeToDelete = gateTypes.find(type => type.id === id);
+    if (!typeToDelete) return;
+    
+    const gatesUsingType = gates.filter(gate => gate.type === typeToDelete.name);
     
     if (gatesUsingType.length > 0) {
       toast({
@@ -169,39 +252,98 @@ const Gates = () => {
       return;
     }
     
-    setGateTypes(gateTypes.filter((type) => type.id !== id));
-    toast({
-      title: "Gate Type Deleted",
-      description: "Gate type has been deleted successfully",
-    });
-  };
-
-  const handleGateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isEditingGate) {
-      setGates(gates.map((gate) => (gate.id === gateFormData.id ? gateFormData : gate)));
+    try {
+      const { error } = await getCustomTable('gate_types')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setGateTypes(gateTypes.filter((type) => type.id !== id));
+      
       toast({
-        title: "Gate Updated",
-        description: "Gate has been updated successfully",
+        title: "Gate Type Deleted",
+        description: "Gate type has been deleted successfully",
       });
-    } else {
-      const newGate = {
-        ...gateFormData,
-        id: String(gates.length + 1),
-      };
-      setGates([...gates, newGate]);
+    } catch (error) {
+      console.error('Error deleting gate type:', error);
       toast({
-        title: "Gate Added",
-        description: "New gate has been added successfully",
+        title: "Delete Failed",
+        description: "There was an error deleting the gate type. Please try again.",
+        variant: "destructive",
       });
     }
-    
-    resetGateForm();
-    setIsGateDialogOpen(false);
   };
 
-  const handleTypeSubmit = (e: React.FormEvent) => {
+  const handleGateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (isEditingGate) {
+        // Update existing gate
+        const { error } = await supabase
+          .from('gates')
+          .update({
+            name: gateFormData.name,
+            gate_location: gateFormData.gateLocation,
+            type: gateFormData.type,
+            status: gateFormData.status
+          })
+          .eq('id', gateFormData.id);
+          
+        if (error) throw error;
+        
+        setGates(gates.map((gate) => (gate.id === gateFormData.id ? gateFormData : gate)));
+        
+        toast({
+          title: "Gate Updated",
+          description: "Gate has been updated successfully",
+        });
+      } else {
+        // Create new gate
+        const { data, error } = await supabase
+          .from('gates')
+          .insert({
+            name: gateFormData.name,
+            gate_location: gateFormData.gateLocation,
+            type: gateFormData.type,
+            status: gateFormData.status
+          })
+          .select();
+          
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const newGate = {
+            id: data[0].id,
+            name: data[0].name,
+            gateLocation: data[0].gate_location,
+            type: data[0].type,
+            status: data[0].status || 'active'
+          };
+          
+          setGates([...gates, newGate]);
+          
+          toast({
+            title: "Gate Added",
+            description: "New gate has been added successfully",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving gate:', error);
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving the gate. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      resetGateForm();
+      setIsGateDialogOpen(false);
+    }
+  };
+
+  const handleTypeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate type name is unique
@@ -214,38 +356,85 @@ const Gates = () => {
       return;
     }
     
-    if (isEditingType) {
-      const oldType = gateTypes.find(type => type.id === typeFormData.id);
-      
-      // Update all gates using this type if name changed
-      if (oldType && oldType.name !== typeFormData.name) {
-        setGates(gates.map(gate => {
-          if (gate.type === oldType.name) {
-            return { ...gate, type: typeFormData.name };
-          }
-          return gate;
-        }));
+    try {
+      if (isEditingType) {
+        const oldType = gateTypes.find(type => type.id === typeFormData.id);
+        
+        // Update gate type
+        const { error } = await getCustomTable('gate_types')
+          .update({
+            name: typeFormData.name,
+            description: typeFormData.description,
+            status: typeFormData.status
+          })
+          .eq('id', typeFormData.id);
+          
+        if (error) throw error;
+        
+        // Update all gates using this type if name changed
+        if (oldType && oldType.name !== typeFormData.name) {
+          // Update gate records in database 
+          const { error: updateError } = await supabase
+            .from('gates')
+            .update({ type: typeFormData.name })
+            .eq('type', oldType.name);
+            
+          if (updateError) throw updateError;
+          
+          // Update local state
+          setGates(gates.map(gate => {
+            if (gate.type === oldType.name) {
+              return { ...gate, type: typeFormData.name };
+            }
+            return gate;
+          }));
+        }
+        
+        setGateTypes(gateTypes.map((type) => (type.id === typeFormData.id ? typeFormData : type)));
+        
+        toast({
+          title: "Gate Type Updated",
+          description: "Gate type has been updated successfully",
+        });
+      } else {
+        // Create new gate type
+        const { data, error } = await getCustomTable('gate_types')
+          .insert({
+            name: typeFormData.name,
+            description: typeFormData.description,
+            status: typeFormData.status
+          })
+          .select();
+          
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const newType = {
+            id: data[0].id,
+            name: data[0].name,
+            description: data[0].description || '',
+            status: data[0].status || 'active'
+          };
+          
+          setGateTypes([...gateTypes, newType]);
+          
+          toast({
+            title: "Gate Type Added",
+            description: "New gate type has been added successfully",
+          });
+        }
       }
-      
-      setGateTypes(gateTypes.map((type) => (type.id === typeFormData.id ? typeFormData : type)));
+    } catch (error) {
+      console.error('Error saving gate type:', error);
       toast({
-        title: "Gate Type Updated",
-        description: "Gate type has been updated successfully",
+        title: "Save Failed",
+        description: "There was an error saving the gate type. Please try again.",
+        variant: "destructive",
       });
-    } else {
-      const newType = {
-        ...typeFormData,
-        id: String(gateTypes.length + 1),
-      };
-      setGateTypes([...gateTypes, newType]);
-      toast({
-        title: "Gate Type Added",
-        description: "New gate type has been added successfully",
-      });
+    } finally {
+      resetTypeForm();
+      setIsTypeDialogOpen(false);
     }
-    
-    resetTypeForm();
-    setIsTypeDialogOpen(false);
   };
 
   return (
@@ -372,68 +561,82 @@ const Gates = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Gate Name</TableHead>
-                    <TableHead>Gate Location</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gates.map((gate) => (
-                    <TableRow key={gate.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <DoorOpen className="h-4 w-4 text-muted-foreground" />
-                          {gate.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{gate.gateLocation}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          {gate.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            gate.status === "active"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                          }
-                        >
-                          {gate.status === "active" ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditGate(gate)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteGate(gate.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Gate Name</TableHead>
+                      <TableHead>Gate Location</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {gates.length > 0 ? (
+                      gates.map((gate) => (
+                        <TableRow key={gate.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <DoorOpen className="h-4 w-4 text-muted-foreground" />
+                              {gate.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>{gate.gateLocation}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="bg-blue-50 text-blue-700 border-blue-200"
+                            >
+                              {gate.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                gate.status === "active"
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : "bg-red-50 text-red-700 border-red-200"
+                              }
+                            >
+                              {gate.status === "active" ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditGate(gate)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteGate(gate.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          No gates found. Add your first gate to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -524,59 +727,73 @@ const Gates = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gateTypes.map((type) => (
-                    <TableRow key={type.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          {type.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{type.description}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            type.status === "active"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                          }
-                        >
-                          {type.status === "active" ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditType(type)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteType(type.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {gateTypes.length > 0 ? (
+                      gateTypes.map((type) => (
+                        <TableRow key={type.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Settings className="h-4 w-4 text-muted-foreground" />
+                              {type.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>{type.description}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                type.status === "active"
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : "bg-red-50 text-red-700 border-red-200"
+                              }
+                            >
+                              {type.status === "active" ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditType(type)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteType(type.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          No gate types found. Add your first gate type to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

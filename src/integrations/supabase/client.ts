@@ -13,5 +13,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // Custom query functions for tables not in the Database type
 export const getCustomTable = (tableName: string) => {
-  return supabase.from(tableName);
+  // Using any type to bypass TypeScript's type checking for dynamic table names
+  return supabase.from(tableName as any);
 };
