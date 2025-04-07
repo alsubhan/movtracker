@@ -98,7 +98,7 @@ const Locations = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const locationData: Partial<Location> = {
+    const locationData = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       status: formData.get("status") as "active" | "inactive",

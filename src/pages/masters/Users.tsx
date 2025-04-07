@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +63,25 @@ const Users = () => {
   const { user: currentUser } = useAuth();
 
   useEffect(() => {
+    createProfilesRLSPolicy();
+  }, []);
+
+  const createProfilesRLSPolicy = async () => {
+    try {
+      const { error } = await supabase.rpc('create_profiles_rls_policy');
+      
+      if (error) {
+        console.error('Error creating profiles RLS policy:', error);
+        throw error;
+      }
+      
+      console.log('Profiles RLS policy created successfully');
+    } catch (error) {
+      console.error('Error creating profiles RLS policy:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchUsers();
   }, []);
 
@@ -72,7 +90,6 @@ const Users = () => {
       setLoading(true);
       console.log("Fetching users from profiles table...");
       
-      // Use simpler query without RLS checks that might cause issues
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -117,9 +134,7 @@ const Users = () => {
 
   const handleSelectChange = (name: string, value: string) => {
     if (name === 'role') {
-      // Ensure role is of the correct type
       const typedRole = value as 'admin' | 'user' | 'operator';
-      // When role changes, update permissions based on role
       setFormData((prev) => ({
         ...prev,
         [name]: typedRole,
@@ -169,7 +184,6 @@ const Users = () => {
   };
 
   const handleDeleteUser = async (id: string) => {
-    // Don't allow deleting yourself
     if (id === currentUser?.id) {
       toast({
         title: "Error",
@@ -180,7 +194,6 @@ const Users = () => {
     }
     
     try {
-      // Instead of deleting from auth, just update the profile status
       const { error } = await supabase
         .from('profiles')
         .update({ status: 'inactive' })
@@ -208,7 +221,6 @@ const Users = () => {
     
     try {
       if (isEditing) {
-        // Update existing user profile
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
@@ -225,7 +237,6 @@ const Users = () => {
           description: "User has been updated successfully",
         });
       } else {
-        // For new users in demo mode, create directly in profiles table with a UUID
         const newUserId = crypto.randomUUID();
         
         const { error: profileError } = await supabase
@@ -234,7 +245,7 @@ const Users = () => {
             id: newUserId,
             full_name: formData.full_name,
             username: formData.username,
-            password: "demopassword", // Demo password
+            password: "demopassword",
             role: formData.role,
             status: formData.status,
             created_at: new Date().toISOString()
@@ -260,10 +271,8 @@ const Users = () => {
     }
   };
 
-  // Set a default admin if no users exist
   useEffect(() => {
     const checkAndCreateDefaultAdmin = async () => {
-      // Only run if users array is empty and we're not currently loading
       if (users.length === 0 && !loading) {
         try {
           console.log("No users found, creating default admin user...");
@@ -291,7 +300,7 @@ const Users = () => {
               id: adminId,
               full_name: 'Admin User',
               username: 'admin',
-              password: 'adminpassword', // Demo password
+              password: 'adminpassword',
               role: 'admin',
               status: 'active',
               created_at: new Date().toISOString()
@@ -324,7 +333,6 @@ const Users = () => {
     checkAndCreateDefaultAdmin();
   }, [users, loading]);
 
-  // Only admins can create users
   const canCreateUsers = currentUser?.role === 'admin';
 
   return (
@@ -484,7 +492,6 @@ const Users = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // Reset permissions to default for the role
                               setFormData(prev => ({
                                 ...prev,
                                 permissions: getPermissionsForRole(prev.role)

@@ -1,193 +1,178 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Save, IndianRupee, Building, MapPin } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { CompanyInfo, Location, Customer } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// Fallback initial company data if none exists in the database or localStorage
-const defaultCompanyData: CompanyInfo = {
-  code: "ABC",
-  name: "ACME Corporation",
-  headerText: "ACME Corporation\n123 Main Street\nNew York, NY 10001",
-  footerText: "Thank you for your business!\nContact: info@acme.com | Phone: (555) 123-4567",
-  baseLocationId: "",
-  baseCustomerId: ""
+const initialCompanyInfo: CompanyInfo = {
+  id: "",
+  code: "",
+  name: "",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+  tax_id: "",
+  header_text: "",
+  footer_text: "",
+  base_location_id: "",
+  base_customer_id: ""
 };
 
 const CompanySettings = () => {
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(defaultCompanyData);
+  const { toast } = useToast();
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(initialCompanyInfo);
+  const [formData, setFormData] = useState({
+    code: "",
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
+    tax_id: "",
+    header_text: "",
+    footer_text: "",
+    base_location_id: "",
+    base_customer_id: ""
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
-  const { toast } = useToast();
 
-  // Fetch company info, locations, and customers from Supabase
   useEffect(() => {
-    const fetchData = async () => {
-      setIsFetching(true);
+    const fetchCompanyInfo = async () => {
+      setIsLoading(true);
       try {
-        // Fetch company info
         const { data: companyData, error: companyError } = await supabase
           .from('company_info')
           .select('*')
-          .single();
-
-        if (companyError && companyError.code !== 'PGRST116') {
-          // PGRST116 is "no rows returned" error, we handle this by using default data
-          console.error('Error fetching company info:', companyError);
-          toast({
-            title: "Error fetching company information",
-            description: companyError.message,
-            variant: "destructive",
-          });
-        }
-
-        // Fetch locations
+          .limit(1);
+        
+        if (companyError) throw companyError;
+        
         const { data: locationsData, error: locationsError } = await supabase
           .from('locations')
           .select('*')
           .eq('status', 'active');
-
-        if (locationsError) {
-          console.error('Error fetching locations:', locationsError);
-          toast({
-            title: "Error fetching locations",
-            description: locationsError.message,
-            variant: "destructive",
-          });
-        } else {
-          setLocations(locationsData as Location[] || []);
-        }
-
-        // Fetch customers
+        
+        if (locationsError) throw locationsError;
+        
         const { data: customersData, error: customersError } = await supabase
           .from('customers')
           .select('*')
           .eq('status', 'active');
-
-        if (customersError) {
-          console.error('Error fetching customers:', customersError);
-          toast({
-            title: "Error fetching customers",
-            description: customersError.message,
-            variant: "destructive",
-          });
-        } else {
-          setCustomers(customersData as Customer[] || []);
+        
+        if (customersError) throw customersError;
+        
+        if (locationsData) {
+          setLocations(locationsData as Location[]);
         }
-
-        // Set company info from database or fallback to localStorage
-        if (companyData) {
-          setCompanyInfo({
-            id: companyData.id,
-            code: companyData.code,
-            name: companyData.name,
-            address: companyData.address,
-            phone: companyData.phone,
-            email: companyData.email,
-            website: companyData.website,
-            taxId: companyData.tax_id,
-            headerText: companyData.header_text,
-            footerText: companyData.footer_text,
-            baseLocationId: companyData.base_location_id,
-            baseCustomerId: companyData.base_customer_id
+        
+        if (customersData) {
+          setCustomers(customersData as Customer[]);
+        }
+        
+        if (companyData && companyData.length > 0) {
+          setCompanyInfo(companyData[0] as CompanyInfo);
+          
+          // Set form values
+          setFormData({
+            code: companyData[0].code || "",
+            name: companyData[0].name || "",
+            address: companyData[0].address || "",
+            phone: companyData[0].phone || "",
+            email: companyData[0].email || "",
+            website: companyData[0].website || "",
+            tax_id: companyData[0].tax_id || "",
+            header_text: companyData[0].header_text || "",
+            footer_text: companyData[0].footer_text || "",
+            base_location_id: companyData[0].base_location_id || "",
+            base_customer_id: companyData[0].base_customer_id || ""
           });
-        } else {
-          // Try loading from localStorage if no data in database
-          const savedCompanyInfo = localStorage.getItem('companyInfo');
-          if (savedCompanyInfo) {
-            try {
-              const parsedInfo = JSON.parse(savedCompanyInfo);
-              setCompanyInfo(parsedInfo);
-            } catch (error) {
-              console.error('Error parsing company info from localStorage', error);
-              // Fallback to default data
-              setCompanyInfo(defaultCompanyData);
-            }
-          } else {
-            // If no data in localStorage either, use default data
-            setCompanyInfo(defaultCompanyData);
-          }
         }
       } catch (error) {
-        console.error('Error in fetching data:', error);
+        console.error('Error fetching company info:', error);
         toast({
           title: "Error",
-          description: "Failed to load data. Please try again.",
+          description: "Failed to load company information. Please try again.",
           variant: "destructive",
         });
       } finally {
-        setIsFetching(false);
+        setIsLoading(false);
       }
     };
-
-    fetchData();
+    
+    fetchCompanyInfo();
   }, [toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setCompanyInfo(prev => ({ ...prev, [name]: value }));
+    setFormData({ ...formData, [name]: value });
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setCompanyInfo(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveCompanyInfo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
     
-    // Validate company code
-    if (companyInfo.code.length !== 3) {
-      toast({
-        title: "Invalid Company Code",
-        description: "Company code must be exactly 3 characters",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // Save to Supabase
-      const { data, error } = await supabase
-        .from('company_info')
-        .upsert(
-          {
-            code: companyInfo.code,
-            name: companyInfo.name,
-            address: companyInfo.address,
-            phone: companyInfo.phone,
-            email: companyInfo.email,
-            website: companyInfo.website,
-            tax_id: companyInfo.taxId,
-            header_text: companyInfo.headerText,
-            footer_text: companyInfo.footerText,
-            base_location_id: companyInfo.baseLocationId,
-            base_customer_id: companyInfo.baseCustomerId
-          },
-          { onConflict: 'id' }
-        )
-        .select();
-
-      if (error) {
-        throw error;
+      const companyData = {
+        code: formData.code,
+        name: formData.name,
+        address: formData.address,
+        phone: formData.phone,
+        email: formData.email,
+        website: formData.website,
+        tax_id: formData.tax_id,
+        header_text: formData.header_text,
+        footer_text: formData.footer_text,
+        base_location_id: formData.base_location_id,
+        base_customer_id: formData.base_customer_id
+      };
+      
+      if (companyInfo.id) {
+        // Update existing record
+        const { error } = await supabase
+          .from('company_info')
+          .update(companyData)
+          .eq('id', companyInfo.id);
+        
+        if (error) throw error;
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('company_info')
+          .insert([companyData]);
+        
+        if (error) throw error;
       }
-
-      // Also save to localStorage as backup
-      localStorage.setItem('companyInfo', JSON.stringify(companyInfo));
+      
+      // Update local storage
+      localStorage.setItem('companyInfo', JSON.stringify({
+        ...companyData,
+        id: companyInfo.id
+      }));
       
       toast({
-        title: "Company Settings Saved",
-        description: "Your company information has been updated",
+        title: "Success",
+        description: "Company information has been saved successfully.",
       });
     } catch (error) {
       console.error('Error saving company info:', error);
@@ -197,155 +182,200 @@ const CompanySettings = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (isFetching) {
-    return (
-      <div className="flex justify-center items-center h-full">
-        <p>Loading company settings...</p>
-      </div>
-    );
-  }
-
+  // Update form fields to use correct property names
   return (
-    <form onSubmit={handleSubmit}>
+    <div className="flex-1 space-y-4 pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Company Settings</h2>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Company Information</CardTitle>
+          <CardDescription>
+            Manage your company's basic information
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="code">Company Code (3)</Label>
-              <Input
-                id="code"
-                name="code"
-                value={companyInfo.code}
-                onChange={handleInputChange}
-                placeholder="e.g. ABC"
-                maxLength={3}
-                pattern="[A-Za-z0-9]{3}"
-                title="3 characters (letters and numbers only)"
-                required
-              />
-              <p className="text-sm text-muted-foreground">
-                Three character code to identify your company in inventory codes
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="name">Company Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={companyInfo.name}
-                onChange={handleInputChange}
-                placeholder="e.g. ACME Corporation"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="baseLocationId" className="flex items-center gap-1">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                Base Location
-              </Label>
-              <Select
-                value={companyInfo.baseLocationId || ""}
-                onValueChange={(value) => handleSelectChange('baseLocationId', value)}
-              >
-                <SelectTrigger id="baseLocationId">
-                  <SelectValue placeholder="Select base location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Select your company's main location
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="baseCustomerId" className="flex items-center gap-1">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                Base Customer
-              </Label>
-              <Select
-                value={companyInfo.baseCustomerId || ""}
-                onValueChange={(value) => handleSelectChange('baseCustomerId', value)}
-              >
-                <SelectTrigger id="baseCustomerId">
-                  <SelectValue placeholder="Select base customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Internal customer for rental calculations
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="headerText">Invoice Header Information</Label>
-            <Textarea
-              id="headerText"
-              name="headerText"
-              value={companyInfo.headerText}
-              onChange={handleInputChange}
-              placeholder="Enter header information for invoices"
-              rows={4}
-            />
-            <p className="text-sm text-muted-foreground">
-              This information will appear at the top of your invoices
-            </p>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="footerText">Invoice Footer Information</Label>
-            <Textarea
-              id="footerText"
-              name="footerText"
-              value={companyInfo.footerText}
-              onChange={handleInputChange}
-              placeholder="Enter footer information for invoices"
-              rows={4}
-            />
-            <p className="text-sm text-muted-foreground">
-              This information will appear at the bottom of your invoices
-            </p>
-          </div>
-
-          <div className="border-t pt-4 mt-4">
-            <div className="bg-muted rounded-md p-4">
-              <h3 className="font-medium mb-2">Movement Rules</h3>
-              <div className="space-y-2 text-sm">
-                <p><strong>Rental Calculation:</strong> Applied only for movements between base customer locations</p>
-                <p><strong>Delivery Challan:</strong> Generated only for cross-customer movements</p>
-                <p className="text-muted-foreground italic">Note: Setting these base values is important for proper rental and challan generation</p>
+        <CardContent>
+          <form onSubmit={handleSaveCompanyInfo}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="code" className="text-right">
+                    Company Code
+                  </Label>
+                  <Input
+                    id="code"
+                    name="code"
+                    value={formData.code}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Company Name
+                  </Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="address" className="text-right">
+                    Address
+                  </Label>
+                  <Textarea
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="base_location_id" className="text-right">
+                    Base Location
+                  </Label>
+                  <Select
+                    value={formData.base_location_id}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, base_location_id: value })
+                    }
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select a location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="base_customer_id" className="text-right">
+                    Base Customer
+                  </Label>
+                  <Select
+                    value={formData.base_customer_id}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, base_customer_id: value })
+                    }
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select a customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="header_text" className="text-right">
+                    Header Text
+                  </Label>
+                  <Textarea
+                    id="header_text"
+                    name="header_text"
+                    value={formData.header_text}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    rows={3}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="footer_text" className="text-right">
+                    Footer Text
+                  </Label>
+                  <Textarea
+                    id="footer_text"
+                    name="footer_text"
+                    value={formData.footer_text}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                    rows={3}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      name="website"
+                      value={formData.website}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="tax_id">Tax ID</Label>
+                    <Input
+                      id="tax_id"
+                      name="tax_id"
+                      value={formData.tax_id}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
               </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            <Save className="mr-2 h-4 w-4" />
-            {isLoading ? "Saving..." : "Save Company Information"}
-          </Button>
+          </form>
         </CardContent>
       </Card>
-    </form>
+    </div>
   );
 };
 

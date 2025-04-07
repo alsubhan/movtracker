@@ -149,7 +149,6 @@ const Inventory = () => {
     location: "warehouse",
     inventoryType: "",
     companyCode: "ABC",
-    rentalCost: 50,
     lastScanGate: "",
   });
   const [typeFormData, setTypeFormData] = useState<InventoryType>({
@@ -205,12 +204,7 @@ const Inventory = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    if (name === "rentalCost") {
-      const numValue = parseFloat(value);
-      setFormData((prev) => ({ ...prev, [name]: isNaN(numValue) ? 0 : numValue }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleTypeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,7 +227,6 @@ const Inventory = () => {
       location: "warehouse",
       inventoryType: "",
       companyCode: companyInfo?.code || "ABC",
-      rentalCost: 50,
       lastScanGate: "",
     });
     setCodeType("company");
@@ -462,6 +455,24 @@ const Inventory = () => {
     return type ? type.name : code;
   };
 
+  const createRLSPolicy = async () => {
+    try {
+      // Add an RLS policy to the profiles table to allow users to read all profiles
+      const { error } = await supabase.rpc('create_rls_policy_for_profiles');
+      
+      if (error) throw error;
+      
+      console.log('RLS policy created successfully');
+    } catch (error) {
+      console.error('Error creating RLS policy:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Check if the RLS policy exists and create it if needed
+    createRLSPolicy();
+  }, []);
+
   return (
     <ScrollArea className="h-full">
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -688,23 +699,6 @@ const Inventory = () => {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="rentalCost">Rental Cost/Month (₹)</Label>
-                              <div className="relative">
-                                <IndianRupee className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  id="rentalCost"
-                                  name="rentalCost"
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={formData.rentalCost}
-                                  onChange={handleInputChange}
-                                  placeholder="e.g. 50.00"
-                                  className="pl-8"
-                                />
-                              </div>
-                            </div>
                           </div>
                           {isEditing && (
                             <div className="grid gap-2">
@@ -741,7 +735,6 @@ const Inventory = () => {
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Location</TableHead>
-                      <TableHead>Rental/Month</TableHead>
                       <TableHead>Last Scan</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -808,9 +801,6 @@ const Inventory = () => {
                                 ? "WIP"
                                 : "Customer"}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            ₹{inventory.rentalCost ? inventory.rentalCost.toFixed(2) : '0.00'}
                           </TableCell>
                           <TableCell>
                             {inventory.lastScanTime.toLocaleString()}
@@ -985,43 +975,3 @@ const Inventory = () => {
                                 type.status === "active"
                                   ? "bg-green-50 text-green-700 border-green-200"
                                   : "bg-red-50 text-red-700 border-red-200"
-                              }
-                            >
-                              {type.status === "active" ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditInventoryType(type)}
-                                disabled={!canEdit}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteInventoryType(type.id)}
-                                disabled={!canEdit}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </ScrollArea>
-  );
-};
-
-export default Inventory;
