@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -975,3 +976,43 @@ const Inventory = () => {
                                 type.status === "active"
                                   ? "bg-green-50 text-green-700 border-green-200"
                                   : "bg-red-50 text-red-700 border-red-200"
+                              }
+                            >
+                              {type.status === "active" ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditInventoryType(type)}
+                                disabled={!canEdit}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteInventoryType(type.id)}
+                                disabled={!canEdit}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ScrollArea>
+  );
+};
+
+export default Inventory;
