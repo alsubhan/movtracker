@@ -16,3 +16,11 @@ export const getCustomTable = (tableName: string) => {
   // Using any type to bypass TypeScript's type checking for dynamic table names
   return supabase.from(tableName as any);
 };
+
+// Helper function to safely handle data from custom tables
+export const safelyParseCustomData = <T>(data: any): T[] => {
+  if (!data || !Array.isArray(data)) {
+    return [] as T[];
+  }
+  return data as T[];
+};

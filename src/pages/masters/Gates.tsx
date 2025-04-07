@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +37,7 @@ import { DoorOpen, PlusCircle, Pencil, Trash2, Settings, Loader2 } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase, getCustomTable } from "@/integrations/supabase/client";
+import { supabase, getCustomTable, safelyParseCustomData } from "@/integrations/supabase/client";
 
 // Interface for Gates
 interface Gate {
@@ -113,7 +112,9 @@ const Gates = () => {
         }
         
         if (gateTypesData) {
-          const formattedTypes = gateTypesData.map((type: any) => ({
+          // Use the safe parser to avoid type errors
+          const typesArray = safelyParseCustomData<any>(gateTypesData);
+          const formattedTypes = typesArray.map(type => ({
             id: type.id,
             name: type.name,
             description: type.description || '',
@@ -125,33 +126,13 @@ const Gates = () => {
         console.error('Error fetching data:', error);
         toast({
           title: "Error Loading Data",
-          description: "There was an error loading gates and gate types. Using sample data instead.",
+          description: "There was an error loading gates and gate types.",
           variant: "destructive",
         });
         
-        // Fallback to sample data if DB connection fails
-        setGates([
-          {
-            id: "1",
-            name: "Gate 1",
-            gateLocation: "Finished Goods Warehouse",
-            type: "warehouse",
-            status: "active",
-          },
-          {
-            id: "2",
-            name: "Gate 2",
-            gateLocation: "Production Line Exit",
-            type: "production",
-            status: "active",
-          },
-        ]);
-        
-        setGateTypes([
-          { id: "1", name: "warehouse", description: "Warehouse gates", status: "active" },
-          { id: "2", name: "production", description: "Production area gates", status: "active" },
-          { id: "3", name: "dispatch", description: "Dispatch area gates", status: "active" },
-        ]);
+        // Set empty arrays instead of fallback data
+        setGates([]);
+        setGateTypes([]);
       } finally {
         setIsLoading(false);
       }
@@ -408,12 +389,15 @@ const Gates = () => {
           
         if (error) throw error;
         
-        if (data && data.length > 0) {
+        // Use the safe parser to avoid type errors
+        const newTypeData = safelyParseCustomData<any>(data);
+        
+        if (newTypeData && newTypeData.length > 0) {
           const newType = {
-            id: data[0].id,
-            name: data[0].name,
-            description: data[0].description || '',
-            status: data[0].status || 'active'
+            id: newTypeData[0].id,
+            name: newTypeData[0].name,
+            description: newTypeData[0].description || '',
+            status: newTypeData[0].status || 'active'
           };
           
           setGateTypes([...gateTypes, newType]);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,7 +121,7 @@ const Movement = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [gates, setGates] = useState<Gate[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [rentalRates, setRentalRates] = useState<{[key: string]: {[key: string]: number}}>({});
+  const [rentalRates, setRentalRates] = useState<{[key: string]: {[key: string]: {[key: string]: number}}}>({});
 
   // Fetch initial data from Supabase
   useEffect(() => {
@@ -192,7 +191,7 @@ const Movement = () => {
           setCustomers(formattedCustomers);
           
           // Build rental rates object for quick lookup
-          const rates: {[key: string]: {[key: string]: number}} = {};
+          const rates: {[key: string]: {[key: string]: {[key: string]: number}}} = {};
           
           formattedCustomers.forEach(customer => {
             if (!rates[customer.id]) {
@@ -312,7 +311,7 @@ const Movement = () => {
       });
       
       // Build rental rates object for quick lookup
-      const rates: {[key: string]: {[key: string]: number}} = {
+      const rates: {[key: string]: {[key: string]: {[key: string]: number}}} = {
         "1": { // Toyota
           "4": { "PLT": 10, "CTN": 5, "CRT": 8 },
           "6": { "PLT": 12, "CTN": 6, "CRT": 9 }
@@ -940,132 +939,3 @@ const Movement = () => {
                         disabled={!selectedGate}
                       >
                         <Barcode className="h-4 w-4 mr-2" />
-                        Scan
-                      </Button>
-                    </div>
-                    {!selectedGate && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Select a gate before scanning items
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes (Optional)</Label>
-                    <Input
-                      id="notes"
-                      placeholder="Add notes about this movement"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  className="w-full" 
-                  onClick={handleProcess}
-                  disabled={isProcessing || scannedItems.length === 0 || !selectedGate}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
-                    </>
-                  ) : (
-                    <>
-                      {activeTab === "in" ? (
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Truck className="mr-2 h-4 w-4" />
-                      )}
-                      Process {activeTab === "in" ? "In" : "Out"} Movement
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-
-          <div className="md:col-span-2">
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Scanned Items</CardTitle>
-                <CardDescription>
-                  {scannedItems.length} item(s) scanned for {activeTab === "in" ? "in" : "out"} movement
-                  {isDifferentCustomer && activeTab === "out" && (
-                    <span className="ml-2 text-amber-600 font-medium">
-                      Delivery challan will be generated (cross-customer movement)
-                    </span>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[350px] w-full rounded-md border">
-                  {scannedItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                      <Box className="h-10 w-10 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No items scanned yet</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Scan items to see them listed here
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-4">
-                      {scannedItems.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 border-b last:border-0 hover:bg-muted/50 rounded-sm"
-                        >
-                          <div className="flex items-center">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                            <div>
-                              <div className="font-medium">{item.id}</div>
-                              <div className="text-sm text-muted-foreground">
-                                Type: {item.type} | Location: {item.location} | Gate: {item.gate}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="text-sm font-medium flex items-center">
-                              <IndianRupee className="h-3 w-3 mr-1" /> 
-                              {item.hourlyRentalCost}/hour
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => viewItemDetails(item)}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              ✕
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-              <CardFooter>
-                <div className="text-sm text-muted-foreground flex items-center">
-                  <DoorOpen className="h-4 w-4 mr-2" />
-                  {selectedGate 
-                    ? `Selected gate: ${gates.find(g => g.id === selectedGate)?.name}`
-                    : "Select a gate to scan items"}
-                </div>
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Movement;
