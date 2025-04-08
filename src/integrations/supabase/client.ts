@@ -25,6 +25,32 @@ export const safelyParseCustomData = <T>(data: any): T[] => {
   return data as T[];
 };
 
+// Interface for the missing inventory item from the Supabase database
+export interface MissingInventoryItem {
+  id: string;
+  inventory_id: string;
+  customer: string;
+  project: string;
+  last_seen_location: string;
+  last_seen_gate: string;
+  last_seen_timestamp: string;
+  status: string;
+  missing_days: number;
+}
+
+// Interface for the movement item from the Supabase database
+export interface MovementItem {
+  id: string;
+  inventory_id: string;
+  gate_id: string;
+  movement_type: string;
+  timestamp: string;
+  location: string;
+  previous_location: string;
+  customer: string;
+  project: string;
+}
+
 // New helper function to properly handle custom query requests
 export const fetchCustomTableData = async <T>(
   tableName: string, 

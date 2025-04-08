@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import { SearchX, FileText, Download, Filter, AlertTriangle, Clock } from "lucid
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { fetchCustomTableData } from "@/integrations/supabase/client";
+import { fetchCustomTableData, MissingInventoryItem } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface MissingItem {
@@ -52,7 +53,7 @@ const MissingReport = () => {
     const fetchMissingItems = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await fetchCustomTableData('missing_inventory', {
+        const { data, error } = await fetchCustomTableData<MissingInventoryItem>('missing_inventory', {
           range: {
             from: dateRange.from,
             to: dateRange.to,
@@ -83,12 +84,12 @@ const MissingReport = () => {
           const mockMissings = [
             {
               id: "1",
-              inventoryId: "TOY100108010",
-              customer: "Toyota",
+              inventoryId: "ABC100108010",
+              customer: "Default Customer",
               project: "1001",
               lastSeen: {
                 location: "warehouse",
-                gate: "Gate 1",
+                gate: "Gate IN",
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
               },
               status: "missing",
@@ -96,12 +97,12 @@ const MissingReport = () => {
             },
             {
               id: "2",
-              inventoryId: "HON200104015",
-              customer: "Honda",
+              inventoryId: "ABC200104015",
+              customer: "Default Customer",
               project: "2001",
               lastSeen: {
                 location: "wip",
-                gate: "Gate 2",
+                gate: "Gate OUT",
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45),
               },
               status: "missing",
@@ -109,12 +110,12 @@ const MissingReport = () => {
             },
             {
               id: "3",
-              inventoryId: "NIS300102025",
-              customer: "Nissan",
+              inventoryId: "ABC300102025",
+              customer: "Default Customer", 
               project: "3001",
               lastSeen: {
                 location: "customer",
-                gate: "Gate 3",
+                gate: "Gate IN",
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
               },
               status: "missing",
@@ -122,12 +123,12 @@ const MissingReport = () => {
             },
             {
               id: "4",
-              inventoryId: "TOY100108050",
-              customer: "Toyota",
+              inventoryId: "ABC100108050",
+              customer: "Default Customer",
               project: "1001",
               lastSeen: {
                 location: "customer",
-                gate: "Gate 1",
+                gate: "Gate OUT",
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
               },
               status: "long-missing",
@@ -135,12 +136,12 @@ const MissingReport = () => {
             },
             {
               id: "5",
-              inventoryId: "HON200104060",
-              customer: "Honda",
+              inventoryId: "ABC200104060",
+              customer: "Default Customer",
               project: "2001",
               lastSeen: {
                 location: "wip",
-                gate: "Gate 2",
+                gate: "Gate IN",
                 timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20),
               },
               status: "missing",

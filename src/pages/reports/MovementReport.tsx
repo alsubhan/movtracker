@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { fetchCustomTableData } from "@/integrations/supabase/client";
+import { fetchCustomTableData, MovementItem } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 // Define the movement type
@@ -52,7 +53,7 @@ const MovementReport = () => {
     const fetchMovements = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await fetchCustomTableData('movements', {
+        const { data, error } = await fetchCustomTableData<MovementItem>('movements', {
           range: {
             from: dateRange.from,
             to: dateRange.to,
@@ -81,57 +82,57 @@ const MovementReport = () => {
           const mockMovements = [
             {
               id: "1",
-              inventoryId: "TOY100108001",
-              gateId: "Gate 1",
+              inventoryId: "ABC100108001",
+              gateId: "Gate OUT",
               movementType: "out",
               timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
               location: "customer",
               previousLocation: "warehouse",
-              customer: "Toyota",
+              customer: "Default Customer",
               project: "1001",
             },
             {
               id: "2",
-              inventoryId: "HON200104002",
-              gateId: "Gate 2",
+              inventoryId: "ABC200104002",
+              gateId: "Gate IN",
               movementType: "in",
               timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), // 1 day ago
               location: "wip",
               previousLocation: "warehouse",
-              customer: "Honda",
+              customer: "Default Customer",
               project: "2001",
             },
             {
               id: "3",
-              inventoryId: "NIS300102003",
-              gateId: "Gate 3",
+              inventoryId: "ABC300102003",
+              gateId: "Gate IN",
               movementType: "in",
               timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
               location: "warehouse",
               previousLocation: "wip",
-              customer: "Nissan",
+              customer: "Default Customer",
               project: "3001",
             },
             {
               id: "4",
-              inventoryId: "TOY100108005",
-              gateId: "Gate 1",
+              inventoryId: "ABC100108005",
+              gateId: "Gate IN",
               movementType: "in",
               timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
               location: "warehouse",
               previousLocation: "customer",
-              customer: "Toyota",
+              customer: "Default Customer",
               project: "1001",
             },
             {
               id: "5",
-              inventoryId: "HON200104007",
-              gateId: "Gate 2",
+              inventoryId: "ABC200104007",
+              gateId: "Gate OUT",
               movementType: "out",
               timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
               location: "wip",
               previousLocation: "warehouse",
-              customer: "Honda",
+              customer: "Default Customer",
               project: "2001",
             },
           ];
