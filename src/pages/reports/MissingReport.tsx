@@ -21,7 +21,7 @@ import { SearchX, FileText, Download, Filter, AlertTriangle, Clock } from "lucid
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { supabase, getCustomTable } from "@/integrations/supabase/client";
+import { fetchCustomTableData } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface MissingItem {
@@ -52,18 +52,13 @@ const MissingReport = () => {
     const fetchMissingItems = async () => {
       setIsLoading(true);
       try {
-        let query = getCustomTable('missing_inventory')
-          .select('*');
-        
-        if (dateRange.from) {
-          query = query.gte('last_seen_timestamp', dateRange.from.toISOString());
-        }
-        
-        if (dateRange.to) {
-          query = query.lte('last_seen_timestamp', dateRange.to.toISOString());
-        }
-        
-        const { data, error } = await query;
+        const { data, error } = await fetchCustomTableData('missing_inventory', {
+          range: {
+            from: dateRange.from,
+            to: dateRange.to,
+            field: 'last_seen_timestamp'
+          }
+        });
         
         if (error) throw error;
         

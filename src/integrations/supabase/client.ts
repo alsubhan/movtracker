@@ -24,3 +24,50 @@ export const safelyParseCustomData = <T>(data: any): T[] => {
   }
   return data as T[];
 };
+
+// New helper function to properly handle custom query requests
+export const fetchCustomTableData = async <T>(
+  tableName: string, 
+  options?: {
+    filters?: Record<string, any>;
+    range?: { from?: Date; to?: Date; field?: string };
+  }
+): Promise<{ data: T[]; error: any }> => {
+  try {
+    let query = getCustomTable(tableName).select('*');
+    
+    // Apply date range filters if provided
+    if (options?.range) {
+      const { from, to, field = 'timestamp' } = options.range;
+      
+      if (from) {
+        query = query.gte(field, from.toISOString());
+      }
+      
+      if (to) {
+        query = query.lte(field, to.toISOString());
+      }
+    }
+    
+    // Apply any additional filters
+    if (options?.filters) {
+      Object.entries(options.filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          query = query.eq(key, value);
+        }
+      });
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error(`Error fetching ${tableName}:`, error);
+      return { data: [], error };
+    }
+    
+    return { data: safelyParseCustomData<T>(data), error: null };
+  } catch (err) {
+    console.error(`Unexpected error fetching ${tableName}:`, err);
+    return { data: [], error: err };
+  }
+};

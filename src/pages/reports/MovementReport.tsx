@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { addDays } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { supabase, getCustomTable } from "@/integrations/supabase/client";
+import { fetchCustomTableData } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 // Define the movement type
@@ -52,18 +52,13 @@ const MovementReport = () => {
     const fetchMovements = async () => {
       setIsLoading(true);
       try {
-        let query = getCustomTable('movements')
-          .select('*');
-        
-        if (dateRange.from) {
-          query = query.gte('timestamp', dateRange.from.toISOString());
-        }
-        
-        if (dateRange.to) {
-          query = query.lte('timestamp', dateRange.to.toISOString());
-        }
-        
-        const { data, error } = await query;
+        const { data, error } = await fetchCustomTableData('movements', {
+          range: {
+            from: dateRange.from,
+            to: dateRange.to,
+            field: 'timestamp'
+          }
+        });
         
         if (error) throw error;
         
