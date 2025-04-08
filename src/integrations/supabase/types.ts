@@ -9,9 +9,9 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      bin_movements: {
+      inventory_movements: {
         Row: {
-          bin_id: string
+          inventory_id: string
           gate_id: string | null
           id: string
           location: string
@@ -21,7 +21,7 @@ export type Database = {
           timestamp: string
         }
         Insert: {
-          bin_id: string
+          inventory_id: string
           gate_id?: string | null
           id?: string
           location: string
@@ -31,7 +31,7 @@ export type Database = {
           timestamp?: string
         }
         Update: {
-          bin_id?: string
+          inventory_id?: string
           gate_id?: string | null
           id?: string
           location?: string
@@ -42,15 +42,15 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "bin_movements_bin_id_fkey"
-            columns: ["bin_id"]
+            foreignKeyName: "inventory_movements_inventory_id_fkey"
+            columns: ["inventory_id"]
             isOneToOne: false
-            referencedRelation: "bins"
+            referencedRelation: "inventory"
             referencedColumns: ["id"]
           },
         ]
       }
-      bins: {
+      inventory: {
         Row: {
           created_at: string
           created_by: string
@@ -59,10 +59,10 @@ export type Database = {
           last_scan_gate: string | null
           last_scan_time: string | null
           location: string
-          partition: string | null
-          project: string | null
-          rfid_tag: string
-          serial_number: string | null
+          partition: string
+          project: string
+          rfid_tag: string | null
+          serial_number: string
           status: string
         }
         Insert: {
