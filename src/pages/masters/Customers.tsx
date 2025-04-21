@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Customer, CustomerLocation, Location } from "@/types";
+import { Customer, CustomerLocation, Location, InventoryType } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
@@ -48,6 +48,7 @@ const Customers = () => {
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [currentLocation, setCurrentLocation] = useState<CustomerLocation | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [inventoryTypes, setInventoryTypes] = useState<InventoryType[]>([]);
   const [locationFormData, setLocationFormData] = useState<CustomerLocation>({
     id: "",
     customer_id: "",
@@ -79,8 +80,101 @@ const Customers = () => {
           throw locationsError;
         }
         
-        if (customersData) {
-          setCustomers(customersData as Customer[]);
+        // Fetch inventory types for rental rates
+        const { data: typesData, error: typesError } = await supabase
+          .from('inventory_types')
+          .select('*')
+          .eq('status', 'active');
+        
+        if (typesError) {
+          throw typesError;
+        }
+        
+        if (typesData) {
+          setInventoryTypes(typesData as InventoryType[]);
+        }
+        
+        // Fetch customer locations
+        const { data: customerLocationsData, error: customerLocationsError } = await supabase
+          .from('customer_locations')
+          .select('*');
+          
+        if (customerLocationsError) {
+          throw customerLocationsError;
+        }
+        
+        if (customersData && locationsData) {
+          // Map customer locations to their respective customers
+          const customersWithLocations = customersData.map((customer: Customer) => {
+            // Type cast to ensure compatibility
+            const customerLocations = customerLocationsData?.filter(
+              (loc: any) => loc.customer_id === customer.id
+            ).map((loc: any) => ({
+              id: loc.id,
+              customer_id: loc.customer_id,
+              location_id: loc.location_id,
+              location_name: loc.location_name,
+              rental_rates: loc.rental_rates as { [key: string]: number },
+              created_at: loc.created_at
+            })) || [];
+            
+            return {
+              ...customer,
+              locations: customerLocations
+            };
+          });
+          
+          setCustomers(customersWithLocations as Customer[]);
+          
+          // If no customer locations exist, create a default one for the first customer
+          if (customerLocationsData?.length === 0 && customersData.length > 0 && locationsData.length > 0) {
+            const firstCustomer = customersData[0];
+            const firstLocation = locationsData[0];
+            
+            const defaultLocation = {
+              customer_id: firstCustomer.id,
+              location_id: firstLocation.id,
+              location_name: firstLocation.name,
+              rental_rates: {
+                "PLT": 50.00,  // Default rate for Pallets
+                "BIN": 75.00,  // Default rate for Bins
+                "CTN": 25.00   // Default rate for Cartons
+              }
+            };
+            
+            // Add the default location to the database
+            const { data: newLocation, error: createError } = await supabase
+              .from('customer_locations')
+              .insert([defaultLocation])
+              .select();
+              
+            if (createError) {
+              console.error('Error creating default location:', createError);
+            } else if (newLocation) {
+              // Update the customers state with the new location
+              const updatedCustomers = [...customersWithLocations];
+              const customerIndex = updatedCustomers.findIndex(c => c.id === firstCustomer.id);
+              
+              if (customerIndex !== -1) {
+                // Transform the new location to match our CustomerLocation type
+                const transformedLocation = newLocation.map((loc: any) => ({
+                  id: loc.id,
+                  customer_id: loc.customer_id,
+                  location_id: loc.location_id,
+                  location_name: loc.location_name,
+                  rental_rates: loc.rental_rates as { [key: string]: number },
+                  created_at: loc.created_at
+                }))[0];
+                
+                updatedCustomers[customerIndex] = {
+                  ...updatedCustomers[customerIndex],
+                  locations: [...(updatedCustomers[customerIndex].locations || []), transformedLocation]
+                };
+                
+                setCustomers(updatedCustomers as Customer[]);
+              }
+            }
+          }
         }
         
         if (locationsData) {
@@ -108,8 +202,9 @@ const Customers = () => {
     (customer.contact_person && customer.contact_person.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Customer dialog handlers
   const handleAddCustomer = () => {
-    setCurrentCustomer(null); // Reset current customer for adding new
+    setCurrentCustomer(null);
     setIsDialogOpen(true);
   };
 
@@ -118,15 +213,9 @@ const Customers = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDeleteCustomer = (customer: Customer) => {
-    setCurrentCustomer(customer);
-    setIsDeleteDialogOpen(true);
-  };
-
   const handleSaveCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-
     const formData = new FormData(e.currentTarget);
     const customerData = {
       code: formData.get("code") as string,
@@ -136,103 +225,97 @@ const Customers = () => {
       email: formData.get("email") as string,
       status: formData.get("status") as string,
     };
-    
     try {
       if (currentCustomer) {
-        // Update existing customer
-        const { error } = await supabase
-          .from('customers')
-          .update(customerData)
-          .eq('id', currentCustomer.id);
-        
+        const { error } = await supabase.from('customers').update(customerData).eq('id', currentCustomer.id);
         if (error) throw error;
-        
-        setCustomers(
-          customers.map((c) => (c.id === currentCustomer.id ? { ...c, ...customerData } : c))
-        );
-        
-        toast({
-          title: "Customer Updated",
-          description: `${customerData.name} has been updated successfully.`,
-        });
+        setCustomers(customers.map(c => (c.id === currentCustomer.id ? { ...c, ...customerData } : c)));
+        toast({ title: "Customer Updated", description: `${customerData.name} has been updated successfully.` });
       } else {
-        // Add new customer
-        const { data, error } = await supabase
-          .from('customers')
-          .insert(customerData)
-          .select();
-        
+        const { data, error } = await supabase.from('customers').insert(customerData).select();
         if (error) throw error;
-        
-        if (data && data.length > 0) {
+        if (data && data.length) {
           setCustomers([...customers, data[0] as Customer]);
-          
-          toast({
-            title: "Customer Added",
-            description: `${customerData.name} has been added successfully.`,
-          });
+          toast({ title: "Customer Added", description: `${customerData.name} has been added successfully.` });
         }
       }
-      
       setIsDialogOpen(false);
     } catch (error) {
       console.error('Error saving customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save customer. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to save customer. Please try again.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    setCurrentCustomer(customer);
+    setIsDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!currentCustomer) return;
-    
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', currentCustomer.id);
-      
+      const { error } = await supabase.from('customers').delete().eq('id', currentCustomer.id);
       if (error) throw error;
-      
-      setCustomers(customers.filter((c) => c.id !== currentCustomer.id));
-      
-      toast({
-        title: "Customer Deleted",
-        description: `${currentCustomer.name} has been deleted successfully.`,
-      });
-      
+      setCustomers(customers.filter(c => c.id !== currentCustomer.id));
+      toast({ title: "Customer Deleted", description: `${currentCustomer.name} has been deleted successfully.` });
       setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete customer. It may be in use by other records.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete customer. It may be in use by other records.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Update locationId to location_id
+  // Location dialog handlers
   const handleAddLocation = (customerId: string) => {
-    setCurrentCustomer(customers.find(c => c.id === customerId) || null);
-    setLocationFormData({
-      id: "",
-      customer_id: customerId,
-      location_id: "",
-      location_name: "",
-      rental_rates: {},
-    });
+    setCurrentLocation(null);
+    setLocationFormData({ id: "", customer_id: customerId, location_id: "", location_name: "", rental_rates: {} });
     setIsLocationDialogOpen(true);
   };
 
-  // Update other instances of locationId to location_id
+  const handleSaveLocation = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const locationData = {
+      customer_id: locationFormData.customer_id,
+      location_id: locationFormData.location_id,
+      location_name: locationFormData.location_name,
+      rental_rates: locationFormData.rental_rates,
+    };
+    try {
+      if (currentLocation) {
+        const { error } = await supabase.from('customer_locations').update(locationData).eq('id', currentLocation.id);
+        if (error) throw error;
+        setCustomers(customers.map(c => {
+          if (c.id === locationFormData.customer_id) {
+            const updated = c.locations?.map(loc => loc.id === currentLocation.id ? { ...loc, ...locationData } : loc) || [];
+            return { ...c, locations: updated };
+          }
+          return c;
+        }));
+        toast({ title: "Location Updated", description: "Customer location has been updated successfully." });
+      } else {
+        const { data, error } = await supabase.from('customer_locations').insert([locationData]).select();
+        if (error) throw error;
+        if (data && data.length) {
+          const newLoc = data[0] as CustomerLocation;
+          setCustomers(customers.map(c => c.id === locationFormData.customer_id ? { ...c, locations: [...(c.locations || []), newLoc] } : c));
+          toast({ title: "Location Added", description: "Customer location has been added successfully." });
+        }
+      }
+      setIsLocationDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving customer location:', error);
+      toast({ title: "Error", description: "Failed to save customer location. Please try again.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEditLocation = (customerLocation: CustomerLocation) => {
     setCurrentLocation(customerLocation);
     setLocationFormData({
@@ -245,92 +328,6 @@ const Customers = () => {
     setIsLocationDialogOpen(true);
   };
 
-  // Update other property names to match schema
-  const handleSaveLocation = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      const locationData = {
-        customer_id: locationFormData.customer_id,
-        location_id: locationFormData.location_id,
-        location_name: locationFormData.location_name,
-        rental_rates: locationFormData.rental_rates,
-      };
-      
-      if (currentLocation) {
-        // Update existing location
-        const { error } = await supabase
-          .from('customer_locations')
-          .update(locationData)
-          .eq('id', currentLocation.id);
-        
-        if (error) throw error;
-        
-        // Update customers state
-        setCustomers(customers.map(customer => {
-          if (customer.id === locationFormData.customer_id) {
-            const updatedLocations = customer.locations?.map(loc => 
-              loc.id === currentLocation.id ? { ...loc, ...locationData } : loc
-            ) || [];
-            
-            return {
-              ...customer,
-              locations: updatedLocations
-            };
-          }
-          return customer;
-        }));
-        
-        toast({
-          title: "Location Updated",
-          description: "Customer location has been updated successfully.",
-        });
-      } else {
-        // Add new location
-        const { data, error } = await supabase
-          .from('customer_locations')
-          .insert([locationData])
-          .select();
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          const newLocation = data[0] as CustomerLocation;
-          
-          // Update customers state
-          setCustomers(customers.map(customer => {
-            if (customer.id === locationFormData.customer_id) {
-              const updatedLocations = [...(customer.locations || []), newLocation];
-              
-              return {
-                ...customer,
-                locations: updatedLocations
-              };
-            }
-            return customer;
-          }));
-          
-          toast({
-            title: "Location Added",
-            description: "Customer location has been added successfully.",
-          });
-        }
-      }
-      
-      setIsLocationDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving customer location:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save customer location. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDeleteLocation = async (location: CustomerLocation) => {
     setCurrentLocation(location);
     setIsDeleteDialogOpen(true);
@@ -338,41 +335,16 @@ const Customers = () => {
 
   const handleConfirmDeleteLocation = async () => {
     if (!currentLocation) return;
-    
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('customer_locations')
-        .delete()
-        .eq('id', currentLocation.id);
-      
+      const { error } = await supabase.from('customer_locations').delete().eq('id', currentLocation.id);
       if (error) throw error;
-      
-      setCustomers(customers.map(customer => {
-        if (customer.id === currentLocation.customer_id) {
-          const updatedLocations = customer.locations?.filter(loc => loc.id !== currentLocation.id) || [];
-          
-          return {
-            ...customer,
-            locations: updatedLocations
-          };
-        }
-        return customer;
-      }));
-      
-      toast({
-        title: "Location Deleted",
-        description: `${currentLocation.location_name} has been deleted successfully.`,
-      });
-      
+      setCustomers(customers.map(c => c.id === currentLocation.customer_id ? { ...c, locations: c.locations?.filter(loc => loc.id !== currentLocation.id) || [] } : c));
+      toast({ title: "Location Deleted", description: `${currentLocation.location_name} has been deleted successfully.` });
       setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting location:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete location. It may be in use by other records.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete location. It may be in use by other records.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -384,10 +356,13 @@ const Customers = () => {
   };
 
   const handleLocationSelectChange = (name: string, value: string) => {
-    setLocationFormData((prev) => ({ ...prev, [name]: value }));
+    setLocationFormData((prev) => ({ 
+      ...prev, 
+      [name]: value,
+      location_name: '' // Keep location_name blank when a location is selected
+    }));
   };
 
-  // Update JSX to use the correct property names
   return (
     <div className="flex-1 space-y-4 pt-6">
       <div className="flex items-center justify-between">
@@ -640,7 +615,17 @@ const Customers = () => {
                 </Label>
                 <Select
                   value={locationFormData.location_id}
-                  onValueChange={(value) => handleLocationSelectChange("location_id", value)}
+                  onValueChange={(value) => {
+                    // Find the location name for the selected location ID
+                    const selectedLocation = locations.find(loc => loc.id === value);
+                    handleLocationSelectChange("location_id", value);
+                    if (selectedLocation) {
+                      setLocationFormData(prev => ({
+                        ...prev,
+                        location_name: selectedLocation.name
+                      }));
+                    }
+                  }}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a location" />
@@ -656,7 +641,7 @@ const Customers = () => {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="location_name" className="text-right">
-                  Location Name
+                  Customer Location
                 </Label>
                 <Input
                   id="location_name"
@@ -667,7 +652,40 @@ const Customers = () => {
                   required
                 />
               </div>
-              {/* Add rental rates configuration here */}
+              
+              {/* Dynamic rental rates configuration based on inventory types */}
+              <div className="grid grid-cols-1 gap-4">
+                <Label className="mb-2">Rental Rates</Label>
+                <div className="space-y-2">
+                  {inventoryTypes.map(type => (
+                    <div key={type.id} className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor={`rate_${type.code}`} className="text-right">
+                        {type.name} ({type.code})
+                      </Label>
+                      <div className="col-span-3 flex items-center">
+                        <span className="mr-2">₹</span>
+                        <Input
+                          id={`rate_${type.code}`}
+                          name={`rate_${type.code}`}
+                          type="number"
+                          step="0.01"
+                          value={locationFormData.rental_rates?.[type.code] || 0}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            setLocationFormData(prev => ({
+                              ...prev,
+                              rental_rates: {
+                                ...prev.rental_rates,
+                                [type.code]: isNaN(value) ? 0 : value
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
@@ -723,8 +741,8 @@ const Customers = () => {
                   <div>
                     <span className="font-medium">{location.location_name}</span>
                     <div className="text-sm text-muted-foreground">
-                      Rates: {Object.keys(location.rental_rates || {}).length > 0 
-                        ? Object.entries(location.rental_rates || {}).map(([type, rate]) => (
+                      Rates: {location.rental_rates && Object.keys(location.rental_rates).length > 0 
+                        ? Object.entries(location.rental_rates).map(([type, rate]) => (
                             <span key={type} className="mr-2">
                               {type}: ₹{rate}
                             </span>

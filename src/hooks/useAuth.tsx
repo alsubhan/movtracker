@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,97 +8,118 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
-  hasPermission: (permission: string) => boolean;
+  hasPermission: (permission: string) => Promise<boolean>;
 }
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  // Mock user for development
-  useEffect(() => {
-    const mockUser: User = {
-      id: "1",
-      full_name: "John Smith",
-      username: "admin",
-      role: "admin",
-      status: "active",
-      createdAt: new Date(),
-      permissions: Object.values(PERMISSIONS),
-    };
-    
-    setUser(mockUser);
-    setLoading(false);
-  }, []);
-
-  const login = async (username: string, password: string): Promise<User | null> => {
+export function login(username: string, password: string): Promise<User | null> {
+  return new Promise(async (resolve) => {
     try {
-      // In a real app, this would authenticate with Supabase
-      // const { data, error } = await supabase.auth.signInWithPassword({
-      //   email: username,
-      //   password,
-      // });
-      // if (error) throw error;
+      // First check if the user exists in our profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', username)
+        .eq('status', 'active')
+        .single();
 
-      // Mock successful login
-      const mockUser: User = {
-        id: "1",
-        full_name: "John Smith",
-        username: "admin",
-        role: "admin",
-        status: "active",
-        createdAt: new Date(),
-        permissions: Object.values(PERMISSIONS),
+      if (profileError || !profileData) {
+        console.error('User not found:', profileError);
+        resolve(null);
+        return;
+      }
+
+      // Verify password
+      if (profileData.password !== password) {
+        console.error('Invalid password');
+        resolve(null);
+        return;
+      }
+
+      // Get permissions from profile or use default admin permissions
+      const userPermissions = profileData.permissions || Object.values(PERMISSIONS);
+
+      // Create user data with proper type casting
+      const userData: User = {
+        id: profileData.id,
+        full_name: profileData.full_name || 'User',
+        username: profileData.username,
+        role: profileData.role as 'admin' | 'user' | 'operator',
+        status: profileData.status as 'active' | 'inactive',
+        createdAt: new Date(profileData.created_at),
+        permissions: userPermissions
       };
 
-      setUser(mockUser);
-      return mockUser;
+      // Create a session object with all required user data
+      // Store full_name in session so UI can display user name
+      const session = {
+        user: {
+          id: profileData.id,
+          full_name: profileData.full_name || '',
+          email: profileData.username,
+          created_at: profileData.created_at,
+          role: profileData.role,
+          permissions: userPermissions
+        }
+      };
+
+      console.log('Session data to store:', session);
+
+      // Store session with expiration
+      const expiresAt = new Date().getTime() + (60 * 60 * 1000); // 1 hour from now
+      localStorage.setItem('session', JSON.stringify({
+        ...session,
+        expiresAt
+      }));
+      
+      resolve(userData);
     } catch (error) {
-      console.error("Login error:", error);
-      return null;
+      console.error('Login error:', error);
+      localStorage.removeItem('session');
+      resolve(null);
     }
-  };
-
-  const logout = async (): Promise<void> => {
-    try {
-      // In a real app, this would sign out from Supabase
-      // await supabase.auth.signOut();
-      setUser(null);
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
-  const hasPermission = (permission: string): boolean => {
-    if (!user || !user.permissions) return false;
-    return user.permissions.includes(permission);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        hasPermission,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  });
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+export function logout(): Promise<void> {
+  return new Promise(async (resolve) => {
+    try {
+      localStorage.removeItem('session');
+      resolve();
+    } catch (error) {
+      console.error('Logout error:', error);
+      resolve();
+    }
+  });
+}
+
+export async function hasPermission(permission: string): Promise<boolean> {
+  const storedSession = localStorage.getItem('session');
+  if (!storedSession) return false;
+
+  try {
+    const sessionData = JSON.parse(storedSession);
+    const now = new Date().getTime();
+    if (now > sessionData.expiresAt) return false;
+
+    // Get user data from profiles table
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionData.user.id)
+      .single();
+
+    if (!profileData) return false;
+
+    // Check if user has the permission
+    return profileData.permissions?.includes(permission) || false;
+  } catch (error) {
+    console.error('Error checking permission:', error);
+    return false;
   }
-  return context;
-};
+}

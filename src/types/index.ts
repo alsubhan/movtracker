@@ -1,20 +1,41 @@
-
 export interface User {
   id: string;
   full_name: string | null;
   username: string;
   role: 'admin' | 'user' | 'operator';
   status: 'active' | 'inactive';
-  createdAt: Date;
-  permissions?: string[];
+  createdAt: string;
+  permissions: Permission[];
+  password: string;
+  customer_location_id: string | null;
 }
 
-export interface Permission {
+// Partial type for form data where some fields can be optional
+export type PartialFormData = Partial<User> & {
+  password?: string;
+  customer_location_id?: string;
+};
+
+// Type for form data that includes all required fields
+export type FormData = User & {
+  password?: string;
+  customer_location_id?: string;
+};
+
+export type PermissionKey =
+  'USER_MANAGEMENT' | 'INVENTORY_MANAGEMENT' | 'INVENTORY_EDIT' |
+  'GATE_MANAGEMENT' | 'GATE_EDIT' | 'BARCODE_PRINTING' |
+  'INVENTORY_MOVEMENT' | 'REPORTS_VIEW' | 'SETTINGS_MANAGE' |
+  'CUSTOMER_MANAGEMENT' | 'LOCATION_MANAGEMENT' | 'MANAGE_USERS' |
+  'MANAGE_INVENTORY' | 'MANAGE_SETTINGS' | 'DELIVERY_CHALLAN' |
+  'RECEIPT_MANAGEMENT';
+
+export type Permission = {
   id: string;
-  name: string;
+  name: PermissionKey;
   description: string;
   modules: string[];
-}
+};
 
 export interface Location {
   id: string;
@@ -37,7 +58,7 @@ export interface Inventory {
   project: string;
   partition: string;
   serialNumber: string;
-  status: 'in-stock' | 'in-wip' | 'dispatched' | 'damaged';
+  status: 'In-Stock' | 'In-Transit' | 'Received' | 'Returned';
   location: string;
   inventoryType?: string;
   lastScanTime: Date;
@@ -59,22 +80,14 @@ export interface CustomerLocation {
   customer_id: string;
   location_id: string;
   location_name: string;
-  rental_rates: {
-    [key: string]: number; // Key is inventory type code, value is hourly rate
-  };
+  rental_rates: { [key: string]: number };
   created_at?: string;
 }
 
 export interface Customer {
   id: string;
-  code: string;
   name: string;
-  contact_person: string;
-  phone: string;
-  email: string;
-  status: string;
-  created_at?: string;
-  locations?: CustomerLocation[];
+  locations?: CustomerLocation[];  // Optional array of locations associated with the customer
 }
 
 export interface Gate {
@@ -92,8 +105,8 @@ export interface Movement {
   gateId: string;
   movementType: 'in' | 'out';
   timestamp: Date;
-  location: string;
-  previousLocation: string;
+  customer_location_id: string;
+  previous_location_id: string;
   customer?: string;
   project?: string;
   rentalStartDate?: Date | null;
@@ -127,17 +140,17 @@ export interface RentalReport {
 }
 
 export interface CompanyInfo {
-  id?: string;
+  id: string;
   code: string;
   name: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  tax_id?: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  tax_id: string;
   header_text: string;
   footer_text: string;
-  base_location_id?: string;
-  base_customer_id?: string;
+  base_location_id: string;
+  base_customer_id: string;
   created_at?: string;
 }

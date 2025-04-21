@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
@@ -17,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className="flex-1 overflow-auto">
           <ScrollArea className="h-full w-full" type="auto">
             <div className="min-w-full overflow-auto">
-              {children}
+              {React.Children.toArray(children)}
             </div>
           </ScrollArea>
         </main>

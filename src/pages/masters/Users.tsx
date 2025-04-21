@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,96 +38,59 @@ import { UserIcon, PlusCircle, Pencil, Trash2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User } from "@/types";
-import { getPermissionsForRole, permissionsList } from "@/utils/permissions";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { User, Permission, PermissionKey, PartialFormData } from '@/types/index';
+import { PERMISSIONS, getPermissionsForRole, hasPermission, permissionsList as allPermissions } from '@/utils/permissions';
+import { supabase } from '@/lib/supabase';
+
+// Helper to format date as dd/mm/yyyy
+const formatDate = (date: string | Date): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const ROLES = ['admin', 'user', 'operator'] as const;
+type UserRole = typeof ROLES[number];
+const roles = ROLES;
 
 const Users = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<User & { password?: string }>({
-    id: "",
-    full_name: "",
-    username: "",
-    role: "user",
-    status: "active",
-    createdAt: new Date(),
-    permissions: [],
-    password: "",
-  });
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [formData, setFormData] = useState<PartialFormData>(initializeFormData());
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  // Initialize permissionsList with all permissions
+  const [permissionsList, setPermissionsList] = useState<Permission[]>(allPermissions);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [canCreateUsers, setCanCreateUsers] = useState(false);
+  // Active tab: can be main tabs or dialog tabs
+  const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'details' | 'permissions'>('users');
 
-  useEffect(() => {
-    createProfilesRLSPolicy();
-  }, []);
+  const getAllPermissions = () => Object.keys(PERMISSIONS) as PermissionKey[];
 
-  const createProfilesRLSPolicy = async () => {
-    try {
-      // We're using a custom RPC function, so we need to specify the type as Record<string, never>
-      // to indicate that this function takes no parameters
-      const { error } = await supabase.rpc('create_profiles_rls_policy', {});
-      
-      if (error) {
-        console.error('Error creating profiles RLS policy:', error);
-        throw error;
-      }
-      
-      console.log('Profiles RLS policy created successfully');
-    } catch (error) {
-      console.error('Error creating profiles RLS policy:', error);
-    }
+  const loadPermissions = (role: UserRole): Permission[] => {
+    return role === 'admin' ? permissionsList : getPermissionsForRole(role);
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      console.log("Fetching users from profiles table...");
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching users:", error);
-        throw error;
-      }
-      
-      console.log("Fetched data:", data);
-      
-      if (data) {
-        const formattedUsers: User[] = data.map(profile => ({
-          id: profile.id,
-          full_name: profile.full_name || 'Unknown',
-          username: profile.username,
-          role: profile.role as 'admin' | 'user' | 'operator',
-          status: profile.status as 'active' | 'inactive',
-          createdAt: new Date(profile.created_at),
-          permissions: getPermissionsForRole(profile.role as 'admin' | 'user' | 'operator')
-        }));
-        
-        setUsers(formattedUsers);
-      }
-    } catch (error: any) {
-      console.error("Error in fetchUsers:", error);
-      toast({
-        title: "Error fetching users",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  function initializeFormData(user?: User): PartialFormData {
+    const role = user?.role || 'user';
+    const permissions = user?.permissions || [];
+    return {
+      id: user?.id || '',
+      full_name: user?.full_name || '',
+      username: user?.username || '',
+      role: role as UserRole,
+      status: user?.status || 'active',
+      createdAt: user?.createdAt || new Date().toISOString(),
+      permissions: permissions,
+      password: '',
+      customer_location_id: user?.customer_location_id || ''
+    };
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -137,51 +99,39 @@ const Users = () => {
 
   const handleSelectChange = (name: string, value: string) => {
     if (name === 'role') {
-      const typedRole = value as 'admin' | 'user' | 'operator';
+      const typedRole = value as UserRole;
       setFormData((prev) => ({
         ...prev,
         [name]: typedRole,
-        permissions: getPermissionsForRole(typedRole)
+        permissions: loadPermissions(typedRole)
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handlePermissionChange = (permission: string, checked: boolean) => {
-    setFormData((prev) => {
-      const currentPermissions = [...(prev.permissions || [])];
-      
-      if (checked && !currentPermissions.includes(permission)) {
-        return { ...prev, permissions: [...currentPermissions, permission] };
-      } else if (!checked && currentPermissions.includes(permission)) {
-        return { 
-          ...prev, 
-          permissions: currentPermissions.filter(p => p !== permission) 
-        };
-      }
-      
-      return prev;
-    });
+  const handlePermissionChange = (permissionName: PermissionKey, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: checked
+        ? [...(prev.permissions || []), permissionsList.find(p => p.name === permissionName)!]
+        : (prev.permissions || []).filter(p => p.name !== permissionName)
+    }));
   };
 
   const resetForm = () => {
-    setFormData({
-      id: "",
-      full_name: "",
-      username: "",
-      role: "user",
-      status: "active",
-      createdAt: new Date(),
-      permissions: getPermissionsForRole("user"),
-      password: "",
-    });
+    setFormData(initializeFormData());
     setIsEditing(false);
-    setActiveTab("details");
+    setActiveTab('users');
   };
 
   const handleEditUser = (user: User) => {
-    setFormData({...user, password: ""});
+    // For editing, load full permissions based on role
+    setFormData({
+      ...user,
+      permissions: loadPermissions(user.role as UserRole),
+      password: ''
+    });
     setIsEditing(true);
     setIsDialogOpen(true);
   };
@@ -189,366 +139,236 @@ const Users = () => {
   const handleDeleteUser = async (id: string) => {
     if (id === currentUser?.id) {
       toast({
-        title: "Error",
-        description: "You cannot delete your own account",
-        variant: "destructive",
+        title: 'Error',
+        description: 'You cannot delete your own account',
+        variant: 'destructive',
       });
       return;
     }
-    
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ status: 'inactive' })
         .eq('id', id);
-      
       if (error) throw error;
-      
       await fetchUsers();
-      
       toast({
-        title: "User Status Updated",
-        description: "User has been marked as inactive",
+        title: 'User Status Updated',
+        description: 'User has been marked as inactive',
       });
     } catch (error: any) {
       toast({
-        title: "Error updating user",
+        title: 'Error updating user',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
+      setLoading(true);
       if (isEditing) {
-        const { error: profileError } = await supabase
+        // update and return rows to verify success
+        const { data: updated, error } = await supabase
           .from('profiles')
           .update({
             full_name: formData.full_name,
             role: formData.role,
             status: formData.status,
+            customer_location_id: formData.customer_location_id
           })
-          .eq('id', formData.id);
-        
-        if (profileError) throw profileError;
-        
-        toast({
-          title: "User Updated",
-          description: "User has been updated successfully",
-        });
-      } else {
-        const newUserId = crypto.randomUUID();
-        
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: newUserId,
-            full_name: formData.full_name,
-            username: formData.username,
-            password: "demopassword",
-            role: formData.role,
-            status: formData.status,
-            created_at: new Date().toISOString()
+          .eq('id', formData.id)
+          .select();
+        console.log('Profile update result:', updated, error);
+        if (error) {
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          throw error;
+        }
+        if (!updated || updated.length === 0) {
+          toast({
+            title: 'Warning',
+            description: 'No record updated. Check your RLS policy or ID field.',
+            variant: 'destructive',
           });
-        
-        if (profileError) throw profileError;
-        
-        toast({
-          title: "User Added",
-          description: "New user has been added successfully",
-        });
+        }
+      } else {
+        // use built-in crypto for UUIDs
+        const newId = crypto.randomUUID();
+        const { data: created, error } = await supabase
+          .from('profiles')
+          .insert([{ id: newId, full_name: formData.full_name, username: formData.username, password: formData.password,
+                     role: formData.role, status: formData.status, customer_location_id: formData.customer_location_id }])
+          .select();
+        console.log('Profile insert result:', created, error);
+        if (error) {
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          throw error;
+        }
+        if (!created || created.length === 0) {
+          toast({ title: 'Warning', description: 'No record created.', variant: 'destructive' });
+        }
       }
-      
+      toast({
+        title: isEditing ? 'User Updated' : 'User Created',
+        description: isEditing ? 'User details have been updated' : 'New user has been created',
+      });
       resetForm();
       setIsDialogOpen(false);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error in form submission:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('customer_locations')
+          .select('id, location_name')
+          .order('location_name');
+
+        if (error) throw error;
+        
+        setLocations(data?.map(loc => ({
+          id: loc.id,
+          name: loc.location_name
+        })) || []);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load locations",
+          variant: "destructive"
+        });
+      }
+    };
+
+    loadLocations();
+  }, [toast]);
+
+  useEffect(() => {
+    const checkUserPermissions = async () => {
+      if (currentUser?.role === 'admin') {
+        // Admin users automatically have all permissions
+        setCanCreateUsers(true);
+      } else if (currentUser?.permissions) {
+        const hasManageUsersPermission = hasPermission(currentUser.role, PERMISSIONS.MANAGE_USERS);
+        setCanCreateUsers(hasManageUsersPermission);
+      }
+    };
+    
+    checkUserPermissions();
+  }, [currentUser]);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const storedSession = localStorage.getItem('session');
+        if (storedSession) {
+          const sessionData = JSON.parse(storedSession);
+          const now = new Date().getTime();
+          if (now <= sessionData.expiresAt) {
+            setCurrentUser(sessionData.user);
+            // Check permissions immediately after setting current user
+            const hasManageUsersPermission = hasPermission(sessionData.user.role, PERMISSIONS.MANAGE_USERS);
+            setCanCreateUsers(hasManageUsersPermission);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  useEffect(() => {
+    createProfilesRLSPolicy();
+  }, []);
+
+  const createProfilesRLSPolicy = async () => {
+    try {
+      const { error } = await supabase.rpc('create_profiles_rls_policy', {});
+      if (error) {
+        console.error('Error creating profiles RLS policy:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error creating profiles RLS policy:', error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred",
-        variant: "destructive",
+        description: "Failed to create profiles RLS policy",
+        variant: "destructive"
       });
     }
   };
 
   useEffect(() => {
-    const checkAndCreateDefaultAdmin = async () => {
-      if (users.length === 0 && !loading) {
-        try {
-          console.log("No users found, creating default admin user...");
-          const adminId = crypto.randomUUID();
-          
-          const { data: existingAdmin, error: checkError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', 'admin')
-            .maybeSingle();
-            
-          if (checkError) {
-            console.error("Error checking for existing admin:", checkError);
-            throw checkError;
-          }
-          
-          if (existingAdmin) {
-            console.log("Admin already exists, skipping creation");
-            return;
-          }
-          
-          const { error } = await supabase
-            .from('profiles')
-            .insert({
-              id: adminId,
-              full_name: 'Admin User',
-              username: 'admin',
-              password: 'adminpassword',
-              role: 'admin',
-              status: 'active',
-              created_at: new Date().toISOString()
-            });
-          
-          if (error) {
-            console.error("Error creating default admin:", error);
-            throw error;
-          }
-          
-          console.log("Default admin created successfully with ID:", adminId);
-          
-          toast({
-            title: "Default Admin Created",
-            description: "A default admin user has been added",
-          });
-          
-          fetchUsers();
-        } catch (error: any) {
-          console.error("Error creating default admin:", error);
-          toast({
-            title: "Error",
-            description: "Could not create default admin: " + error.message,
-            variant: "destructive",
-          });
-        }
-      }
-    };
-    
-    checkAndCreateDefaultAdmin();
-  }, [users, loading]);
+    fetchUsers();
+  }, []);
 
-  const canCreateUsers = currentUser?.role === 'admin';
+  // Removed redundant effect: permissionsList is initialized above
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching users:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load users",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      if (data) {
+        const usersWithPermissions = data.map(user => ({
+          ...user,
+          // Map Supabase 'created_at' to 'createdAt' for display
+          createdAt: user.created_at,
+          permissions: loadPermissions(user.role as UserRole)
+        }));
+        setUsers(usersWithPermissions);
+      } else {
+        console.warn("No users found in profiles table");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasManageUsersPermission = () => {
+    return hasPermission(currentUser?.role || '', PERMISSIONS.MANAGE_USERS);
+  };
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Users Management</h2>
-      </div>
-
+    <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Users</CardTitle>
-            <CardDescription>
-              Manage user accounts and access permissions
-            </CardDescription>
-          </div>
-          {canCreateUsers && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  onClick={() => {
-                    resetForm();
-                    setIsDialogOpen(true);
-                  }}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add User
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <form onSubmit={handleSubmit}>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {isEditing ? "Edit User" : "Add New User"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {isEditing
-                        ? "Update user details and permissions"
-                        : "Create a new user account"}
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="details">User Details</TabsTrigger>
-                      <TabsTrigger value="permissions">Permissions</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="details" className="py-4">
-                      <div className="grid gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="full_name">Name</Label>
-                          <Input
-                            id="full_name"
-                            name="full_name"
-                            value={formData.full_name || ""}
-                            onChange={handleInputChange}
-                            placeholder="Enter full name"
-                            required
-                          />
-                        </div>
-                        {!isEditing && (
-                          <div className="grid gap-2">
-                            <Label htmlFor="username">Username</Label>
-                            <Input
-                              id="username"
-                              name="username"
-                              value={formData.username || ""}
-                              onChange={handleInputChange}
-                              placeholder="Enter username"
-                              required
-                            />
-                          </div>
-                        )}
-                        {isEditing && (
-                          <div className="grid gap-2">
-                            <Label htmlFor="username">Username</Label>
-                            <Input
-                              id="username"
-                              name="username"
-                              value={formData.username || ""}
-                              onChange={handleInputChange}
-                              placeholder="Username"
-                              disabled
-                            />
-                          </div>
-                        )}
-                        {isEditing && (
-                          <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                              id="password"
-                              name="password"
-                              type="password"
-                              value={formData.password || ""}
-                              onChange={handleInputChange}
-                              placeholder="Not editable in demo mode"
-                              disabled
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Password cannot be changed in demo mode
-                            </p>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="role">Role</Label>
-                            <Select
-                              value={formData.role}
-                              onValueChange={(value) =>
-                                handleSelectChange("role", value)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="user">User</SelectItem>
-                                <SelectItem value="operator">Operator</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="status">Status</Label>
-                            <Select
-                              value={formData.status}
-                              onValueChange={(value) =>
-                                handleSelectChange("status", value)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="inactive">Inactive</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="permissions" className="py-4">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="text-sm font-medium">Role-Based Permissions</h3>
-                            <p className="text-xs text-muted-foreground">
-                              The selected role ({formData.role}) has default permissions.
-                              You can customize them below.
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                permissions: getPermissionsForRole(prev.role)
-                              }));
-                            }}
-                          >
-                            Reset to Defaults
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                          {permissionsList.map((permission) => (
-                            <div key={permission.id} className="flex items-start space-x-2 p-2 rounded border">
-                              <Checkbox 
-                                id={`permission-${permission.id}`}
-                                checked={formData.permissions?.includes(permission.name)}
-                                onCheckedChange={(checked) => 
-                                  handlePermissionChange(permission.name, checked === true)
-                                }
-                              />
-                              <div className="grid gap-1.5">
-                                <Label 
-                                  htmlFor={`permission-${permission.id}`}
-                                  className="font-medium"
-                                >
-                                  {permission.description}
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                  Modules: {permission.modules.join(', ')}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                  
-                  <DialogFooter className="mt-4">
-                    <Button 
-                      variant="outline" 
-                      type="button" 
-                      onClick={() => setIsDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {isEditing ? "Update User" : "Add User"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
+        <CardHeader className="flex justify-between items-center">
+          <CardTitle className="flex items-center gap-2">
+            <UserIcon className="h-5 w-5" />
+            Users
+          </CardTitle>
+          <CardDescription>
+            Manage user accounts and their permissions
+          </CardDescription>
+          <Button variant="default" onClick={() => { resetForm(); setActiveTab('details'); setIsDialogOpen(true); }}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add User
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -625,7 +445,7 @@ const Users = () => {
                         </Button>
                       </TableCell>
                       <TableCell>
-                        {user.createdAt.toLocaleDateString()}
+                        {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         {canCreateUsers && (
@@ -659,6 +479,83 @@ const Users = () => {
           )}
         </CardContent>
       </Card>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? "Edit User" : "New User"}</DialogTitle>
+          </DialogHeader>
+          <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
+            <TabsList>
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="permissions">Permissions</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input id="full_name" name="full_name" value={formData.full_name || ""} onChange={handleInputChange} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input id="username" name="username" value={formData.username || ""} onChange={handleInputChange} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={formData.role!} onValueChange={v => handleSelectChange("role", v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map(r => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={formData.status!} onValueChange={v => handleSelectChange("status", v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="customer_location_id">Customer Location</Label>
+                  <Select value={formData.customer_location_id || ""} onValueChange={v => handleSelectChange("customer_location_id", v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map(loc => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </form>
+            </TabsContent>
+            <TabsContent value="permissions">
+              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-auto">
+                {permissionsList.map(p => (
+                  <Label key={p.id} className="flex items-center space-x-2">
+                    <Checkbox checked={!!formData.permissions?.find(x => x.name === p.name)} onCheckedChange={checked => handlePermissionChange(p.name, checked as boolean)} />
+                    <span>{p.description}</span>
+                  </Label>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+          <DialogFooter className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit}>{isEditing ? "Update" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

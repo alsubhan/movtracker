@@ -1,1052 +1,1270 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { 
-  Barcode, 
-  ArrowRight, 
-  ArrowLeft, 
-  CheckCircle, 
-  Box, 
-  ChevronRight, 
-  Truck,
-  FileText,
-  IndianRupee, 
-  Download,
-  DoorOpen,
-  Loader2
-} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { PlusCircle, Pencil, Trash2, Package, Loader2, Truck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from 'uuid';
+import { hasPermission as checkPermission } from "@/utils/permissions";
 import { PERMISSIONS } from "@/utils/permissions";
-import { supabase, getCustomTable } from "@/integrations/supabase/client";
+import { User } from "@/types";
 
-// Interface definitions
-interface Location {
-  id: string;
-  name: string;
-  code?: string;
-}
+// Helper to format inventory movement timestamp as dd/mm/yyyy hh:mm:ss AM/PM
+const formatTimestamp = (ts: string): string => {
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  let hh = d.getHours();
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12 || 12;
+  const h = String(hh).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const sec = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${h}:${min}:${sec} ${ampm}`;
+};
 
-interface CustomerLocation {
-  id: string;
-  name: string;
-  rentalRates: {
-    [key: string]: number; // Key is inventory type code, value is hourly rate
-  };
-}
+const MOVEMENT_TYPES = {
+  IN: 'in' as const,
+  OUT: 'out' as const
+} as const;
 
-interface Customer {
+type MovementType = typeof MOVEMENT_TYPES[keyof typeof MOVEMENT_TYPES];
+
+interface Movement {
   id: string;
-  code: string;
-  name: string;
-  locations: CustomerLocation[];
+  inventory_id: string;
+  gate_id: string;
+  movement_type: string;
+  customer_location_id: string;
+  previous_location_id: string;
+  recorded_by: string;
+  timestamp: string;
+  inventory_code?: string;
+  gate_name?: string;
+  customer_name?: string;
+  status?: string;
+  remark?: string;
+  reference_id?: string;
 }
 
 interface Gate {
   id: string;
   name: string;
-  locationId: string;
+  location_id: string;
+  gate_type_id: string;
+  gate_type_name: string;
+}
+
+interface Location {
+  id: string;
+  name: string;
 }
 
 interface InventoryItem {
   id: string;
-  type: string;
-  customer: string;
+  rfid_tag: string;
+  code: string;
   project: string;
-  location: string;
+  partition: string;
+  serial_number: string;
+  status: string;
+  last_scan_time: string;
+  last_scan_gate: string;
+  created_at: string;
+  created_by: string;
+  type_id: string;
+  location_id: string;
 }
 
-interface CompanyInfo {
-  baseCustomerId: string;
-  baseLocationId: string;
+interface GateType {
+  id: string;
+  name: string;
 }
 
-interface ScannedItem extends InventoryItem {
-  scannedAt: Date;
-  hourlyRentalCost: number;
-  gate: string;
+interface Customer {
+  id: string;
+  name: string;
+  default_location_id?: string;
 }
 
-interface ChallanDetails {
-  challanNo: string;
-  customerName: string;
-  customerAddress: string;
-  items: ScannedItem[];
+interface CustomerLocation {
+  id: string;
+  name: string;
+  customer_id: string;
 }
 
-const Movement = () => {
-  const { toast } = useToast();
-  const { hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState("in");
-  const [barcode, setBarcode] = useState("");
-  const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [selectedGate, setSelectedGate] = useState("");
-  const [filteredGates, setFilteredGates] = useState<Gate[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [notes, setNotes] = useState("");
-  const [selectedInventory, setSelectedInventory] = useState<ScannedItem | null>(null);
-  const [challanDetails, setChallanDetails] = useState<ChallanDetails>({
-    challanNo: "",
-    customerName: "",
-    customerAddress: "",
-    items: [],
-  });
-  const [showChallan, setShowChallan] = useState(false);
-  const [filteredLocations, setFilteredLocations] = useState<CustomerLocation[]>([]);
-  const [isDifferentCustomer, setIsDifferentCustomer] = useState(false);
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    baseCustomerId: "",
-    baseLocationId: ""
-  });
-  
-  // Data states
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [gates, setGates] = useState<Gate[]>([]);
+interface MovementItem {
+  id: string;
+  rfid_tag: string;
+  location_id: string;
+}
+
+interface MovementData {
+  items: MovementItem[];
+  movement_type: string;
+  customer_id: string;
+  customer_location_from_id: string;
+  customer_location_to_id: string;
+  gate_id: string;
+  remark?: string;
+}
+
+export default function Movement() {
+  const [loading, setLoading] = useState(true);
+  const [movements, setMovements] = useState<Movement[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [rentalRates, setRentalRates] = useState<{[key: string]: {[key: string]: {[key: string]: number}}}>({});
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [gates, setGates] = useState<Gate[]>([]);
+  const [gateTypes, setGateTypes] = useState<GateType[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [formData, setFormData] = useState<MovementData>({
+    items: [],
+    movement_type: MOVEMENT_TYPES.OUT,
+    customer_id: '',
+    customer_location_from_id: '',
+    customer_location_to_id: '',
+    gate_id: '',
+    remark: ''
+  });
+  const [scannedItems, setScannedItems] = useState<MovementItem[]>([]);
+  const [userHasPermission, setUserHasPermission] = useState(false);
+  const [permissionError, setPermissionError] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [settings, setSettings] = useState<any>(null);
+  // Map to store id -> location_name for all customer locations (including previous_location_id and customer_location_id)
+  const [customerLocationsMap, setCustomerLocationsMap] = useState<Map<string, string>>(new Map());
+  const { toast } = useToast();
 
-  // Fetch initial data from Supabase
+  // Pagination for movements list
+  const PAGE_SIZE = 500;
+  const [page, setPage] = useState(0);
+  const [allMovements, setAllMovements] = useState<Movement[]>([]);
+  const [displayedMovements, setDisplayedMovements] = useState<Movement[]>([]);
+  const [hasMoreMovements, setHasMoreMovements] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
+    const initialize = async () => {
       try {
-        // Fetch company info
-        const { data: companyData, error: companyError } = await supabase
-          .from('company_info')
+        const session = localStorage.getItem('session');
+        if (!session) {
+          setPermissionError(true);
+          setUserHasPermission(false);
+          setLoading(false);
+          return;
+        }
+
+        const sessionData = JSON.parse(session);
+        const now = new Date().getTime();
+        if (now > sessionData.expiresAt) {
+          setPermissionError(true);
+          setUserHasPermission(false);
+          setLoading(false);
+          return;
+        }
+
+        // Get user data from profiles table
+        const { data: profileData } = await supabase
+          .from('profiles')
           .select('*')
-          .limit(1)
-          .maybeSingle();
-        
-        if (companyError) {
-          console.error('Error fetching company info:', companyError);
+          .eq('id', sessionData.user.id)
+          .single();
+
+        if (!profileData) {
+          setPermissionError(true);
+          setUserHasPermission(false);
+          setLoading(false);
+          return;
         }
+
+        // Check if user has the permission
+        const hasPerm = checkPermission(profileData.role, PERMISSIONS.INVENTORY_MOVEMENT);
         
-        if (companyData) {
-          setCompanyInfo({
-            baseCustomerId: companyData.base_customer_id || "",
-            baseLocationId: companyData.base_location_id || ""
+        if (!hasPerm) {
+          setPermissionError(true);
+          setUserHasPermission(false);
+          setLoading(false);
+          return;
+        }
+
+        setUserHasPermission(true);
+
+        // Fetch all data
+        const [movementsData, inventoryData, locationsData, gatesData, gateTypesData, customersData, settingsData] = await Promise.all([
+          fetchMovements(), // fetch full grouped latest movements
+          fetchInventoryItems(),
+          fetchLocations(),
+          fetchGates(),
+          fetchGateTypes(),
+          fetchCustomers(),
+          getBaseCustomerLocation()
+        ]);
+
+        // Update state
+        // Paginate movements
+        setAllMovements(movementsData);
+        setDisplayedMovements(movementsData.slice(0, PAGE_SIZE));
+        setHasMoreMovements(movementsData.length > PAGE_SIZE);
+        setPage(0);
+        // Build customerLocationsMap for id -> location_name using all customerLocations fetched in fetchMovements scope
+        // This ensures all ids in movements (including previous_location_id) are mapped
+        const customerLocationMap = new Map<string, string>();
+        // Use customerLocations from fetchMovements (not the state)
+        if (Array.isArray(movementsData)) {
+          // Gather all unique customer location IDs from movements
+          const allLocationIds = new Set();
+          movementsData.forEach(mov => {
+            if (mov.customer_location_id) allLocationIds.add(mov.customer_location_id);
+            if (mov.previous_location_id) allLocationIds.add(mov.previous_location_id);
           });
-        }
-        
-        // Fetch locations
-        const { data: locationsData, error: locationsError } = await supabase
-          .from('locations')
-          .select('*')
-          .eq('status', 'active');
-        
-        if (locationsError) {
-          console.error('Error fetching locations:', locationsError);
-        }
-        
-        if (locationsData) {
-          setLocations(locationsData.map(loc => ({
-            id: loc.id,
-            name: loc.name
-          })));
-        }
-        
-        // Fetch customers and their locations with rental rates
-        const { data: customerData, error: customerError } = await supabase
-          .from('customers')
-          .select('*, customer_locations(*)');
-        
-        if (customerError) {
-          console.error('Error fetching customers:', customerError);
-        }
-        
-        if (customerData) {
-          const formattedCustomers = customerData.map(cust => {
-            const customerLocations = cust.customer_locations ? cust.customer_locations.map((loc: any) => ({
-              id: loc.location_id,
-              name: loc.location_name,
-              rentalRates: loc.rental_rates as {[key: string]: number} || {}
-            })) : [];
-            
-            return {
-              id: cust.id,
-              code: cust.code,
-              name: cust.name,
-              locations: customerLocations
-            };
-          });
-          
-          setCustomers(formattedCustomers);
-          
-          // Build rental rates object for quick lookup
-          const rates: {[key: string]: {[key: string]: {[key: string]: number}}} = {};
-          
-          formattedCustomers.forEach(customer => {
-            if (!rates[customer.id]) {
-              rates[customer.id] = {};
-            }
-            
-            customer.locations.forEach(location => {
-              if (!rates[customer.id][location.id]) {
-                rates[customer.id][location.id] = {};
-              }
-              
-              rates[customer.id][location.id] = location.rentalRates;
+          // Fetch all those customer locations from customerLocations table
+          const { data: allCustomerLocations, error: allCustomerLocationsError } = await supabase
+            .from('customer_locations')
+            .select('id, location_name')
+            .in('id', Array.from(allLocationIds));
+          if (!allCustomerLocationsError && Array.isArray(allCustomerLocations)) {
+            allCustomerLocations.forEach(loc => {
+              customerLocationMap.set(loc.id, loc.location_name);
             });
-          });
-          
-          setRentalRates(rates);
+          }
         }
-        
-        // Fetch gates
-        const { data: gatesData, error: gatesError } = await supabase
-          .from('gates')
-          .select('*')
-          .eq('status', 'active');
-        
-        if (gatesError) {
-          console.error('Error fetching gates:', gatesError);
-        }
-        
-        if (gatesData) {
-          setGates(gatesData.map(gate => ({
-            id: gate.id,
-            name: gate.name,
-            locationId: gate.gate_location
-          })));
-        }
-        
-        // Fetch inventory items (bins)
-        const { data: binsData, error: binsError } = await supabase
-          .from('bins')
-          .select('*');
-        
-        if (binsError) {
-          console.error('Error fetching inventory items:', binsError);
-        }
-        
-        if (binsData) {
-          setInventoryItems(binsData.map(bin => ({
-            id: bin.id,
-            type: bin.rfid_tag?.split('-')[0] || 'PLT', // Extracting type from RFID tag if available
-            customer: bin.customer,
-            project: bin.project || '',
-            location: bin.location
-          })));
-        }
-        
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast({
-          title: "Error Loading Data",
-          description: "There was an error loading data. Using sample data instead.",
-          variant: "destructive",
-        });
-        
-        // Load sample data as fallback
-        loadSampleData();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    const loadSampleData = () => {
-      // Sample locations
-      setLocations([
-        { id: "1", name: "Main Warehouse", code: "WH" },
-        { id: "2", name: "Factory A", code: "FA" },
-        { id: "3", name: "Distribution Center B", code: "DCB" },
-      ]);
-      
-      // Sample customers with locations and rental rates
-      setCustomers([
-        { 
-          id: "1", code: "TOY", name: "Toyota", 
-          locations: [
-            { id: "4", name: "Toyota Site", rentalRates: { "PLT": 10, "CTN": 5, "CRT": 8 } },
-            { id: "6", name: "Toyota Factory B", rentalRates: { "PLT": 12, "CTN": 6, "CRT": 9 } }
-          ]
-        },
-        { 
-          id: "2", code: "HON", name: "Honda", 
-          locations: [
-            { id: "5", name: "Honda Factory", rentalRates: { "PLT": 15, "CTN": 7, "CRT": 10 } }
-          ]
-        },
-      ]);
-      
-      // Sample gates
-      setGates([
-        { id: "G1", name: "Gate 1", locationId: "1" },
-        { id: "G2", name: "Gate 2", locationId: "1" },
-        { id: "G3", name: "Gate 3", locationId: "2" },
-        { id: "G4", name: "Gate 4", locationId: "3" },
-        { id: "G5", name: "Gate 5", locationId: "4" },
-        { id: "G6", name: "Gate 6", locationId: "5" },
-      ]);
-      
-      // Sample inventory
-      setInventoryItems([
-        { id: "TOY100108001", type: "PLT", customer: "TOY", project: "1001", location: "Main Warehouse" },
-        { id: "TOY100108002", type: "CTN", customer: "TOY", project: "1001", location: "Main Warehouse" },
-        { id: "HON100308004", type: "PLT", customer: "HON", project: "1003", location: "Main Warehouse" },
-      ]);
-      
-      // Sample company info
-      setCompanyInfo({
-        baseCustomerId: "1", // Toyota is the base customer
-        baseLocationId: "1"  // Main Warehouse is the base location
-      });
-      
-      // Build rental rates object for quick lookup
-      const rates: {[key: string]: {[key: string]: {[key: string]: number}}} = {
-        "1": { // Toyota
-          "4": { "PLT": 10, "CTN": 5, "CRT": 8 },
-          "6": { "PLT": 12, "CTN": 6, "CRT": 9 }
-        },
-        "2": { // Honda
-          "5": { "PLT": 15, "CTN": 7, "CRT": 10 }
-        }
-      };
-      
-      setRentalRates(rates);
-    };
-    
-    fetchData();
-  }, [toast]);
+        setCustomerLocationsMap(customerLocationMap);
+        setInventoryItems(inventoryData);
+        setLocations(locationsData);
+        setGates(gatesData);
+        setGateTypes(gateTypesData);
+        setCustomers(customersData);
+        setSettings(settingsData);
 
-  // Load company info from localStorage
-  useEffect(() => {
-    const savedCompanyInfo = localStorage.getItem('companyInfo');
-    if (savedCompanyInfo) {
-      try {
-        const parsedInfo = JSON.parse(savedCompanyInfo);
-        if (parsedInfo.baseCustomerId && parsedInfo.baseLocationId) {
-          setCompanyInfo({
-            baseCustomerId: parsedInfo.baseCustomerId,
-            baseLocationId: parsedInfo.baseLocationId
-          });
-        }
+        setLoading(false);
       } catch (error) {
-        console.error('Error parsing company info from localStorage', error);
+        console.error('Error initializing:', error);
+        setPermissionError(true);
+        setUserHasPermission(false);
+        setLoading(false);
       }
-    }
+    };
+
+    initialize();
   }, []);
 
-  // Reset selections when tab changes
   useEffect(() => {
-    setSelectedLocation("");
-    setSelectedCustomer("");
-    setSelectedGate("");
-    setScannedItems([]);
-    setFilteredGates([]);
-    setFilteredLocations([]);
-  }, [activeTab]);
-
-  // Update available locations when customer is selected
-  useEffect(() => {
-    if (selectedCustomer) {
-      const customer = customers.find(c => c.id === selectedCustomer);
-      if (customer) {
-        setFilteredLocations(customer.locations);
-        if (customer.locations.length > 0) {
-          setSelectedLocation(customer.locations[0]?.id || "");
-        }
-      }
-    } else {
-      setFilteredLocations([]);
-      setSelectedLocation("");
-    }
-    setSelectedGate("");
-  }, [selectedCustomer, customers]);
-
-  // Update available gates when location is selected
-  useEffect(() => {
-    if (selectedLocation) {
-      const filteredGates = gates.filter(gate => gate.locationId === selectedLocation);
-      setFilteredGates(filteredGates);
-      if (filteredGates.length > 0) {
-        setSelectedGate(filteredGates[0]?.id || "");
-      }
-    } else {
-      setFilteredGates([]);
-      setSelectedGate("");
-    }
-  }, [selectedLocation, gates]);
-
-  // Determine if it's a movement between different customers (for challan generation)
-  useEffect(() => {
-    if (scannedItems.length > 0 && selectedCustomer) {
-      // Check if any item belongs to a different customer than selected
-      const customer = customers.find(c => c.id === selectedCustomer);
-      if (!customer) return;
-      
-      const customerCode = customer.code;
-      const differentCustomer = scannedItems.some(item => item.customer !== customerCode);
-      
-      // Also check if the selected customer is different from the base customer
-      const isNotBaseCustomer = selectedCustomer !== companyInfo.baseCustomerId;
-      
-      setIsDifferentCustomer(differentCustomer || isNotBaseCustomer);
-    } else {
-      setIsDifferentCustomer(false);
-    }
-  }, [scannedItems, selectedCustomer, companyInfo.baseCustomerId, customers]);
-
-  const handleScan = () => {
-    if (!barcode) {
+    if (permissionError) {
       toast({
-        title: "Scan Error",
-        description: "Please enter a barcode to scan",
+        title: "Error",
+        description: "You don't have permission to manage inventory movements",
         variant: "destructive",
       });
-      return;
     }
+  }, [permissionError]);
 
-    if (!selectedCustomer) {
-      toast({
-        title: "Customer Required",
-        description: "Please select a customer before scanning items",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedLocation) {
-      toast({
-        title: "Location Required",
-        description: "Please select a location before scanning items",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedGate) {
-      toast({
-        title: "Gate Required",
-        description: "Please select a gate before scanning items",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const found = inventoryItems.find(item => item.id === barcode);
-    if (!found) {
-      toast({
-        title: "Item Not Found",
-        description: `No inventory found with barcode ${barcode}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (scannedItems.some(item => item.id === found.id)) {
-      toast({
-        title: "Already Scanned",
-        description: `Item ${found.id} has already been scanned`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Get customer details
-    const customer = customers.find(c => c.id === selectedCustomer);
-    if (!customer) return;
-
-    // Calculate rental cost based on inventory type and location
-    let hourlyRentalCost = 0;
-    
-    // Check if rental rates exist for this customer and location
-    if (rentalRates[selectedCustomer] && 
-        rentalRates[selectedCustomer][selectedLocation] && 
-        rentalRates[selectedCustomer][selectedLocation][found.type]) {
-        hourlyRentalCost = rentalRates[selectedCustomer][selectedLocation][found.type];
-    }
-
-    const scannedItem: ScannedItem = { 
-      ...found, 
-      scannedAt: new Date(),
-      hourlyRentalCost,
-      gate: gates.find(g => g.id === selectedGate)?.name || 'Unknown'
-    };
-
-    setScannedItems([...scannedItems, scannedItem]);
-    
-    setBarcode("");
-    
-    toast({
-      title: "Item Scanned",
-      description: `Added ${found.id} to scanned items`,
-    });
+  const canManageMovements = () => {
+    return userHasPermission;
   };
 
-  const handleProcess = async () => {
-    if (scannedItems.length === 0) {
-      toast({
-        title: "No Items",
-        description: "Please scan items before processing",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
+  const fetchMovements = async () => {
     try {
-      // Process each scanned item
-      for (const item of scannedItems) {
-        // Get previous location from inventory
-        const inventoryItem = inventoryItems.find(inv => inv.id === item.id);
-        const previousLocation = inventoryItem?.location || '';
-        
-        // Create movement record in database
-        const { error } = await getCustomTable('bin_movements').insert({
-          bin_id: item.id,
-          gate_id: selectedGate,
-          movement_type: activeTab,
-          timestamp: new Date().toISOString(),
-          location: selectedLocation,
-          previous_location: previousLocation
-        });
-        
-        if (error) {
-          console.error('Error recording movement:', error);
-          throw new Error('Failed to record movement');
-        }
-        
-        // Update inventory location
-        const { error: updateError } = await supabase
-          .from('bins')
-          .update({ 
-            location: selectedLocation,
-            last_scan_gate: selectedGate,
-            last_scan_time: new Date().toISOString()
-          })
-          .eq('id', item.id);
-          
-        if (updateError) {
-          console.error('Error updating inventory location:', updateError);
-          throw new Error('Failed to update inventory location');
+      const { data: movementsData, error: movementsError } = await supabase
+        .from('inventory_movements')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .range(0, 3000);  // fetch up to 3001 rows
+
+      if (movementsError) throw movementsError;
+
+      // Fetch related data
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('id, rfid_tag')
+        .in('id', movementsData.map(m => m.inventory_id));
+
+      if (inventoryError) throw inventoryError;
+
+      const { data: gatesData, error: gatesError } = await supabase
+        .from('gates')
+        .select('id, name')
+        .in('id', movementsData.map(m => m.gate_id));
+
+      if (gatesError) throw gatesError;
+
+      const { data: customerLocationsData, error: customerLocationsError } = await supabase
+        .from('customer_locations')
+        .select('id, location_name')
+        .in('id', movementsData.map(m => m.customer_location_id));
+
+      if (customerLocationsError) throw customerLocationsError;
+
+      // Group movements by inventory_id and select the latest by timestamp
+      const latestMovementsMap = new Map();
+      for (const movement of movementsData) {
+        const existing = latestMovementsMap.get(movement.inventory_id);
+        if (!existing || new Date(movement.timestamp) > new Date(existing.timestamp)) {
+          latestMovementsMap.set(movement.inventory_id, movement);
         }
       }
-      
-      const customer = customers.find(c => c.id === selectedCustomer);
-      const location = filteredLocations.find(l => l.id === selectedLocation);
-      
-      const movementType = activeTab === "in" ? "In Movement" : "Out Movement";
-      
-      toast({
-        title: "Movement Processed",
-        description: `${scannedItems.length} item(s) ${activeTab === "in" ? "received at" : "sent from"} ${
-          location?.name || selectedLocation
-        }`,
-      });
+      const latestMovements = Array.from(latestMovementsMap.values());
 
-      // Generate delivery challan if:
-      // 1. It's an OUT movement AND
-      // 2. Either it's a movement between different customers OR to a non-base customer
-      // 3. User has the delivery challan permission
-      if (activeTab === "out" && isDifferentCustomer && hasPermission(PERMISSIONS.DELIVERY_CHALLAN)) {
-        // Create challan
-        const challanNo = "DC" + Math.floor(Math.random() * 10000).toString().padStart(5, '0');
-        
-        setChallanDetails({
-          challanNo,
-          customerName: customer?.name || "Unknown",
-          customerAddress: location?.name || "Unknown",
-          items: scannedItems.map(item => ({
-            ...item,
-            hourlyRentalCost: item.hourlyRentalCost
-          }))
-        });
-        
-        setShowChallan(true);
+      // Format only the latest movements with human-readable names
+      const formattedMovements = latestMovements.map(movement => ({
+        ...movement,
+        inventory_code: inventoryData.find(item => item.id === movement.inventory_id)?.rfid_tag || movement.inventory_id,
+        gate_name: gatesData.find(gate => gate.id === movement.gate_id)?.name || movement.gate_id,
+        customer_name: customerLocationsData.find(loc => loc.id === movement.customer_location_id)?.location_name || movement.customer_location_id,
+        movement_type: movement.movement_type.toUpperCase()
+      }));
+
+      return formattedMovements;
+    } catch (error) {
+      console.error('Error fetching movements:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch movements",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const fetchInventoryItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
+        .order('rfid_tag');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching inventory items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch inventory items",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const { data: locationsData, error } = await supabase
+        .from('locations')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      return locationsData || [];
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch locations",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const fetchGates = async () => {
+    try {
+      const { data: gatesData, error } = await supabase
+        .from('gates')
+        .select('id, name, location_id, gate_type_id, gate_types(name)')
+        .order('name');
+
+      if (error) throw error;
+      return gatesData?.map(gate => ({
+        id: gate.id,
+        name: gate.name,
+        location_id: gate.location_id,
+        gate_type_id: gate.gate_type_id,
+        // gate_types returns an array of related records
+        gate_type_name: Array.isArray(gate.gate_types)
+          ? gate.gate_types[0]?.name || ''
+          : ''
+      })) || [];
+    } catch (error) {
+      console.error('Error fetching gates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch gates",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const fetchGateTypes = async () => {
+    try {
+      const { data: gateTypesData, error } = await supabase
+        .from('gate_types')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      return gateTypesData || [];
+    } catch (error) {
+      console.error('Error fetching gate types:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch gate types",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const { data: customersData, error } = await supabase
+        .from('customers')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      return customersData || [];
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch customers",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const getBaseCustomerLocation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('base_location_id, base_customer_id')
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error getting base customer:', error);
+      return null;
+    }
+  };
+
+  const getFilteredGates = () => {
+    const selectedLocation = formData.customer_id;
+    if (!selectedLocation || !gates) return [];
+    
+    return gates.filter(gate => gate.location_id === selectedLocation);
+  };
+
+  const isRentalMovement = (movement: Movement) => {
+    if (!settings) return false;
+    
+    // Rental starts when moving from base location to customer location
+    // Rental ends when moving from customer location to base location
+    return movement.customer_location_id !== settings.base_location_id;
+  };
+
+  const deleteMovement = async (movementId: string) => {
+    try {
+      // Only delete by full UUID (no short ID lookup)
+      const { error } = await supabase
+        .from('inventory_movements')
+        .delete()
+        .eq('id', movementId);
+      if (error) throw error;
+      toast({
+        title: "Success",
+        description: "Movement deleted successfully",
+      });
+      // Refresh the movements list
+      setMovements(await fetchMovements());
+    } catch (error) {
+      console.error('Error deleting movement:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? (error.message || String(error)) : "Failed to delete movement",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInventoryScan = async (rfidTag: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('id, location_id, status')
+        .eq('rfid_tag', rfidTag)
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        // Check if the item is in In-Stock status (only for OUT movements)
+        if (formData.movement_type === 'out' && data.status !== 'In-Stock') {
+          toast({
+            title: "Error",
+            description: "This item is not In-Stock.",
+            variant: "destructive"
+          });
+          return;
+        }
+        // Additional checks for IN movements during scan
+        if (formData.movement_type === 'in') {
+          if (data.status === 'In-Stock') {
+            toast({
+              title: "Error",
+              description: `Item ${rfidTag} is already In-Stock. IN movement not allowed.`,
+              variant: "destructive"
+            });
+            return;
+          }
+          if (data.status === 'Received' || data.status === 'In-Transit') {
+            toast({
+              title: "Warning",
+              description: `Item ${rfidTag} is ${data.status}. Only items with status 'Returned' should be moved IN, but this will be allowed.`,
+              variant: "destructive"
+            });
+          }
+        }
+        const existingItem = scannedItems.find(item => item.id === data.id);
+        if (!existingItem) {
+          setScannedItems(prev => [...prev, {
+            id: data.id,
+            rfid_tag: rfidTag,
+            location_id: data.location_id
+          }]);
+          toast({
+            title: "Success",
+            description: `Item ${rfidTag} scanned successfully`
+          });
+        } else {
+          toast({
+            title: "Warning",
+            description: "Item already scanned",
+            variant: "destructive"
+          });
+        }
       } else {
-        // Reset form if no challan needed
-        resetForm();
+        toast({
+          title: "Not Found",
+          description: "No item found with this Inventory ID",
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error('Error processing movement:', error);
+      console.error('Error scanning inventory:', error);
       toast({
-        title: "Processing Failed",
-        description: "There was an error processing the movement. Please try again.",
+        title: "Error",
+        description: "Failed to scan inventory",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateMovement = async () => {
+    if (!scannedItems.length) {
+      toast({
+        title: "Error",
+        description: "Please scan at least one item",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.customer_id) {
+      toast({
+        title: "Error",
+        description: "Please select a customer",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.customer_location_from_id) {
+      toast({
+        title: "Error",
+        description: "Please select a customer location (From)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.customer_location_to_id) {
+      toast({
+        title: "Error",
+        description: "Please select a customer location (To)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.customer_location_from_id === formData.customer_location_to_id) {
+      toast({
+        title: "Error",
+        description: "From and To locations cannot be the same",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.gate_id) {
+      toast({
+        title: "Error",
+        description: "Please select a gate",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.movement_type === 'in') {
+      // Fetch statuses for all scanned items
+      const { data: inventoryStatusCheck, error: statusCheckError } = await supabase
+        .from('inventory')
+        .select('id, status, rfid_tag')
+        .in('id', scannedItems.map(item => item.id));
+      if (statusCheckError) {
+        toast({
+          title: "Error",
+          description: "Failed to check item statuses",
+          variant: "destructive"
+        });
+        return;
+      }
+      // Disallow IN movement for items already in 'In-Stock' status
+      for (const item of inventoryStatusCheck) {
+        if (item.status === 'In-Stock') {
+          toast({
+            title: "Error",
+            description: `Item ${item.rfid_tag} is already In-Stock. IN movement is not allowed for this item.`,
+            variant: "destructive"
+          });
+          return;
+        }
+        if (item.status === 'Received' || item.status === 'In-Transit') {
+          toast({
+            title: "Warning",
+            description: `Item ${item.rfid_tag} is ${item.status}. Only items with status 'Returned' should be moved IN, but this will be allowed.`,
+            variant: "destructive"
+          });
+        }
+      }
+    }
+
+    let referenceId: string;
+    if (formData.movement_type === 'out') {
+      // new outbound batch
+      referenceId = uuidv4();
+    } else {
+      // inherit reference from last outbound for first item
+      const firstId = scannedItems[0]?.id;
+      const { data: lastOut, error: lastErr } = await supabase
+        .from('inventory_movements')
+        .select('reference_id')
+        .eq('inventory_id', firstId)
+        .eq('movement_type', 'out')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+      referenceId = (!lastErr && lastOut?.reference_id)
+        ? lastOut.reference_id
+        : uuidv4();
+    }
+
+    try {
+      const { data: currentLocation, error: locationError } = await supabase
+        .from('customer_locations')
+        .select('id')
+        .eq('id', formData.customer_location_to_id)
+        .single();
+
+      if (locationError) throw locationError;
+
+      // Fetch current locations of scanned items
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('id, location_id')
+        .in('id', scannedItems.map(item => item.id));
+
+      if (inventoryError) throw inventoryError;
+
+      // Create movements with proper location references
+      const movements = scannedItems.map((item: MovementItem) => ({
+        inventory_id: item.id,
+        gate_id: formData.gate_id,
+        movement_type: formData.movement_type.toLowerCase(),
+        customer_location_id: formData.customer_location_to_id, // To
+        previous_location_id: formData.customer_location_from_id, // From
+        recorded_by: JSON.parse(localStorage.getItem('session')).user.id,
+        remark: formData.remark || null,
+        reference_id: referenceId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('inventory_movements')
+        .insert(movements);
+
+      if (insertError) throw insertError;
+
+      // Update inventory status
+      if (formData.movement_type === 'out') {
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({
+            status: 'In-Transit',
+            last_scan_time: new Date().toISOString(),
+            last_scan_gate: formData.gate_id
+          })
+          .in('id', scannedItems.map(item => item.id));
+
+        if (updateError) {
+          console.error('Error updating inventory status:', updateError);
+          toast({
+            title: "Error",
+            description: "Failed to update inventory status",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      if (formData.movement_type === 'in') {
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({
+            status: 'In-Stock',
+            last_scan_time: new Date().toISOString(),
+            last_scan_gate: formData.gate_id
+          })
+          .in('id', scannedItems.map(item => item.id));
+
+        if (updateError) {
+          console.error('Error updating inventory status:', updateError);
+          toast({
+            title: "Error",
+            description: "Failed to update inventory status",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Movements created successfully",
+      });
+      setIsDialogOpen(false);
+      fetchMovements();
+    } catch (error) {
+      console.error('Error creating movement:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create movement",
         variant: "destructive",
       });
-      setIsProcessing(false);
     }
   };
 
-  const resetForm = () => {
-    setScannedItems([]);
-    setSelectedLocation("");
-    setSelectedCustomer("");
-    setSelectedGate("");
-    setNotes("");
-    setIsProcessing(false);
-  };
+  const fetchCustomerLocations = async (customerId: string) => {
+    try {
+      const { data: customerLocations, error } = await supabase
+        .from('customer_locations')
+        .select('id, location_name')
+        .eq('customer_id', customerId)
+        .order('location_name');
 
-  const handleRemoveItem = (id: string) => {
-    setScannedItems(scannedItems.filter(item => item.id !== id));
-    
-    toast({
-      title: "Item Removed",
-      description: `Removed ${id} from scanned items`,
-    });
-  };
-
-  const viewItemDetails = (item: ScannedItem) => {
-    setSelectedInventory(item);
-  };
-
-  const closeItemDetails = () => {
-    setSelectedInventory(null);
-  };
-
-  const handlePrintChallan = () => {
-    // Simulate printing
-    toast({
-      title: "Printing Challan",
-      description: `Delivery Challan ${challanDetails.challanNo} sent to printer`,
-    });
-    
-    // Close challan view after print
-    setTimeout(() => {
-      setShowChallan(false);
-      resetForm();
-    }, 1000);
-  };
-
-  const handleDownloadChallan = () => {
-    // Simulate download
-    toast({
-      title: "Downloading Challan",
-      description: `Delivery Challan ${challanDetails.challanNo} download started`,
-    });
-    
-    // In a real app, would generate PDF and trigger download
-  };
-
-  const getLocationName = (locationId: string) => {
-    // First check customer locations
-    for (const customer of customers) {
-      const location = customer.locations.find(l => l.id === locationId);
-      if (location) return location.name;
+      if (error) throw error;
+      return customerLocations?.map(loc => ({
+        id: loc.id,
+        name: loc.location_name,
+        customer_id: customerId
+      })) || [];
+    } catch (error) {
+      console.error('Error fetching customer locations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch customer locations",
+        variant: "destructive",
+      });
+      return [];
     }
-    // Then check general locations
-    return locations.find(l => l.id === locationId)?.name || locationId;
   };
 
-  const getCustomerName = (customerId: string) => {
-    return customers.find(c => c.id === customerId)?.name || customerId;
+  useEffect(() => {
+    if (formData.customer_id) {
+      fetchCustomerLocations(formData.customer_id).then(data => {
+        setCustomerLocations(data);
+        if (data.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            customer_location_from_id: data[0].id,
+            customer_location_to_id: data[0].id
+          }));
+        }
+      }).catch(error => {
+        console.error('Error fetching customer locations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch customer locations",
+          variant: "destructive",
+        });
+      });
+    } else {
+      setCustomerLocations([]);
+      setFormData(prev => ({
+        ...prev,
+        customer_location_from_id: '',
+        customer_location_to_id: ''
+      }));
+    }
+  }, [formData.customer_id, toast]);
+
+  const filteredMovements = displayedMovements.filter(
+    m => (m.customer_name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+         m.inventory_code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const isBaseCustomer = (customerId: string) => {
+    if (!customers) return false;
+    const baseCustomer = customers.find(c => c.id === customerId);
+    return baseCustomer !== undefined;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-lg font-medium">Loading inventory data...</p>
-        </div>
-      </div>
+  const getCustomerLocations = (customerId: string) => {
+    if (!customerId || !locations) return [];
+    
+    // Get the customer's locations
+    const customerLocations = locations.filter(location => 
+      location.id === settings.base_location_id || // Always include base location
+      customers.find(c => c.id === customerId)?.default_location_id === location.id
     );
-  }
+    
+    return customerLocations;
+  };
+
+  const inventoryStatusMap = new Map(inventoryItems.map(item => [item.id, item.status]));
+
+  const handleNext = async () => {
+    if (formData.movement_type === 'in') {
+      const { data: statusList, error: statusError } = await supabase
+        .from('inventory')
+        .select('id, status, rfid_tag')
+        .in('id', scannedItems.map(item => item.id));
+      if (statusError) {
+        toast({ title: "Error", description: "Failed to check item statuses", variant: "destructive" });
+        return;
+      }
+      for (const item of statusList) {
+        if (item.status === 'In-Stock') {
+          toast({ title: "Error", description: `Item ${item.rfid_tag} is In-Stock. Cannot proceed.`, variant: "destructive" });
+          return;
+        }
+        if (item.status === 'Received' || item.status === 'In-Transit') {
+          toast({ title: "Warning", description: `Item ${item.rfid_tag} is ${item.status}. Only 'Returned' is preferred.`, variant: "destructive" });
+        }
+      }
+    }
+    setIsScanning(false);
+  };
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold">Inventory Movement</h2>
-      </div>
-
-      {showChallan ? (
-        <Card className="w-full">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Delivery Challan</CardTitle>
-              <CardDescription>
-                Challan # {challanDetails.challanNo} - {format(new Date(), "dd/MM/yyyy")}
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowChallan(false)}>
-                Back
-              </Button>
-              <Button size="sm" variant="secondary" onClick={handleDownloadChallan}>
-                <Download className="h-4 w-4 mr-1" /> Download
-              </Button>
-              <Button size="sm" onClick={handlePrintChallan}>
-                <FileText className="h-4 w-4 mr-1" /> Print
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-md p-6 space-y-6">
-              <div className="flex justify-between">
-                <div>
-                  <h3 className="font-bold text-lg">From:</h3>
-                  <p>RENTracker Warehouse</p>
-                  <p>123 Logistics Way</p>
-                  <p>Warehouse District</p>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">To:</h3>
-                  <p>Customer: {challanDetails.customerName}</p>
-                  <p>Location: {challanDetails.customerAddress}</p>
-                </div>
-              </div>
-
-              <Separator />
-              
-              <div>
-                <h3 className="font-bold text-lg mb-2">Items:</h3>
-                <div className="border rounded-md overflow-hidden">
-                  <table className="min-w-full divide-y divide-border">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Item ID</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Qty</th>
-                        <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Hourly Rate (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-card divide-y divide-border">
-                      {challanDetails.items.map((item, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm">{item.id}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm">1</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-right">₹{item.hourlyRentalCost}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="flex justify-between mt-6">
-                <div>
-                  <h3 className="font-bold">Terms & Conditions:</h3>
-                  <ol className="list-decimal list-inside text-sm text-muted-foreground ml-2 mt-2">
-                    <li>Rental will be charged based on hourly rates</li>
-                    <li>Items must be returned in original condition</li>
-                    <li>Customer is responsible for items while in their possession</li>
-                  </ol>
-                </div>
-                <div className="text-right">
-                  <div className="mb-6">
-                    <p className="text-sm">Signature:</p>
-                    <div className="w-40 h-10 border-b border-dashed mt-6 mb-1"></div>
-                    <p className="text-sm">Authorized Signatory</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : selectedInventory ? (
-        <Card className="w-full">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Inventory Details</CardTitle>
-              <CardDescription>
-                Details for item {selectedInventory.id}
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={closeItemDetails}>
-              Back to List
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold mb-2">Basic Information</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">ID:</span>
-                    <span>{selectedInventory.id}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Type:</span>
-                    <span>{selectedInventory.type}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Customer:</span>
-                    <span>{selectedInventory.customer}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Project:</span>
-                    <span>{selectedInventory.project}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Current Location:</span>
-                    <span>{selectedInventory.location}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Hourly Rental Cost:</span>
-                    <span className="flex items-center">
-                      <IndianRupee className="h-3 w-3 mr-1" /> 
-                      {selectedInventory.hourlyRentalCost}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Movement Information</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Scanned At:</span>
-                    <span>{format(selectedInventory.scannedAt, "dd MMM yyyy HH:mm:ss")}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Movement Type:</span>
-                    <span>{activeTab === "in" ? "In Movement" : "Out Movement"}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">Gate:</span>
-                    <span>{selectedInventory.gate || "Not set"}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-1">
-                    <span className="font-medium">{activeTab === "in" ? "Source" : "Destination"}:</span>
-                    <span>{getLocationName(selectedLocation)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="container mx-auto py-8">
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : permissionError ? (
+        <div className="text-red-500 text-center py-4">
+          You do not have permission to access this page.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1">
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Scan Items</CardTitle>
-                <CardDescription>
-                  Scan inventory items for movement
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="in" className="flex items-center gap-1">
-                      <ArrowLeft className="h-4 w-4" /> In
-                    </TabsTrigger>
-                    <TabsTrigger value="out" className="flex items-center gap-1">
-                      <ArrowRight className="h-4 w-4" /> Out
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <Label htmlFor="customer">Customer</Label>
-                    <Select
-                      value={selectedCustomer}
-                      onValueChange={setSelectedCustomer}
-                    >
-                      <SelectTrigger id="customer">
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="location">
-                      {activeTab === "in" ? "Source Location" : "Destination Location"}
-                    </Label>
-                    <Select
-                      value={selectedLocation}
-                      onValueChange={setSelectedLocation}
-                      disabled={!selectedCustomer}
-                    >
-                      <SelectTrigger id="location">
-                        <SelectValue placeholder={`Select ${activeTab === "in" ? "source" : "destination"}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredLocations.map((location) => (
-                          <SelectItem key={location.id} value={location.id}>
-                            {location.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!selectedCustomer && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Select a customer first to see available locations
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="gate">Gate</Label>
-                    <Select
-                      value={selectedGate}
-                      onValueChange={setSelectedGate}
-                      disabled={!selectedLocation}
-                    >
-                      <SelectTrigger id="gate">
-                        <SelectValue placeholder="Select gate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredGates.map((gate) => (
-                          <SelectItem key={gate.id} value={gate.id}>
-                            {gate.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedLocation && filteredGates.length === 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        No gates available for this location
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="barcode">Scan Barcode</Label>
-                    <div className="flex mt-1">
-                      <Input
-                        id="barcode"
-                        placeholder="Scan or enter barcode"
-                        value={barcode}
-                        onChange={(e) => setBarcode(e.target.value)}
-                        className="flex-1"
-                        disabled={!selectedGate}
-                      />
-                      <Button 
-                        onClick={handleScan} 
-                        type="button" 
-                        className="ml-2"
-                        disabled={!selectedGate}
-                      >
-                        <Barcode className="h-4 w-4 mr-2" />
-                        Scan
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={handleProcess} 
-                    disabled={scannedItems.length === 0 || isProcessing} 
-                    className="w-full"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <DoorOpen className="h-4 w-4 mr-2" />
-                        Process {activeTab === "in" ? "Receiving" : "Dispatch"}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Inventory Movements</h2>
+            <Button
+              onClick={() => {
+                setIsDialogOpen(true);
+                setIsScanning(true);
+              }}
+              disabled={!userHasPermission}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Movement
+            </Button>
           </div>
 
-          <div className="md:col-span-2">
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Scanned Items</CardTitle>
-                <CardDescription>
-                  {scannedItems.length} item(s) scanned
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {scannedItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 border border-dashed rounded-md p-6">
-                    <Box className="h-12 w-12 text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No items scanned yet</p>
-                    <p className="text-sm text-muted-foreground max-w-md text-center mt-1">
-                      Select a customer and location, then scan items to add them to the list.
-                    </p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-4">
-                      {scannedItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between items-center p-3 border rounded-md hover:bg-accent transition-colors"
+          <div className="flex items-center gap-4">
+            <Input
+              placeholder="Search movements..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Inventory ID</TableHead>
+                  <TableHead>Gate</TableHead>
+                  <TableHead>Movement</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>To</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMovements.map((movement) => {
+                  // Display From using previous_location_id (customer location name if available)
+                  const fromLocation = customerLocationsMap.get(movement.previous_location_id) || movement.previous_location_id || '';
+                  const toLocation = customerLocationsMap.get(movement.customer_location_id) || movement.customer_location_id || '';
+                  return (
+                    <TableRow key={movement.id}>
+                      <TableCell>{movement.inventory_code}</TableCell>
+                      <TableCell>{movement.gate_name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={movement.movement_type === 'IN' ? 'secondary' : 'outline'}
+                          className={movement.movement_type === 'IN' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}
                         >
-                          <div className="flex flex-col">
-                            <div className="flex items-center">
-                              <span className="font-medium">{item.id}</span>
-                              <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                                {item.type}
-                              </span>
-                            </div>
-                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                              <span>Customer: {item.customer}</span>
-                              {item.project && <span>Project: {item.project}</span>}
-                              <span className="flex items-center">
-                                <IndianRupee className="h-3 w-3 mr-1" /> 
-                                {item.hourlyRentalCost}/hr
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => viewItemDetails(item)}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.5}
-                                stroke="currentColor"
-                                className="w-4 h-4 text-destructive"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </Button>
+                          {movement.movement_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-blue-900">{fromLocation}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-green-900">{toLocation}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded font-semibold text-xs
+                          ${movement.status === 'In-Stock' ? 'bg-green-100 text-green-800' : ''}
+                          ${movement.status === 'In-Transit' ? 'bg-yellow-100 text-yellow-800' : ''}
+                          ${movement.status === 'Lost' ? 'bg-red-100 text-red-800' : ''}
+                          ${!['In-Stock','In-Transit','Lost'].includes(movement.status) ? 'bg-gray-100 text-gray-800' : ''}
+                        `}>
+                          {movement.status || inventoryStatusMap.get(movement.inventory_id) || 'Unknown'}
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatTimestamp(movement.timestamp)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {hasMoreMovements && (
+            <div className="flex justify-center py-4">
+              <Button
+                onClick={() => {
+                  setIsLoadingMore(true);
+                  const nextPage = page + 1;
+                  const nextSlice = allMovements.slice(0, (nextPage + 1) * PAGE_SIZE);
+                  setDisplayedMovements(nextSlice);
+                  setPage(nextPage);
+                  setHasMoreMovements(allMovements.length > nextSlice.length);
+                  setIsLoadingMore(false);
+                }}
+                disabled={isLoadingMore}
+              >
+                Load more
+              </Button>
+            </div>
+          )}
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>New Movement</DialogTitle>
+                <DialogDescription>
+                  {isScanning ? (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="movement_type">Movement Type</Label>
+                        <Select
+                          value={formData.movement_type || 'out'}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({ ...prev, movement_type: value }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select movement type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="in">IN - Move from Customer Location to Base Location</SelectItem>
+                            <SelectItem value="out">OUT - Move from Base Location to Customer Location</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Scan Inventory Items</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Scan Inventory ID"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleInventoryScan(e.currentTarget.value);
+                                e.currentTarget.value = '';
+                              }
+                            }}
+                          />
+                          <Button 
+                            type="button" 
+                            onClick={handleNext}
+                            disabled={scannedItems.length === 0}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                      {scannedItems.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Scanned Items</Label>
+                          <div className="space-y-1">
+                            {scannedItems.map((item, index) => (
+                              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
+                                <span>{index + 1}. {item.rfid_tag}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setScannedItems(prev => prev.filter(i => i.id !== item.id));
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                  ) : (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="customer_id">Customer</Label>
+                        <Select
+                          value={formData.customer_id || ''}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              customer_id: value,
+                              customer_location_from_id: '',
+                              customer_location_to_id: ''
+                            }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customers && customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="customer_location_from_id">Customer Location (From)</Label>
+                        <Select
+                          value={formData.customer_location_from_id || ''}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({ ...prev, customer_location_from_id: value }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer location (From)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customerLocations.length > 0 ? (
+                              customerLocations.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  {location.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no_customer_selected" disabled>
+                                Please select a customer first
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="customer_location_to_id">Customer Location (To)</Label>
+                        <Select
+                          value={formData.customer_location_to_id || ''}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({ ...prev, customer_location_to_id: value }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer location (To)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customerLocations.length > 0 ? (
+                              customerLocations.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  {location.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no_customer_selected" disabled>
+                                Please select a customer first
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="gate_id">Gate</Label>
+                        <Select
+                          value={formData.gate_id || ''}
+                          onValueChange={(value) => {
+                            setFormData(prev => ({ ...prev, gate_id: value }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gate" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {gates && gates.map((gate) => (
+                              <SelectItem key={gate.id} value={gate.id}>
+                                {gate.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="remark">Remark (optional)</Label>
+                        <Input
+                          id="remark"
+                          placeholder="Enter notes or remarks"
+                          value={formData.remark}
+                          onChange={(e) => setFormData(prev => ({ ...prev, remark: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-left">From</Label>
+                          <Label className="text-right">To</Label>
+                        </div>
+                        <div className="relative">
+                          {/* Movement Icon */}
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                            <Truck className={`w-8 h-8 ${formData.movement_type === 'in' ? 'text-blue-500' : 'text-red-500'}`} />
+                          </div>
+                          
+                          {/* Locations */}
+                          <div className="flex justify-between items-center">
+                            <Badge variant="secondary" className={`px-4 py-2 ${formData.movement_type === 'in' ? 'bg-blue-100 text-blue-800' : 'bg-blue-100 text-blue-800'}`}>
+                              {formData.movement_type === 'in' ? (
+                                customerLocations.find(loc => loc.id === formData.customer_location_from_id)?.name || 'Customer Location'
+                              ) : (
+                                locations.find(loc => loc.id === settings?.base_location_id)?.name || 'Base Location'
+                              )}
+                            </Badge>
+                            <Badge variant="secondary" className={`px-4 py-2 ${formData.movement_type === 'in' ? 'bg-green-100 text-green-800' : 'bg-green-100 text-green-800'}`}>
+                              {formData.movement_type === 'in' ? (
+                                locations.find(loc => loc.id === settings?.base_location_id)?.name || 'Base Location'
+                              ) : (
+                                customerLocations.find(loc => loc.id === formData.customer_location_to_id)?.name || 'Customer Location'
+                              )}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsScanning(true)}>
+                          Back
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          onClick={handleCreateMovement}
+                          disabled={scannedItems.length === 0}
+                        >
+                          Process Movements
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );
 };
-
-export default Movement;

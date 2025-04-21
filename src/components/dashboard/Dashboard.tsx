@@ -13,15 +13,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Dashboard = () => {
-  const [inventoryCounts, setInventoryCounts] = useState({
+  const [inventoryCounts, setInventoryCounts] = useState<{
+    total: number;
+    inStock: number;
+    inTransit: number;
+    received: number;
+    returned: number;
+  }>({
     total: 0,
     inStock: 0,
-    inWip: 0,
-    dispatched: 0,
-    damaged: 0
+    inTransit: 0,
+    received: 0,
+    returned: 0
   });
   
-  const [inventoryByLocation, setInventoryByLocation] = useState<{location: string, count: number}[]>([]);
+  const [inventoryByLocation, setInventoryByLocation] = useState<{
+    location: string;
+    count: number;
+  }[]>([]);
   const [wipRentalTotal, setWipRentalTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -29,63 +38,111 @@ export const Dashboard = () => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
       try {
-        // Get inventory counts by status
-        const { data: binsData, error: countError } = await supabase
-          .from('bins')
-          .select('id, status');
-        
-        if (countError) throw countError;
-        
-        if (binsData) {
-          const total = binsData.length || 0;
-          const inStock = binsData.filter(bin => bin.status === 'in-stock').length || 0;
-          const inWip = binsData.filter(bin => bin.status === 'in-wip').length || 0;
-          const dispatched = binsData.filter(bin => bin.status === 'dispatched').length || 0;
-          const damaged = binsData.filter(bin => bin.status === 'damaged').length || 0;
-          
-          setInventoryCounts({
-            total,
-            inStock,
-            inWip,
-            dispatched,
-            damaged
-          });
+        // Efficient counts with Supabase head+count
+        const [{ count: total, error: totalErr },
+               { count: inStock, error: inStockErr },
+               { count: inTransit, error: inTransitErr },
+               { count: received, error: receivedErr },
+               { count: returned, error: returnedErr }]
+          = await Promise.all([
+            supabase.from('inventory').select('id', { count: 'exact', head: true }),
+            supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('status', 'In-Stock'),
+            supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('status', 'In-Transit'),
+            supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('status', 'Received'),
+            supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('status', 'Returned')
+          ]);
+        if (totalErr || inStockErr || inTransitErr || receivedErr || returnedErr) {
+          throw totalErr || inStockErr || inTransitErr || receivedErr || returnedErr;
         }
+        setInventoryCounts({
+          total: total || 0,
+          inStock: inStock || 0,
+          inTransit: inTransit || 0,
+          received: received || 0,
+          returned: returned || 0
+        });
           
-        // Get inventory counts by location
-        const { data: locationData, error: locationError } = await supabase
-          .from('bins')
-          .select('location');
-        
-        if (locationError) throw locationError;
-        
-        if (locationData) {
-          const locations = locationData.reduce((acc, bin) => {
-            const locationName = bin.location;
-            acc[locationName] = (acc[locationName] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-          
-          const formattedLocationData = Object.entries(locations).map(([location, count]) => ({
-            location,
-            count
-          }));
-          
-          setInventoryByLocation(formattedLocationData);
+        // Fetch all inventory and latest movements to include customer locations
+        const items: { id: string; location_id: string | null }[] = [];
+        let start = 0;
+        const BATCH = 1000;
+        while (true) {
+          const { data: batchData, error: batchErr } = await supabase
+            .from('inventory')
+            .select('id, location_id')
+            .range(start, start + BATCH - 1);
+          if (batchErr) throw batchErr;
+          if (!batchData || batchData.length === 0) break;
+          items.push(...batchData);
+          if (batchData.length < BATCH) break;
+          start += BATCH;
         }
-        
+
+        // Latest movement per inventory
+        let movStart = 0;
+        const movements: { inventory_id: string; customer_location_id: string | null }[] = [];
+        while (true) {
+          const { data: batchMov, error: batchMovErr } = await supabase
+            .from('inventory_movements')
+            .select('inventory_id, customer_location_id')
+            .order('timestamp', { ascending: false })
+            .range(movStart, movStart + BATCH - 1);
+          if (batchMovErr) throw batchMovErr;
+          if (!batchMov || batchMov.length === 0) break;
+          movements.push(...batchMov);
+          if (batchMov.length < BATCH) break;
+          movStart += BATCH;
+        }
+        const movementMap = new Map<string, string>();
+        movements.forEach(m => {
+          if (m.inventory_id && m.customer_location_id && !movementMap.has(m.inventory_id)) {
+            movementMap.set(m.inventory_id, m.customer_location_id);
+          }
+        });
+
+        // Collect all location IDs from movements and defaults
+        const movedLocIds = new Set(movementMap.values());
+        const defaultLocIds = new Set(items.map(i => i.location_id));
+        const allLocIds = new Set([...movedLocIds, ...defaultLocIds]);
+
+        // Fetch customer location names
+        const { data: movLocData, error: movLocErr } = await supabase
+          .from('customer_locations')
+          .select('id, location_name')
+          .in('id', Array.from(movedLocIds));
+        if (movLocErr) throw movLocErr;
+
+        // Fetch default location names
+        const { data: defLocData, error: defLocErr } = await supabase
+          .from('locations')
+          .select('id, name')
+          .in('id', Array.from(defaultLocIds));
+        if (defLocErr) throw defLocErr;
+
+        // Merge into map
+        const locEntries: [string,string][] = [
+          ...(movLocData?.map(l => [l.id, l.location_name] as [string,string]) ?? []),
+          ...(defLocData?.map(l => [l.id, l.name] as [string,string]) ?? [])
+        ];
+        const locMap = new Map<string,string>(locEntries);
+
+        // Build counts by resolved location
+        const invByLoc = Array.from(allLocIds).map(locId => {
+          const locationName = locMap.get(locId) || 'Unknown';
+          const count = items.filter(item => (movementMap.get(item.id) || item.location_id) === locId).length;
+          return { location: locationName, count };
+        });
+        setInventoryByLocation(invByLoc);
+
         // Calculate rental costs for WIP inventory
         const { data: rentalData, error: rentalError } = await supabase
-          .from('bins')
-          .select('id, customer_location_id, inventory_type')
-          .eq('status', 'in-wip');
+          .from('inventory')
+          .select('id, type_id')
+          .eq('status', 'In-Transit');
         
         if (rentalError) throw rentalError;
         
         if (rentalData) {
-          // This is a simplified calculation - in a real app, you would need to
-          // join with customer_locations to get the actual rental rates
-          // Here we're assuming a fixed rate of 50 per item in WIP
           const totalRental = (rentalData.length || 0) * 50;
           setWipRentalTotal(totalRental);
         }
@@ -148,18 +205,18 @@ export const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                In WIP
+                In Transit
               </CardTitle>
               <Package2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inventoryCounts.inWip}</div>
+              <div className="text-2xl font-bold">{inventoryCounts.inTransit}</div>
               <Progress 
-                value={(inventoryCounts.inWip / (inventoryCounts.total || 1)) * 100} 
+                value={(inventoryCounts.inTransit / (inventoryCounts.total || 1)) * 100} 
                 className="h-2 mt-2 bg-yellow-100"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.round((inventoryCounts.inWip / (inventoryCounts.total || 1)) * 100)}% of total inventory
+                {Math.round((inventoryCounts.inTransit / (inventoryCounts.total || 1)) * 100)}% of total inventory
               </p>
             </CardContent>
           </Card>
@@ -167,18 +224,18 @@ export const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Dispatched
+                Received
               </CardTitle>
               <Truck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inventoryCounts.dispatched}</div>
+              <div className="text-2xl font-bold">{inventoryCounts.received}</div>
               <Progress 
-                value={(inventoryCounts.dispatched / (inventoryCounts.total || 1)) * 100} 
+                value={(inventoryCounts.received / (inventoryCounts.total || 1)) * 100} 
                 className="h-2 mt-2 bg-green-100"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.round((inventoryCounts.dispatched / (inventoryCounts.total || 1)) * 100)}% of total inventory
+                {Math.round((inventoryCounts.received / (inventoryCounts.total || 1)) * 100)}% of total inventory
               </p>
             </CardContent>
           </Card>
@@ -217,122 +274,88 @@ export const Dashboard = () => {
               )}
             </CardContent>
           </Card>
-          
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <IndianRupee className="h-4 w-4 mr-2" />
-                WIP Rental Information
-              </CardTitle>
+              <CardTitle>Inventory Status Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex flex-col">
-                  <div className="text-3xl font-bold">₹{wipRentalTotal.toFixed(2)}</div>
-                  <div className="text-sm text-muted-foreground">Total Rental Cost for WIP Items</div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="border p-3 rounded-md">
-                    <div className="text-xl font-medium">{inventoryCounts.inWip}</div>
-                    <div className="text-sm text-muted-foreground">Items in WIP</div>
+              <div className="relative h-60">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative h-40 w-40">
+                    <svg className="h-full w-full" viewBox="0 0 20 20">
+                      <circle r="10" cx="10" cy="10" fill="white" />
+                      <circle 
+                        r="5" 
+                        cx="10" 
+                        cy="10" 
+                        fill="transparent"
+                        stroke="#3b82f6"
+                        strokeWidth="10"
+                        strokeDasharray={`${(inventoryCounts.inStock / (inventoryCounts.total || 1)) * 31.4} 31.4`}
+                        transform="rotate(-90) translate(-20)"
+                      />
+                      <circle 
+                        r="5" 
+                        cx="10" 
+                        cy="10" 
+                        fill="transparent"
+                        stroke="#fcd34d"
+                        strokeWidth="10"
+                        strokeDasharray={`${(inventoryCounts.inTransit / (inventoryCounts.total || 1)) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * (inventoryCounts.inStock / (inventoryCounts.total || 1)) * 31.4}`}
+                        transform="rotate(-90) translate(-20)"
+                      />
+                      <circle 
+                        r="5" 
+                        cx="10" 
+                        cy="10" 
+                        fill="transparent"
+                        stroke="#10b981"
+                        strokeWidth="10"
+                        strokeDasharray={`${(inventoryCounts.received / (inventoryCounts.total || 1)) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * ((inventoryCounts.inStock + inventoryCounts.inTransit) / (inventoryCounts.total || 1)) * 31.4}`}
+                        transform="rotate(-90) translate(-20)"
+                      />
+                      <circle 
+                        r="5" 
+                        cx="10" 
+                        cy="10" 
+                        fill="transparent"
+                        stroke="#ef4444"
+                        strokeWidth="10"
+                        strokeDasharray={`${(inventoryCounts.returned / (inventoryCounts.total || 1)) * 31.4} 31.4`}
+                        strokeDashoffset={`${-1 * ((inventoryCounts.inStock + inventoryCounts.inTransit + inventoryCounts.received) / (inventoryCounts.total || 1)) * 31.4}`}
+                        transform="rotate(-90) translate(-20)"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-bold">{inventoryCounts.total}</span>
+                    </div>
                   </div>
                   
-                  <div className="border p-3 rounded-md">
-                    <div className="text-xl font-medium">
-                      ₹{inventoryCounts.inWip > 0 
-                        ? (wipRentalTotal / inventoryCounts.inWip).toFixed(2) 
-                        : "0.00"}
+                  <div className="ml-8 space-y-2">
+                    <div className="flex items-center">
+                      <div className="mr-2 h-3 w-3 rounded-full bg-blue-500"></div>
+                      <span className="text-sm font-medium">In Stock: {inventoryCounts.inStock}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground">Average Cost per Item</div>
+                    <div className="flex items-center">
+                      <div className="mr-2 h-3 w-3 rounded-full bg-yellow-400"></div>
+                      <span className="text-sm font-medium">In Transit: {inventoryCounts.inTransit}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="mr-2 h-3 w-3 rounded-full bg-green-500"></div>
+                      <span className="text-sm font-medium">Received: {inventoryCounts.received}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="mr-2 h-3 w-3 rounded-full bg-red-500"></div>
+                      <span className="text-sm font-medium">Returned: {inventoryCounts.returned}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Inventory Status Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative h-60">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative h-40 w-40">
-                  <svg className="h-full w-full" viewBox="0 0 20 20">
-                    <circle r="10" cx="10" cy="10" fill="white" />
-                    <circle 
-                      r="5" 
-                      cx="10" 
-                      cy="10" 
-                      fill="transparent"
-                      stroke="#3b82f6"
-                      strokeWidth="10"
-                      strokeDasharray={`${(inventoryCounts.inStock / (inventoryCounts.total || 1)) * 31.4} 31.4`}
-                      transform="rotate(-90) translate(-20)"
-                    />
-                    <circle 
-                      r="5" 
-                      cx="10" 
-                      cy="10" 
-                      fill="transparent"
-                      stroke="#fcd34d"
-                      strokeWidth="10"
-                      strokeDasharray={`${(inventoryCounts.inWip / (inventoryCounts.total || 1)) * 31.4} 31.4`}
-                      strokeDashoffset={`${-1 * (inventoryCounts.inStock / (inventoryCounts.total || 1)) * 31.4}`}
-                      transform="rotate(-90) translate(-20)"
-                    />
-                    <circle 
-                      r="5" 
-                      cx="10" 
-                      cy="10" 
-                      fill="transparent"
-                      stroke="#10b981"
-                      strokeWidth="10"
-                      strokeDasharray={`${(inventoryCounts.dispatched / (inventoryCounts.total || 1)) * 31.4} 31.4`}
-                      strokeDashoffset={`${-1 * ((inventoryCounts.inStock + inventoryCounts.inWip) / (inventoryCounts.total || 1)) * 31.4}`}
-                      transform="rotate(-90) translate(-20)"
-                    />
-                    <circle 
-                      r="5" 
-                      cx="10" 
-                      cy="10" 
-                      fill="transparent"
-                      stroke="#ef4444"
-                      strokeWidth="10"
-                      strokeDasharray={`${(inventoryCounts.damaged / (inventoryCounts.total || 1)) * 31.4} 31.4`}
-                      strokeDashoffset={`${-1 * ((inventoryCounts.inStock + inventoryCounts.inWip + inventoryCounts.dispatched) / (inventoryCounts.total || 1)) * 31.4}`}
-                      transform="rotate(-90) translate(-20)"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-bold">{inventoryCounts.total}</span>
-                  </div>
-                </div>
-                
-                <div className="ml-8 space-y-2">
-                  <div className="flex items-center">
-                    <div className="mr-2 h-3 w-3 rounded-full bg-blue-500"></div>
-                    <span className="text-sm font-medium">In Stock: {inventoryCounts.inStock}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="mr-2 h-3 w-3 rounded-full bg-yellow-400"></div>
-                    <span className="text-sm font-medium">In WIP: {inventoryCounts.inWip}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="mr-2 h-3 w-3 rounded-full bg-green-500"></div>
-                    <span className="text-sm font-medium">Dispatched: {inventoryCounts.dispatched}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="mr-2 h-3 w-3 rounded-full bg-red-500"></div>
-                    <span className="text-sm font-medium">Damaged: {inventoryCounts.damaged}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </ScrollArea>
   );
