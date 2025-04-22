@@ -50,10 +50,8 @@ import { Box, IndianRupee, Search } from "lucide-react";
 import { Location, InventoryType } from "@/types";
 import { PERMISSIONS } from "@/utils/permissions";
 
-// Import the DatabaseInventory type from supabase.types.ts
-import { Database } from "@/types/supabase.types";
-
-type DatabaseInventory = Database['public']['Tables']['inventory']['Row'];
+// TODO: Replace `any` with generated Supabase types once available
+type DatabaseInventory = any;
 
 // Type for transformed inventory items with Date objects
 type TransformedInventoryItem = {
@@ -149,7 +147,7 @@ export default function Inventory() {
 
   // Form state for Add mode
   const [addFormData, setAddFormData] = useState<FormData>(() => ({
-    id: crypto.randomUUID(),
+    id: uuidv4(),
     project: "",
     partition: "",
     serial_number: "",
@@ -267,7 +265,7 @@ export default function Inventory() {
 
   const resetAddForm = () => {
     setAddFormData({
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       project: "",
       partition: "",
       serial_number: "",
