@@ -22,6 +22,13 @@ fi
 # Link to project (ensure SUPABASE_PROJECT_REF env var or modify below)
 # Uncomment and set your project ref if not already linked:
 # supabase link --project-ref "$SUPABASE_PROJECT_REF"
+# Optionally link for remote, but remove project_id for pure local usage
+# supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+# Strip out any project_id from local config to avoid contacting remote
+if [ -f "supabase/config.toml" ]; then
+  sed -i '/^project_id/d' supabase/config.toml
+fi
 
 # Start Supabase local stack in background
 echo "Starting Supabase local stack..."
