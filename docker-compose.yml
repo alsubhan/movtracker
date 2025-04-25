@@ -3,10 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: "http://localhost:54321"
+        VITE_SUPABASE_ANON_KEY: "${VITE_SUPABASE_ANON_KEY}"
     ports:
       - "3000:80"
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - VITE_SUPABASE_URL=http://localhost:54321
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
