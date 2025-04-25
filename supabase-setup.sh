@@ -12,8 +12,8 @@ set -e
 if ! command -v supabase >/dev/null 2>&1; then
   echo "Installing Supabase CLI via GitHub release..."
   # Download and install latest Supabase CLI
-  # remove any stale binary
-  rm -f supabase
+  # remove any stale binary or directory
+  rm -rf supabase
   # download and extract
   curl -L "https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz" \
     | tar xz supabase
