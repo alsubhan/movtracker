@@ -10,11 +10,13 @@ set -e
 
 # Ensure Supabase CLI is installed
 if ! command -v supabase >/dev/null 2>&1; then
-  echo "Installing Supabase CLI..."
-  curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  echo "Installing Supabase CLI via apt..."
+  # Add Supabase apt repository
+  curl -L https://apt.fury.io/supabase/gpg.key | sudo tee /usr/share/keyrings/supabase-archive-keyring.gpg > /dev/null
+  echo "deb [signed-by=/usr/share/keyrings/supabase-archive-keyring.gpg] https://apt.fury.io/supabase/ /" \
+    | sudo tee /etc/apt/sources.list.d/supabase-cli.list
   sudo apt-get update
-  sudo apt-get install -y pkg-config libssl-dev
-  sudo npm install -g supabase
+  sudo apt-get install -y supabase-cli
 fi
 
 # Link to project (ensure SUPABASE_PROJECT_REF env var or modify below)
