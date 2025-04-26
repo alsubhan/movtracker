@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -174,6 +174,12 @@ export default function Movement() {
   // Map to store id -> location_name for all customer locations (including previous_location_id and customer_location_id)
   const [customerLocationsMap, setCustomerLocationsMap] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
+  const lastItemRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (lastItemRef.current) {
+      lastItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [scannedItems]);
 
   // Pagination for movements list
   const PAGE_SIZE = 500;
@@ -367,13 +373,22 @@ export default function Movement() {
 
   const fetchInventoryItems = async () => {
     try {
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
-        .order('rfid_tag');
-
-      if (error) throw error;
-      return data || [];
+      const allItems: InventoryItem[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
+          .order('rfid_tag')
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allItems.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allItems;
     } catch (error) {
       console.error('Error fetching inventory items:', error);
       toast({
@@ -940,97 +955,98 @@ export default function Movement() {
             />
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Inventory ID</TableHead>
-                  <TableHead>Gate</TableHead>
-                  <TableHead>Movement</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMovements.map((movement) => {
-                  // Display From using previous_location_id (customer location name if available)
-                  const fromLocation = customerLocationsMap.get(movement.previous_location_id) || movement.previous_location_id || '';
-                  const toLocation = customerLocationsMap.get(movement.customer_location_id) || movement.customer_location_id || '';
-                  return (
-                    <TableRow key={movement.id}>
-                      <TableCell>{movement.inventory_code}</TableCell>
-                      <TableCell>{movement.gate_name}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={movement.movement_type === 'IN' ? 'secondary' : 'outline'}
-                          className={movement.movement_type === 'IN' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}
-                        >
-                          {movement.movement_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium text-blue-900">{fromLocation}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium text-green-900">{toLocation}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded font-semibold text-xs
-                          ${movement.status === 'In-Stock' ? 'bg-green-100 text-green-800' : ''}
-                          ${movement.status === 'In-Transit' ? 'bg-yellow-100 text-yellow-800' : ''}
-                          ${movement.status === 'Lost' ? 'bg-red-100 text-red-800' : ''}
-                          ${!['In-Stock','In-Transit','Lost'].includes(movement.status) ? 'bg-gray-100 text-gray-800' : ''}
-                        `}>
-                          {movement.status || inventoryStatusMap.get(movement.inventory_id) || 'Unknown'}
-                        </span>
-                      </TableCell>
-                      <TableCell>{formatTimestamp(movement.timestamp)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
+          <Card className="shadow-sm">
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Inventory ID</TableHead>
+                    <TableHead>Gate</TableHead>
+                    <TableHead>Movement</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>To</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMovements.map((movement) => {
+                    // Display From using previous_location_id (customer location name if available)
+                    const fromLocation = customerLocationsMap.get(movement.previous_location_id) || movement.previous_location_id || '';
+                    const toLocation = customerLocationsMap.get(movement.customer_location_id) || movement.customer_location_id || '';
+                    return (
+                      <TableRow key={movement.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <TableCell>{movement.inventory_code}</TableCell>
+                        <TableCell>{movement.gate_name}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={movement.movement_type === 'IN' ? 'secondary' : 'outline'}
+                            className={movement.movement_type === 'IN' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}
                           >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {hasMoreMovements && (
-            <div className="flex justify-center py-4">
-              <Button
-                onClick={() => {
-                  setIsLoadingMore(true);
-                  const nextPage = page + 1;
-                  const nextSlice = allMovements.slice(0, (nextPage + 1) * PAGE_SIZE);
-                  setDisplayedMovements(nextSlice);
-                  setPage(nextPage);
-                  setHasMoreMovements(allMovements.length > nextSlice.length);
-                  setIsLoadingMore(false);
-                }}
-                disabled={isLoadingMore}
-              >
-                Load more
-              </Button>
-            </div>
-          )}
+                            {movement.movement_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium text-blue-900">{fromLocation}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium text-green-900">{toLocation}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded font-semibold text-xs
+                            ${movement.status === 'In-Stock' ? 'bg-green-100 text-green-800' : ''}
+                            ${movement.status === 'In-Transit' ? 'bg-yellow-100 text-yellow-800' : ''}
+                            ${movement.status === 'Lost' ? 'bg-red-100 text-red-800' : ''}
+                            ${!['In-Stock','In-Transit','Lost'].includes(movement.status) ? 'bg-gray-100 text-gray-800' : ''}
+                          `}>
+                            {movement.status || inventoryStatusMap.get(movement.inventory_id) || 'Unknown'}
+                          </span>
+                        </TableCell>
+                        <TableCell>{formatTimestamp(movement.timestamp)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+            {hasMoreMovements && (
+              <CardFooter className="flex justify-center">
+                <Button
+                  onClick={() => {
+                    setIsLoadingMore(true);
+                    const nextPage = page + 1;
+                    const nextSlice = allMovements.slice(0, (nextPage + 1) * PAGE_SIZE);
+                    setDisplayedMovements(nextSlice);
+                    setPage(nextPage);
+                    setHasMoreMovements(allMovements.length > nextSlice.length);
+                    setIsLoadingMore(false);
+                  }}
+                  disabled={isLoadingMore}
+                >
+                  Load more
+                </Button>
+              </CardFooter>
+            )}
+          </Card>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-[600px]">
@@ -1080,23 +1096,32 @@ export default function Movement() {
                       </div>
                       {scannedItems.length > 0 && (
                         <div className="space-y-2">
-                          <Label>Scanned Items</Label>
-                          <div className="space-y-1">
-                            {scannedItems.map((item, index) => (
-                              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                                <span>{index + 1}. {item.rfid_tag}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    setScannedItems(prev => prev.filter(i => i.id !== item.id));
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
+                          <div className="flex justify-between items-center">
+                            <Label>Scanned Items</Label>
+                            <span className="text-sm font-medium">Total: {scannedItems.length}</span>
                           </div>
+                          <ScrollArea className="h-48 w-full border rounded p-2">
+                            <div className="space-y-1">
+                              {scannedItems.map((item, index) => (
+                                <div
+                                  ref={index === scannedItems.length - 1 ? lastItemRef : undefined}
+                                  key={item.id}
+                                  className="flex items-center justify-between p-2 border rounded"
+                                >
+                                  <span>{index + 1}. {item.rfid_tag}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setScannedItems(prev => prev.filter(i => i.id !== item.id));
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
                         </div>
                       )}
                     </div>

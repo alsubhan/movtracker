@@ -32,7 +32,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CUSTOMER_MANAGEMENT,
   ] as PermissionKey[],
   operator: [
-    PERMISSIONS.BARCODE_PRINTING,
     PERMISSIONS.RECEIPT_MANAGEMENT,
   ] as PermissionKey[],
 };

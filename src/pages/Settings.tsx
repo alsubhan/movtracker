@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Barcode } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { hasPermission } from "@/hooks/useAuth";
@@ -31,7 +31,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
 import { Location, Customer } from "@/types";
 import { Loader2 } from "lucide-react";
-import { useLocation } from "react-router-dom";
 
 interface Settings {
   id: string;
@@ -82,7 +81,8 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
-  const tab = location.pathname.split("/").pop() || "company";
+  const initialTab = (location.pathname.split("/").pop() || "company") as "company" | "database";
+  const [activeTab, setActiveTab] = useState<"company" | "database">(initialTab);
 
   async function fetchSettingsSchema() {
     try {
@@ -306,10 +306,10 @@ const Settings = () => {
         </Button>
       </div>
 
-      <Tabs value={tab} className="w-full">
-        <TabsList className="hidden">
+      <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as "company" | "database")} className="space-y-4">
+        <TabsList>
           <TabsTrigger value="company">Company Info</TabsTrigger>
-          <TabsTrigger value="ui">UI Settings</TabsTrigger>
+          <TabsTrigger value="database">Database</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="space-y-6">
@@ -487,46 +487,8 @@ const Settings = () => {
           </form>
         </TabsContent>
 
-        <TabsContent value="ui" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>UI Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="darkMode"
-                  checked={isDarkMode}
-                  onCheckedChange={setIsDarkMode}
-                />
-                <Label htmlFor="darkMode">Dark Mode</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="notifications"
-                  checked={enableNotifications}
-                  onCheckedChange={setEnableNotifications}
-                />
-                <Label htmlFor="notifications">Enable Notifications</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="autoSave"
-                  checked={autoSave}
-                  onCheckedChange={setAutoSave}
-                />
-                <Label htmlFor="autoSave">Auto Save</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="manualScanning"
-                  checked={enableManualScanning}
-                  onCheckedChange={setEnableManualScanning}
-                />
-                <Label htmlFor="manualScanning">Enable Manual Scanning</Label>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="database" className="space-y-6">
+          <DatabaseUtilityContent />
         </TabsContent>
       </Tabs>
     </div>

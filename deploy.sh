@@ -12,9 +12,11 @@ set -e
 REPO_URL="https://github.com/alsubhan/movtracker"
 BRANCH="prod"
 APP_DIR="/var/www/movtracker"
-# Server address and port
+# Server address and port for UI
 SERVER_IP=103.191.209.166
 SERVER_PORT=4173
+# API server port for database utilities
+API_SERVER_PORT=54320
 
 # Supabase environment
 export VITE_SUPABASE_URL="http://103.191.209.166:54321"
@@ -44,6 +46,7 @@ cd "$APP_DIR"
 cat > .env <<EOF
 VITE_SUPABASE_URL="$VITE_SUPABASE_URL"
 VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+VITE_API_URL="http://$SERVER_IP:$API_SERVER_PORT"
 EOF
 
 # Install Node dependencies and build

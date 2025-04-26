@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import type { Inventory } from "@/types/index";
 import { Trash2 } from "lucide-react";
 import { fetchLocations } from "@/utils/location";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type MovementItem = {
   id: string;
@@ -33,7 +34,8 @@ export default function Receipt() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [inventoryItems, setInventoryItems] = useState<Inventory[]>([]);
-  const [scannedItems, setScannedItems] = useState<MovementItem[]>([]);
+  const [scannedReceiveItems, setScannedReceiveItems] = useState<MovementItem[]>([]);
+  const [scannedReturnItems, setScannedReturnItems] = useState<MovementItem[]>([]);
   const [rfidTag, setRfidTag] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   // User's assigned location for validation
@@ -42,8 +44,11 @@ export default function Receipt() {
   const [tab, setTab] = useState<'receive'|'return'>('receive');
 
   const handleRemoveItem = (itemId: string) => {
-    setScannedItems(scannedItems.filter(item => item.id !== itemId));
-    setScannedItems(prev => prev.filter(item => item.id !== itemId));
+    if (tab === 'receive') {
+      setScannedReceiveItems(prev => prev.filter(item => item.id !== itemId));
+    } else {
+      setScannedReturnItems(prev => prev.filter(item => item.id !== itemId));
+    }
 
     toast({
       title: "Removed",
@@ -198,14 +203,23 @@ export default function Receipt() {
         if (dest) locationName = dest.name;
       }
 
-      const existingItem = scannedItems.find(item => item.id === data.id);
+      const existingItem = tab === 'receive' ? scannedReceiveItems.find(item => item.id === data.id) : scannedReturnItems.find(item => item.id === data.id);
       if (!existingItem) {
-        setScannedItems(prev => [...prev, {
-          id: data.id,
-          rfid_tag: rfidTag,
-          location: locationName,
-          status: data.status
-        } as MovementItem]);
+        if (tab === 'receive') {
+          setScannedReceiveItems(prev => [...prev, {
+            id: data.id,
+            rfid_tag: rfidTag,
+            location: locationName,
+            status: data.status
+          } as MovementItem]);
+        } else {
+          setScannedReturnItems(prev => [...prev, {
+            id: data.id,
+            rfid_tag: rfidTag,
+            location: locationName,
+            status: data.status
+          } as MovementItem]);
+        }
         toast({
           title: "Success",
           description: `Item ${rfidTag} scanned successfully`
@@ -229,15 +243,16 @@ export default function Receipt() {
 
   // Process all Receive or Return
   const handleProcessAll = async () => {
-    if (scannedItems.length === 0) {
-      toast({ title: 'Info', description: 'No items to receive' });
+    const itemsToProcess = tab === 'receive' ? scannedReceiveItems : scannedReturnItems;
+    if (itemsToProcess.length === 0) {
+      toast({ title: 'Info', description: tab === 'receive' ? 'No items to receive' : 'No items to return' });
       return;
     }
     try {
       const session = JSON.parse(localStorage.getItem('session') || '{}');
       const userId = session.user?.id;
       // Removed global batch reference. We'll reuse each item's outbound reference_id.
-      await Promise.all(scannedItems.map(async (item) => {
+      await Promise.all(itemsToProcess.map(async (item) => {
         // get last OUT movement (include reference_id) for location fields
         const { data: outMovement } = await supabase
           .from('inventory_movements')
@@ -296,7 +311,7 @@ export default function Receipt() {
         }
       }));
       toast({ title: 'Success', description: tab === 'receive' ? 'All items received' : 'All items returned' });
-      setScannedItems([]);
+      if (tab === 'receive') { setScannedReceiveItems([]); } else { setScannedReturnItems([]); }
     } catch (e) {
       console.error('Error receiving items:', e);
       toast({ title: 'Error', description: tab === 'receive' ? 'Failed to receive items' : 'Failed to return items', variant: 'destructive' });
@@ -332,8 +347,9 @@ export default function Receipt() {
           </div>
           <div className="space-y-2">
             <Label>{tab === 'receive' ? 'Scanned Items to Receive' : 'Scanned Items to Return'}</Label>
-            <div className="space-y-2">
-              {scannedItems.map((item) => (
+            <div className="text-sm text-muted-foreground">Total scanned items: {tab === 'receive' ? scannedReceiveItems.length : scannedReturnItems.length}</div>
+            <ScrollArea className="h-64 overflow-y-auto space-y-2">
+              {(tab === 'receive' ? scannedReceiveItems : scannedReturnItems).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
                   <div>
                     <span className="font-medium">{item.rfid_tag}</span>
@@ -350,8 +366,8 @@ export default function Receipt() {
                   </Button>
                 </div>
               ))}
-            </div>
-            {scannedItems.length > 0 && (
+            </ScrollArea>
+            {(tab === 'receive' ? scannedReceiveItems : scannedReturnItems).length > 0 && (
               <Button className="mt-2" onClick={handleProcessAll}>
                 {tab === 'receive' ? 'Receive All' : 'Return All'}
               </Button>

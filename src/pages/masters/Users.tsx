@@ -290,27 +290,6 @@ const Users = () => {
   }, []);
 
   useEffect(() => {
-    createProfilesRLSPolicy();
-  }, []);
-
-  const createProfilesRLSPolicy = async () => {
-    try {
-      const { error } = await supabase.rpc('create_profiles_rls_policy', {});
-      if (error) {
-        console.error('Error creating profiles RLS policy:', error);
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error creating profiles RLS policy:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create profiles RLS policy",
-        variant: "destructive"
-      });
-    }
-  };
-
-  useEffect(() => {
     fetchUsers();
   }, []);
 

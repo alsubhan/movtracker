@@ -809,24 +809,6 @@ export default function Inventory() {
     return type ? type.name : code;
   };
 
-  const createRLSPolicy = async () => {
-    try {
-      // Add an RLS policy to the profiles table to allow users to read all profiles
-      const { error } = await supabase.rpc('create_profiles_rls_policy');
-      
-      if (error) throw error;
-      
-      console.log('RLS policy created successfully');
-    } catch (error) {
-      console.error('Error creating RLS policy:', error);
-    }
-  };
-
-  useEffect(() => {
-    // Check if the RLS policy exists and create it if needed
-    createRLSPolicy();
-  }, []);
-
   if (!isProfileLoaded) {
     return null;
   }

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import Layout from "./components/layout/Layout";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
+import SettingsUI from "./pages/SettingsUI";
 import Users from "./pages/masters/Users";
 import Inventory from "./pages/masters/Inventory";
 import InventoryTypes from "./pages/masters/InventoryTypes";
@@ -98,10 +99,11 @@ function AppRoutes() {
         <Route path="movement" element={<Movement />} />
         <Route path="transactions/receipt" element={<Receipt />} />
         <Route path="reports" element={<Reports />} />
-        {/* Redirect base settings to Company Info tab */}
+        {/* Settings routes */}
         <Route path="settings" element={<Navigate to="/settings/company" replace />} />
-        {/* Catch all settings subroutes */}
-        <Route path="settings/*" element={<Settings />} />
+        <Route path="settings/company" element={<Settings />} />
+        <Route path="settings/database" element={<Settings />} />
+        <Route path="settings/ui" element={<SettingsUI />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
