@@ -40,6 +40,7 @@ export default function Receipt() {
   const [isScanning, setIsScanning] = useState(false);
   // User's assigned location for validation
   const [userLocationId, setUserLocationId] = useState<string | null>(null);
+  const [baseCustomerLocationId, setBaseCustomerLocationId] = useState<string | null>(null);
   const [locations, setLocations] = useState<{id: string; name: string}[]>([]);
   const [tab, setTab] = useState<'receive'|'return'>('receive');
 
@@ -114,6 +115,19 @@ export default function Receipt() {
           .eq('id', userId)
           .single();
         if (!profileError && profile) setUserLocationId(profile.customer_location_id);
+      }
+    })();
+
+    // Fetch base customer location from settings
+    (async () => {
+      const { data: settings, error: settingsError } = await supabase
+        .from('settings')
+        .select('base_customer_location_id')
+        .limit(1)
+        .maybeSingle();
+      
+      if (!settingsError && settings) {
+        setBaseCustomerLocationId(settings.base_customer_location_id);
       }
     })();
   }, []);
@@ -268,7 +282,7 @@ export default function Receipt() {
 
         const isReceive = tab === 'receive';
         const prevLoc = isReceive ? previousLocationId : customerLocationId;
-        const custLoc = isReceive ? customerLocationId : previousLocationId;
+        const custLoc = isReceive ? customerLocationId : baseCustomerLocationId;
 
         // reuse outbound reference_id (fallback to new if missing)
         const batchRef = outMovement?.reference_id ?? uuidv4();
@@ -295,7 +309,8 @@ export default function Receipt() {
             .update({
               status: 'Received',
               last_scan_time: new Date().toISOString(),
-              last_scan_gate: userLocationId
+              last_scan_gate: userLocationId,
+              last_customer_location_id: customerLocationId
             })
             .eq('id', item.id);
         } else if (tab === 'return') {
@@ -330,6 +345,17 @@ export default function Receipt() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {tab === 'return' && baseCustomerLocationId && (
+            <div className="space-y-2 mb-4">
+              <Label>Return Location</Label>
+              <div className="p-3 bg-muted rounded-md">
+                <div className="text-sm text-muted-foreground">Items will be returned to:</div>
+                <div className="font-medium">
+                  {locations.find(loc => loc.id === baseCustomerLocationId)?.name || 'Base Customer Location'}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="rfid">Scan Inventory ID</Label>
             <Input

@@ -37,7 +37,7 @@ const RentalReport = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   // Pagination
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 3000;
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   
@@ -49,7 +49,7 @@ const RentalReport = () => {
         // Fetch all OUT movements with customer and location
         const { data: movData, error: movErr } = await supabase
           .from('inventory_movements')
-          .select('inventory_id, customer_location_id, timestamp, movement_type, reference_id')
+          .select('inventory_id, customer_location_id, previous_location_id, timestamp, movement_type, reference_id, rental_rate')
           .eq('movement_type', 'out');
         if (movErr) throw movErr;
         const movements = movData ?? [];
@@ -88,7 +88,10 @@ const RentalReport = () => {
         if (typeErr) throw typeErr;
         const typeMap = new Map(typeData.map(t => [t.id, t.code]));
         // Fetch customer location details (rates, customer_id, location_name)
-        const locIds = uniqueMovements.map(m => m.customer_location_id).filter((id): id is string => Boolean(id));
+        const locIds = uniqueMovements
+          .flatMap(m => [m.customer_location_id, m.previous_location_id])
+          .filter((id): id is string => Boolean(id))
+          .filter((value, index, self) => self.indexOf(value) === index);
         const { data: locData, error: locErr } = await supabase
           .from('customer_locations')
           .select('id, customer_id, location_name, rental_rates')
@@ -109,13 +112,15 @@ const RentalReport = () => {
         const rentalReports: RentalReportType[] = validMovements.map(m => {
           const inv = invMap.get(m.inventory_id)!;
           const cl = locMapData.get(m.customer_location_id);
+          const prevCl = locMapData.get(m.previous_location_id);
           const customerName = cl ? (custMap.get(cl.customer_id) || cl.customer_id) : 'Unknown';
           const locationName = cl ? cl.location_name : 'Unknown';
           const rentalStartDate = new Date(m.timestamp);
           const daysRented = 7;
           // Determine rate key via fetched type code
           const typeCode = typeMap.get(inv.type_id) || inv.type_id || '';
-          const rentalCost = cl?.rental_rates[typeCode] ?? 0;
+          // Use the stored rental rate from the movement
+          const rentalCost = m.rental_rate ?? 0;
           return {
             inventoryId: inv.rfid_tag || inv.id,
             inventoryType: typeCode,

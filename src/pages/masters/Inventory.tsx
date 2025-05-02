@@ -192,7 +192,7 @@ export default function Inventory() {
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
   // Pagination for inventory list
-  const PAGE_SIZE = 500;
+  const PAGE_SIZE = 3000;
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 

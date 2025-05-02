@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -126,8 +126,9 @@ interface Customer {
 
 interface CustomerLocation {
   id: string;
-  name: string;
+  location_name: string;
   customer_id: string;
+  rental_rates?: Record<string, number>;
 }
 
 interface MovementItem {
@@ -155,6 +156,7 @@ export default function Movement() {
   const [gateTypes, setGateTypes] = useState<GateType[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
+  const [allLocations, setAllLocations] = useState<CustomerLocation[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [formData, setFormData] = useState<MovementData>({
@@ -170,9 +172,18 @@ export default function Movement() {
   const [userHasPermission, setUserHasPermission] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [inventoryIdFilter, setInventoryIdFilter] = useState<string>("");
+  const [movementTypeFilter, setMovementTypeFilter] = useState<string>("ALL");
+  const [fromLocationFilter, setFromLocationFilter] = useState<string>("ALL");
+  const [toLocationFilter, setToLocationFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [settings, setSettings] = useState<any>(null);
   // Map to store id -> location_name for all customer locations (including previous_location_id and customer_location_id)
   const [customerLocationsMap, setCustomerLocationsMap] = useState<Map<string, string>>(new Map());
+  // Map to store inventory status by inventory_id
+  const inventoryStatusMap = useMemo(() => new Map(inventoryItems.map(item => [item.id, item.status])), [inventoryItems]);
+
+  // Remove the duplicate declaration at the bottom of the file
   const { toast } = useToast();
   const lastItemRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -374,7 +385,7 @@ export default function Movement() {
   const fetchInventoryItems = async () => {
     try {
       const allItems: InventoryItem[] = [];
-      const pageSize = 1000;
+      const pageSize = 3000;
       let from = 0;
       while (true) {
         const { data, error } = await supabase
@@ -554,14 +565,25 @@ export default function Movement() {
       if (error) throw error;
       
       if (data) {
-        // Check if the item is in In-Stock status (only for OUT movements)
-        if (formData.movement_type === 'out' && data.status !== 'In-Stock') {
+        // Check if the item is in In-Stock or Received status (only for OUT movements)
+        if (formData.movement_type === 'out') {
+          if (data.status !== 'In-Stock' && data.status !== 'Received') {
+            toast({
+              title: "Error",
+              description: "This item is not In-Stock or Received.",
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+        
+        // Show warning for Received status items
+        if (formData.movement_type === 'out' && data.status === 'Received') {
           toast({
-            title: "Error",
-            description: "This item is not In-Stock.",
-            variant: "destructive"
+            title: "Warning",
+            description: "Moving item from Received status. This will transfer the item from one customer location to another without returning to base location.",
+            variant: "default"
           });
-          return;
         }
         // Additional checks for IN movements during scan
         if (formData.movement_type === 'in') {
@@ -742,17 +764,38 @@ export default function Movement() {
 
       if (inventoryError) throw inventoryError;
 
-      // Create movements with proper location references
-      const movements = scannedItems.map((item: MovementItem) => ({
-        inventory_id: item.id,
-        gate_id: formData.gate_id,
-        movement_type: formData.movement_type.toLowerCase(),
-        customer_location_id: formData.customer_location_to_id, // To
-        previous_location_id: formData.customer_location_from_id, // From
-        recorded_by: JSON.parse(localStorage.getItem('session')).user.id,
-        remark: formData.remark || null,
-        reference_id: referenceId
-      }));
+      // Fetch rental rates for all item types from the FROM location
+      const { data: inventoryTypes, error: typeFetchError } = await supabase
+        .from('inventory')
+        .select('id, type_id')
+        .in('id', scannedItems.map(item => item.id));
+
+      if (typeFetchError) throw typeFetchError;
+
+      const { data: fromLocationData, error: locationFetchError } = await supabase
+        .from('customer_locations')
+        .select('id, rental_rates')
+        .eq('id', formData.customer_location_from_id)
+        .single();
+
+      if (locationFetchError) throw locationFetchError;
+
+      // Create movements with proper location references and rental rates
+      const movements = scannedItems.map((item: MovementItem) => {
+        const typeCode = inventoryTypes.find(inv => inv.id === item.id)?.type_id || '';
+        const rentalRate = fromLocationData?.rental_rates[typeCode] ?? 0;
+        return {
+          inventory_id: item.id,
+          gate_id: formData.gate_id,
+          movement_type: formData.movement_type.toLowerCase(),
+          customer_location_id: formData.customer_location_to_id, // To
+          previous_location_id: formData.customer_location_from_id, // From
+          rental_rate: rentalRate,
+          recorded_by: JSON.parse(localStorage.getItem('session')).user.id,
+          remark: formData.remark || null,
+          reference_id: referenceId
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('inventory_movements')
@@ -820,18 +863,42 @@ export default function Movement() {
 
   const fetchCustomerLocations = async (customerId: string) => {
     try {
+      console.log('Fetching locations for customer:', customerId);
+      
+      // Fetch customer locations with rental rates
       const { data: customerLocations, error } = await supabase
         .from('customer_locations')
-        .select('id, location_name')
+        .select('id, location_name, rental_rates')
         .eq('customer_id', customerId)
         .order('location_name');
 
-      if (error) throw error;
-      return customerLocations?.map(loc => ({
+      if (error) {
+        console.error('Error fetching customer locations:', error);
+        throw error;
+      }
+
+      if (!customerLocations || customerLocations.length === 0) {
+        console.log('No locations found for customer:', customerId);
+        return [];
+      }
+
+      console.log('Raw customer locations:', customerLocations);
+
+      // Filter locations where rental rate is not zero
+      const filteredLocations = customerLocations.filter(loc => {
+        // Get the first rental rate value (assuming there's only one rate per location)
+        const rentalRate = Object.values(loc.rental_rates || {})[0] ?? 0;
+        console.log('Location:', loc.location_name, 'Rental rate:', rentalRate);
+        return rentalRate !== 0;
+      }).map(loc => ({
         id: loc.id,
-        name: loc.location_name,
+        location_name: loc.location_name,
         customer_id: customerId
-      })) || [];
+      }));
+
+      console.log('Filtered locations:', filteredLocations);
+
+      return filteredLocations;
     } catch (error) {
       console.error('Error fetching customer locations:', error);
       toast({
@@ -845,13 +912,60 @@ export default function Movement() {
 
   useEffect(() => {
     if (formData.customer_id) {
-      fetchCustomerLocations(formData.customer_id).then(data => {
-        setCustomerLocations(data);
-        if (data.length > 0) {
+      fetchCustomerLocations(formData.customer_id).then(async (data) => {
+        // Get all locations (without rental rate filtering)
+        const { data: allLocations, error } = await supabase
+          .from('customer_locations')
+          .select('*')
+          .eq('customer_id', formData.customer_id)
+          .order('location_name');
+
+        if (error) {
+          console.error('Error fetching all locations:', error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch customer locations",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Transform and filter locations based on movement type
+        // For OUT movement:
+        // - From: Filtered locations (non-zero rental rates)
+        // - To: All locations
+        // For IN movement:
+        // - From: All locations
+        // - To: Filtered locations (non-zero rental rates)
+        
+        // Get all locations
+        const allLocationsMapped = allLocations || [];
+
+        // Get the filtered locations (non-zero rental rates)
+        const filteredLocations = allLocationsMapped.filter(loc => {
+          // Get the first rental rate value (assuming there's only one rate per location)
+          const rentalRate = Object.values(loc.rental_rates || {})[0] ?? 0;
+          return rentalRate !== 0;
+        });
+
+        // Set locations based on movement type
+        if (formData.movement_type === 'out') {
+          setCustomerLocations(filteredLocations); // From: Filtered locations
+          setAllLocations(allLocationsMapped);     // To: All locations
+        } else {
+          setCustomerLocations(allLocationsMapped); // From: All locations
+          setAllLocations(filteredLocations);      // To: Filtered locations
+        }
+
+        if (data.length > 0 && allLocations?.length > 0) {
           setFormData(prev => ({
             ...prev,
-            customer_location_from_id: data[0].id,
-            customer_location_to_id: data[0].id
+            customer_location_from_id: formData.movement_type === 'out' 
+              ? filteredLocations[0]?.id 
+              : allLocationsMapped[0]?.id,
+            customer_location_to_id: formData.movement_type === 'out' 
+              ? allLocationsMapped[0]?.id 
+              : filteredLocations[0]?.id
           }));
         }
       }).catch(error => {
@@ -873,8 +987,20 @@ export default function Movement() {
   }, [formData.customer_id, toast]);
 
   const filteredMovements = displayedMovements.filter(
-    m => (m.customer_name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-         m.inventory_code.toLowerCase().includes(searchTerm.toLowerCase())
+    m => {
+      // Get location names
+      const fromLocation = customerLocationsMap.get(m.previous_location_id) || m.previous_location_id || '';
+      const toLocation = customerLocationsMap.get(m.customer_location_id) || m.customer_location_id || '';
+      
+      // Check all filters
+      return (
+        (!inventoryIdFilter || m.inventory_code.toLowerCase().includes(inventoryIdFilter.toLowerCase())) &&
+        (movementTypeFilter === "ALL" || m.movement_type === movementTypeFilter.toUpperCase()) &&
+        (fromLocationFilter === "ALL" || m.previous_location_id === fromLocationFilter) &&
+        (toLocationFilter === "ALL" || m.customer_location_id === toLocationFilter) &&
+        (statusFilter === "ALL" || (inventoryStatusMap?.get(m.inventory_id) ?? '').toLowerCase() === statusFilter.toLowerCase())
+      );
+    }
   );
 
   const isBaseCustomer = (customerId: string) => {
@@ -895,7 +1021,7 @@ export default function Movement() {
     return customerLocations;
   };
 
-  const inventoryStatusMap = new Map(inventoryItems.map(item => [item.id, item.status]));
+
 
   const handleNext = async () => {
     if (formData.movement_type === 'in') {
@@ -917,6 +1043,18 @@ export default function Movement() {
         }
       }
     }
+
+    // Reset all fields when switching screens
+    setFormData({
+      items: [],
+      movement_type: formData.movement_type, // Keep the selected movement type
+      customer_id: '',
+      customer_location_from_id: '',
+      customer_location_to_id: '',
+      gate_id: '',
+      remark: ''
+    });
+
     setIsScanning(false);
   };
 
@@ -946,13 +1084,88 @@ export default function Movement() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Input
-              placeholder="Search movements..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+            <div>
+              <Label htmlFor="inventoryId">Inventory ID</Label>
+              <Input
+                id="inventoryId"
+                placeholder="Filter by Inventory ID"
+                value={inventoryIdFilter}
+                onChange={(e) => setInventoryIdFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="movementType">Movement Type</Label>
+              <Select
+                value={movementTypeFilter}
+                onValueChange={(value) => setMovementTypeFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Movement Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="IN">IN</SelectItem>
+                  <SelectItem value="OUT">OUT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="fromLocation">From Location</Label>
+              <Select
+                value={fromLocationFilter}
+                onValueChange={(value) => setFromLocationFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by From Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  {Array.from(customerLocationsMap.entries()).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="toLocation">To Location</Label>
+              <Select
+                value={toLocationFilter}
+                onValueChange={(value) => setToLocationFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by To Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  {Array.from(customerLocationsMap.entries()).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="In-Stock">In-Stock</SelectItem>
+                  <SelectItem value="In-Transit">In-Transit</SelectItem>
+                  <SelectItem value="Received">Received</SelectItem>
+                  <SelectItem value="Returned">Returned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Card className="shadow-sm">
@@ -1061,6 +1274,14 @@ export default function Movement() {
                           value={formData.movement_type || 'out'}
                           onValueChange={(value) => {
                             setFormData(prev => ({ ...prev, movement_type: value }));
+                            // Reset location states when movement type changes
+                            if (value === 'out') {
+                              setCustomerLocations([]); // From: Will be populated with filtered locations when customer is selected
+                              setAllLocations([]);     // To: Will be populated with all locations when customer is selected
+                            } else {
+                              setCustomerLocations([]); // From: Will be populated with all locations when customer is selected
+                              setAllLocations([]);      // To: Will be populated with filtered locations when customer is selected
+                            }
                           }}
                         >
                           <SelectTrigger>
@@ -1165,16 +1386,18 @@ export default function Movement() {
                             <SelectValue placeholder="Select customer location (From)" />
                           </SelectTrigger>
                           <SelectContent>
-                            {customerLocations.length > 0 ? (
+                            {formData.movement_type === 'out' ? (
                               customerLocations.map((location) => (
                                 <SelectItem key={location.id} value={location.id}>
-                                  {location.name}
+                                  {location.location_name}
                                 </SelectItem>
                               ))
                             ) : (
-                              <SelectItem value="no_customer_selected" disabled>
-                                Please select a customer first
-                              </SelectItem>
+                              allLocations.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  {location.location_name}
+                                </SelectItem>
+                              ))
                             )}
                           </SelectContent>
                         </Select>
@@ -1192,16 +1415,18 @@ export default function Movement() {
                             <SelectValue placeholder="Select customer location (To)" />
                           </SelectTrigger>
                           <SelectContent>
-                            {customerLocations.length > 0 ? (
-                              customerLocations.map((location) => (
+                            {formData.movement_type === 'out' ? (
+                              allLocations.map((location) => (
                                 <SelectItem key={location.id} value={location.id}>
-                                  {location.name}
+                                  {location.location_name}
                                 </SelectItem>
                               ))
                             ) : (
-                              <SelectItem value="no_customer_selected" disabled>
-                                Please select a customer first
-                              </SelectItem>
+                              customerLocations.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  {location.location_name}
+                                </SelectItem>
+                              ))
                             )}
                           </SelectContent>
                         </Select>
@@ -1253,7 +1478,7 @@ export default function Movement() {
                           <div className="flex justify-between items-center">
                             <Badge variant="secondary" className={`px-4 py-2 ${formData.movement_type === 'in' ? 'bg-blue-100 text-blue-800' : 'bg-blue-100 text-blue-800'}`}>
                               {formData.movement_type === 'in' ? (
-                                customerLocations.find(loc => loc.id === formData.customer_location_from_id)?.name || 'Customer Location'
+                                customerLocations.find(loc => loc.id === formData.customer_location_from_id)?.location_name || 'Customer Location'
                               ) : (
                                 locations.find(loc => loc.id === settings?.base_location_id)?.name || 'Base Location'
                               )}
@@ -1262,7 +1487,7 @@ export default function Movement() {
                               {formData.movement_type === 'in' ? (
                                 locations.find(loc => loc.id === settings?.base_location_id)?.name || 'Base Location'
                               ) : (
-                                customerLocations.find(loc => loc.id === formData.customer_location_to_id)?.name || 'Customer Location'
+                                customerLocations.find(loc => loc.id === formData.customer_location_to_id)?.location_name || 'Customer Location'
                               )}
                             </Badge>
                           </div>

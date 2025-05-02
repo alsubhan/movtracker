@@ -63,6 +63,7 @@ export interface Inventory {
   inventoryType?: string;
   lastScanTime: Date;
   lastScanGate: string;
+  last_customer_location_id: string | null;
   createdAt: Date;
 }
 
@@ -86,7 +87,13 @@ export interface CustomerLocation {
 
 export interface Customer {
   id: string;
+  code: string;
   name: string;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status?: string | null;
+  created_at?: string;
   locations?: CustomerLocation[];  // Optional array of locations associated with the customer
 }
 

@@ -30,6 +30,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import DatabaseUtilityContent from "./utilities/DatabaseUtilityContent";
 import { Location, Customer } from "@/types";
+
+interface CustomerLocation {
+  id: string;
+  customer_id: string;
+  location_name: string;
+  rental_rates: any;
+  status: "active" | "inactive";
+}
 import { Loader2 } from "lucide-react";
 
 interface Settings {
@@ -45,6 +53,7 @@ interface Settings {
   footer_text: string;
   base_location_id: string;
   base_customer_id: string;
+  base_customer_location_id: string | null;
   default_code_type: 'customer' | 'type' | 'company';
   created_at: string;
   updated_at: string;
@@ -63,6 +72,7 @@ const initialSettings: Settings = {
   footer_text: "",
   base_location_id: "none",
   base_customer_id: "none",
+  base_customer_location_id: null,
   default_code_type: 'company',
   created_at: "",
   updated_at: ""
@@ -78,6 +88,40 @@ const Settings = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
+
+  // Update customer locations when base customer changes
+  useEffect(() => {
+    const fetchCustomerLocations = async () => {
+      try {
+        if (formData.base_customer_id !== 'none') {
+          const { data, error } = await supabase
+            .from('customer_locations')
+            .select('*')
+            .eq('customer_id', formData.base_customer_id);
+          
+          if (error) throw error;
+          
+          if (data) {
+            const typedCustomerLocations = data.map(loc => ({
+              id: loc.id,
+              customer_id: loc.customer_id,
+              location_name: loc.location_name,
+              rental_rates: loc.rental_rates,
+              status: loc.status as "active" | "inactive"
+            }));
+            setCustomerLocations(typedCustomerLocations);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching customer locations:', error);
+      }
+    };
+
+    if (formData.base_customer_id && formData.base_customer_id !== 'none') {
+      fetchCustomerLocations();
+    }
+  }, [formData.base_customer_id]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
@@ -124,7 +168,7 @@ const Settings = () => {
         const { data: settingsData, error: settingsError } = await supabase
           .from('settings')
           .select('*')
-          .limit(1);
+          .maybeSingle();
         
         if (settingsError) throw settingsError;
         
@@ -141,6 +185,46 @@ const Settings = () => {
           .eq('status', 'active');
         
         if (customersError) throw customersError;
+        
+        // Fetch customer locations
+        let customerLocationsData = [];
+        let customerLocationsError = null;
+        
+        if (formData.base_customer_id !== 'none') {
+          const { data, error } = await supabase
+            .from('customer_locations')
+            .select('*')
+            .eq('customer_id', formData.base_customer_id);
+          
+          customerLocationsData = data || [];
+          customerLocationsError = error;
+        }
+        
+        if (customerLocationsError) throw customerLocationsError;
+        
+        if (customerLocationsData) {
+          const typedCustomerLocations = customerLocationsData.map(loc => ({
+            id: loc.id,
+            customer_id: loc.customer_id,
+            location_name: loc.location_name,
+            rental_rates: loc.rental_rates,
+            status: loc.status as "active" | "inactive"
+          }));
+          setCustomerLocations(typedCustomerLocations);
+        }
+        
+        if (customerLocationsError) throw customerLocationsError;
+        
+        if (customerLocationsData) {
+          const typedCustomerLocations = customerLocationsData.map(loc => ({
+            id: loc.id,
+            customer_id: loc.customer_id,
+            location_name: loc.location_name,
+            rental_rates: loc.rental_rates,
+            status: loc.status as "active" | "inactive"
+          }));
+          setCustomerLocations(typedCustomerLocations);
+        }
         
         if (locationsData) {
           const typedLocations = locationsData.map(loc => ({
@@ -165,8 +249,8 @@ const Settings = () => {
           setCustomers(typedCustomers);
         }
         
-        if (settingsData && settingsData.length > 0) {
-          const settingsRow = settingsData[0] as Settings;
+        if (settingsData) {
+          const settingsRow = settingsData as Settings;
           const typedSettings: Settings = {
             id: settingsRow.id,
             company_code: settingsRow.company_code ?? "MOB",
@@ -180,6 +264,7 @@ const Settings = () => {
             footer_text: settingsRow.footer_text ?? "",
             base_location_id: settingsRow.base_location_id ?? "none",
             base_customer_id: settingsRow.base_customer_id ?? "none",
+            base_customer_location_id: settingsRow.base_customer_location_id ?? null,
             default_code_type: settingsRow.default_code_type ?? 'company',
             created_at: settingsRow.created_at,
             updated_at: settingsRow.updated_at
@@ -248,6 +333,7 @@ const Settings = () => {
         footer_text: formData.footer_text,
         base_location_id: formData.base_location_id,
         base_customer_id: formData.base_customer_id,
+        base_customer_location_id: formData.base_customer_location_id,
         default_code_type: formData.default_code_type
       };
 
@@ -444,6 +530,26 @@ const Settings = () => {
                       {customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Base Customer Location</Label>
+                  <Select
+                    value={formData.base_customer_location_id || ''}
+                    onValueChange={(value) => 
+                      setFormData({ ...formData, base_customer_location_id: value || null } as Settings)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select base customer location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerLocations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.location_name}
                         </SelectItem>
                       ))}
                     </SelectContent>

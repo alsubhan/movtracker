@@ -16,20 +16,80 @@ const InventoryReport: React.FC = () => {
   const [filteredData, setFilteredData] = useState<InventoryRow[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Pagination
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 3000;
   const [page, setPage] = useState(0);
+
+  // Type for location options
+  type LocationOption = string;
+  const [locations, setLocations] = useState<LocationOption[]>([]);
 
   useEffect(() => {
     const fetchInventory = async () => {
       setIsLoading(true);
       try {
+        // Fetch all locations
+        const { data: allCustomerLocs, error: allCustomerLocError } = await supabase
+          .from('customer_locations')
+          .select('id, location_name');
+        if (allCustomerLocError) throw allCustomerLocError;
+
+        const { data: allDefaultLocs, error: allDefaultLocError } = await supabase
+          .from('locations')
+          .select('id, name');
+        if (allDefaultLocError) throw allDefaultLocError;
+
+        // Combine all locations into a single map and set locations state
+        const allLocations = new Map<string, string>([
+          ...allCustomerLocs?.map(l => [l.id, l.location_name] as [string, string]) ?? [],
+          ...allDefaultLocs?.map(l => [l.id, l.name] as [string, string]) ?? []
+        ]);
+        
+        // Update locations state with all location names
+        setLocations(['all', ...Array.from(allLocations.values())]);
+
+        // Define all possible statuses
+        const allPossibleStatuses = ['In-Stock', 'In-Transit', 'Received', 'Returned'];
+
+        // Fetch inventory data for status filtering
+        const { data: statusInventoryData, error: statusInventoryError } = await supabase
+          .from('inventory')
+          .select('status');
+        if (statusInventoryError) throw statusInventoryError;
+
+        // Fetch inventory data with last_customer_location_id
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('inventory')
+          .select('id, last_customer_location_id, status');
+        if (inventoryError) throw inventoryError;
+
+        // Fetch customer locations for inventory
+        const { data: inventoryCustomerLocs, error: inventoryCustomerLocError } = await supabase
+          .from('customer_locations')
+          .select('id, location_name');
+        if (inventoryCustomerLocError) throw inventoryCustomerLocError;
+
+        // Map customer location IDs to names
+        const customerLocMap = new Map(inventoryCustomerLocs.map(loc => [loc.id, loc.location_name]));
+
+        // Update inventory data with location names using last_customer_location_id
+        const inventoryWithLocations = inventoryData.map(item => ({
+          ...item,
+          location: customerLocMap.get(item.last_customer_location_id) || 'Unknown'
+        }));
+
+        // Set initial data and extract unique statuses
+        setData(inventoryWithLocations);
+        setAllStatuses(allStatuses);
+        setFilteredData(inventoryWithLocations);
+
         // Fetch inventory items with RFID, status, and default location
-        const { data: invData, error: invErr } = await supabase
+        const { data: invData, error: invError } = await supabase
           .from('inventory')
           .select('id, rfid_tag, status, location_id');
-        if (invErr) throw invErr;
+        if (invError) throw invError;
         const items = invData || [];
 
         // Build map of latest movement location per inventory
@@ -95,14 +155,19 @@ const InventoryReport: React.FC = () => {
 
   useEffect(() => {
     let filtered = data;
-    if (selectedLocation !== 'all') filtered = filtered.filter(i => i.location === selectedLocation);
-    if (selectedStatus !== 'all') filtered = filtered.filter(i => i.status === selectedStatus);
+    if (selectedLocation !== 'all') filtered = filtered.filter(i => 
+      i.location?.trim().toLowerCase() === selectedLocation.trim().toLowerCase()
+    );
+    if (selectedStatus !== 'all') filtered = filtered.filter(i => 
+      i.status?.trim().toLowerCase() === selectedStatus.trim().toLowerCase()
+    );
     setPage(0);
     setFilteredData(filtered);
   }, [data, selectedLocation, selectedStatus]);
 
-  const locations = ['all', ...Array.from(new Set(data.map(item => item.location).filter(Boolean)))];
-  const statuses = ['all', ...Array.from(new Set(data.map(item => item.status).filter(Boolean)))];
+  // Use predefined statuses for the filter
+  const allPossibleStatuses = ['In-Stock', 'In-Transit', 'Received', 'Returned'];
+  const statuses = ['all', ...allPossibleStatuses];
 
   // Export filtered report to CSV
   const handleExport = () => {
