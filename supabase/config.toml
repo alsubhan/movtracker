@@ -16,6 +16,8 @@ extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
 # for accidental or malicious requests.
 max_rows = 1000
+# Enable CORS for API requests.
+cors = ["http://localhost:8080", "http://103.191.209.166:4173", "http://103.191.209.166:54321"]
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
