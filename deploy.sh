@@ -14,7 +14,7 @@ BRANCH="prod"
 APP_DIR="/var/www/movtracker"
 # Server address and port for UI
 SERVER_IP=103.191.209.166
-SERVER_PORT=4173
+SERVER_PORT=8080
 # API server port for database utilities
 API_SERVER_PORT=54320
 
