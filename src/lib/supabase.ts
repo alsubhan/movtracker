@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { corsHeaders } from '../../supabase/functions/_shared/cors';
 
-const supabaseUrl = '/api';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -9,7 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    detectSessionInUrl: false,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    headers: corsHeaders,
   },
 });
 
