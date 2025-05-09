@@ -19,7 +19,7 @@ const InventoryReport: React.FC = () => {
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Pagination
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 3000;
   const [page, setPage] = useState(0);
 
   // Type for location options

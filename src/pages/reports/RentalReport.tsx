@@ -37,7 +37,7 @@ const RentalReport = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   // Pagination
-  const PAGE_SIZE = 1000;
+  const PAGE_SIZE = 3000;
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   
