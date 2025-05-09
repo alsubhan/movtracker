@@ -193,7 +193,7 @@ export default function Movement() {
   }, [scannedItems]);
 
   // Pagination for movements list
-  const PAGE_SIZE = 500;
+  const PAGE_SIZE = 100;
   const [page, setPage] = useState(0);
   const [allMovements, setAllMovements] = useState<Movement[]>([]);
   const [displayedMovements, setDisplayedMovements] = useState<Movement[]>([]);
