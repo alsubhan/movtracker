@@ -387,20 +387,21 @@ export default function Movement() {
   const fetchInventoryItems = async () => {
     try {
       const allItems: InventoryItem[] = [];
+      const pageSize = 3000;
       let from = 0;
       while (true) {
         const { data, error } = await supabase
           .from('inventory')
           .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
           .order('rfid_tag')
-          .range(from, from + PAGE_SIZE - 1);
+          .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
         allItems.push(...data);
-        if (data.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
+        if (data.length < pageSize) break;
+        from += pageSize;
       }
-      return allItems.slice(0, PAGE_SIZE);
+      return allItems;
     } catch (error) {
       console.error('Error fetching inventory items:', error);
       toast({
