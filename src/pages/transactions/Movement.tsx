@@ -193,7 +193,7 @@ export default function Movement() {
   }, [scannedItems]);
 
   // Pagination for movements list
-  const PAGE_SIZE = 500;
+  const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   const [allMovements, setAllMovements] = useState<Movement[]>([]);
   const [displayedMovements, setDisplayedMovements] = useState<Movement[]>([]);
@@ -319,13 +319,15 @@ export default function Movement() {
     return userHasPermission;
   };
 
-  const fetchMovements = async () => {
+  const fetchMovements = async (page: number = 0) => {
     try {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       const { data: movementsData, error: movementsError } = await supabase
         .from('inventory_movements')
         .select('*')
         .order('timestamp', { ascending: false })
-        .range(0, 3000);  // fetch up to 3001 rows
+        .range(from, to);  // fetch based on page size
 
       if (movementsError) throw movementsError;
 
@@ -385,21 +387,20 @@ export default function Movement() {
   const fetchInventoryItems = async () => {
     try {
       const allItems: InventoryItem[] = [];
-      const pageSize = 3000;
       let from = 0;
       while (true) {
         const { data, error } = await supabase
           .from('inventory')
           .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
           .order('rfid_tag')
-          .range(from, from + pageSize - 1);
+          .range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
         allItems.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
-      return allItems;
+      return allItems.slice(0, PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching inventory items:', error);
       toast({
