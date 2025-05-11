@@ -37,13 +37,15 @@ const RentalReport = () => {
   const [filteredData, setFilteredData] = useState<RentalReportType[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); // First day of the current month
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const PAGE_SIZE = 25;
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [toDate, setToDate] = useState<Date | null>(new Date()); // Today's date
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch data from Supabase with pagination and date filtering
   useEffect(() => {
@@ -55,19 +57,20 @@ const RentalReport = () => {
       }
 
       try {
-        // Calculate start and end of selected date
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Calculate start and end of the selected date range
+        const endOfRange = toDate ? new Date(toDate) : new Date();
+        endOfRange.setHours(23, 59, 59, 999); // Set to end of the day
 
         // Build the base query
         let query = supabase
           .from('inventory_movements')
           .select('inventory_id, customer_location_id, previous_location_id, timestamp, movement_type, reference_id, rental_rate', { count: 'exact' })
           .eq('movement_type', 'out')
-          .gte('timestamp', startOfDay.toISOString())
-          .lte('timestamp', endOfDay.toISOString());
+          .gt('rental_rate', 0)
+          .lte('timestamp', endOfRange.toISOString()); // Use endOfRange
+
+        // Debugging: Log the selected location
+        console.log("Selected Location:", selectedLocation);
 
         // Add location filter if not 'all'
         if (selectedLocation && selectedLocation !== 'all') {
@@ -146,13 +149,13 @@ const RentalReport = () => {
           .filter(m => invMap.has(m.inventory_id))
           .map(m => {
             const inv = invMap.get(m.inventory_id)!;
-            const cl = locMap.get(m.customer_location_id);
+            const cl = locMap.get(m.previous_location_id);
             const customerName = cl ? (custMap.get(cl.customer_id) || cl.customer_id) : 'Unknown';
             const locationName = cl ? cl.location_name : 'Unknown';
             const rentalStartDate = new Date(m.timestamp);
             
             // Calculate days rented based on selected date
-            const endDate = Math.min(endOfDay.getTime(), new Date().getTime());
+            const endDate = Math.min(endOfRange.getTime(), new Date().getTime());
             const daysRented = differenceInDays(
               endDate,
               rentalStartDate.getTime()
@@ -200,7 +203,7 @@ const RentalReport = () => {
     };
     
     fetchRentalData();
-  }, [page, selectedDate, searchTerm, selectedLocation]);
+  }, [page, toDate, searchTerm, selectedLocation]);
 
   const loadMoreItems = () => {
     if (totalCount > (page + 1) * PAGE_SIZE) {
@@ -210,7 +213,7 @@ const RentalReport = () => {
   };
 
   // Helper function to apply filters
-  const applyFilters = (data: RentalReportType[], search: string, location: string, date: Date) => {
+  const applyFilters = (data: RentalReportType[], search: string, location: string, date: Date | null) => {
     let filtered = data;
     const term = search.trim().toLowerCase();
     
@@ -232,25 +235,15 @@ const RentalReport = () => {
     return filtered;
   };
 
-  // Get unique locations from data for filters, filtering out undefined/null
-  const locations = [
-    "all",
-    ...Array.from(
-      new Set(
-        reportData.map(item => item.location).filter((loc): loc is string => Boolean(loc))
-      )
-    )
-  ];
-
   // Function to export data to CSV
   const exportToCSV = async () => {
     try {
       setIsLoading(true);
 
-      // Calculate start and end of selected date
-      const startOfDay = new Date(selectedDate);
+      // Calculate start and end of the selected date range
+      const startOfDay = selectedDate ? new Date(selectedDate) : new Date();
       startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(selectedDate);
+      const endOfDay = toDate ? new Date(toDate) : new Date();
       endOfDay.setHours(23, 59, 59, 999);
 
       // Build the base query
@@ -258,6 +251,7 @@ const RentalReport = () => {
         .from('inventory_movements')
         .select('inventory_id, customer_location_id, previous_location_id, timestamp, movement_type, reference_id, rental_rate', { count: 'exact' })
         .eq('movement_type', 'out')
+        .gt('rental_rate', 0)
         .gte('timestamp', startOfDay.toISOString())
         .lte('timestamp', endOfDay.toISOString());
 
@@ -328,7 +322,7 @@ const RentalReport = () => {
         .filter(m => invMap.has(m.inventory_id))
         .map(m => {
           const inv = invMap.get(m.inventory_id)!;
-          const cl = locMap.get(m.customer_location_id);
+          const cl = locMap.get(m.previous_location_id);
           const customerName = cl ? (custMap.get(cl.customer_id) || cl.customer_id) : 'Unknown';
           const locationName = cl ? cl.location_name : 'Unknown';
           const rentalStartDate = new Date(m.timestamp);
@@ -449,6 +443,32 @@ const RentalReport = () => {
     setReportData([]); // Clear existing data
     setFilteredData([]); // Clear filtered data
   };
+
+  // Assuming you have a function to fetch locations
+  const fetchLocations = async () => {
+    const { data, error } = await supabase.from('customer_locations').select('id, location_name');
+    if (error) {
+      console.error('Error fetching locations:', error);
+      return [];
+    }
+    // Add "All Locations" option
+    return [
+      { id: "all", name: "All Locations" },
+      ...data.map(location => ({
+        id: location.id, // UUID
+        name: location.location_name // Human-readable name
+      }))
+    ];
+  };
+
+  // Fetch locations on component mount
+  useEffect(() => {
+    const loadLocations = async () => {
+      const locs = await fetchLocations();
+      setLocations(locs);
+    };
+    loadLocations();
+  }, []);
   
   return (
     <div className="flex flex-col h-full">
@@ -472,8 +492,8 @@ const RentalReport = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-6">
-              {/* Filters: Location and Date */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Filters: Location, From Date, and To Date */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="location" className="mb-2 block">Location</Label>
                   <Select value={selectedLocation} onValueChange={handleLocationChange}>
@@ -482,18 +502,15 @@ const RentalReport = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {locations.map(location => (
-                        <SelectItem key={location} value={location}>
-                          {location === "all"
-                            ? "All Locations"
-                            : `${location.charAt(0).toUpperCase()}${location.slice(1)}`
-                          }
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="date" className="mb-2 block">Date</Label>
+                  <Label htmlFor="from-date" className="mb-2 block">From Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -513,7 +530,57 @@ const RentalReport = () => {
                         selected={selectedDate}
                         onSelect={(date) => {
                           if (date) {
-                            setSelectedDate(date);
+                            const newSelectedDate = date;
+                            if (toDate && differenceInDays(newSelectedDate, toDate) > 31) {
+                              toast({
+                                title: "Invalid Date Range",
+                                description: "The date range cannot exceed 31 days.",
+                                variant: "destructive",
+                              });
+                              return; // Prevent setting the date if the range is invalid
+                            }
+                            setSelectedDate(newSelectedDate);
+                            setPage(0); // Reset page when date changes
+                            setReportData([]); // Clear existing data
+                            setFilteredData([]); // Clear filtered data
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label htmlFor="to-date" className="mb-2 block">To Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !toDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={toDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            const newToDate = date;
+                            if (selectedDate && differenceInDays(selectedDate, newToDate) > 31) {
+                              toast({
+                                title: "Invalid Date Range",
+                                description: "The date range cannot exceed 31 days.",
+                                variant: "destructive",
+                              });
+                              return; // Prevent setting the date if the range is invalid
+                            }
+                            setToDate(newToDate);
                             setPage(0); // Reset page when date changes
                             setReportData([]); // Clear existing data
                             setFilteredData([]); // Clear filtered data
