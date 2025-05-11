@@ -189,6 +189,7 @@ const InventoryReport: React.FC = () => {
 
   const loadMoreItems = () => {
     if (totalCount > (page + 1) * PAGE_SIZE) {
+      setIsLoadingMore(true);
       setPage(prev => prev + 1);
     }
   };
@@ -399,7 +400,7 @@ const InventoryReport: React.FC = () => {
                     <div className="text-sm text-muted-foreground">
                       {filteredData.length} items found
                     </div>
-                    {totalCount > (page + 1) * PAGE_SIZE && !isLoadingMore && (
+                    {totalCount > (page + 1) * PAGE_SIZE && (
                       <Button 
                         onClick={loadMoreItems} 
                         disabled={isLoadingMore}
