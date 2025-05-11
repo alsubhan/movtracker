@@ -46,12 +46,12 @@ const RentalReport = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [toDate, setToDate] = useState<Date | null>(new Date()); // Today's date
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-
+  
   // Fetch data from Supabase with pagination and date filtering
   useEffect(() => {
     const fetchRentalData = async () => {
       if (page === 0) {
-        setIsLoading(true);
+      setIsLoading(true);
       } else {
         setIsLoadingMore(true);
       }
@@ -99,8 +99,8 @@ const RentalReport = () => {
         // If no data is returned, handle accordingly
         if (!movData || movData.length === 0) {
           if (page === 0) {
-            setReportData([]);
-            setFilteredData([]);
+          setReportData([]);
+          setFilteredData([]);
           }
           return;
         }
@@ -110,30 +110,26 @@ const RentalReport = () => {
         // Get unique inventory IDs from current page
         const invIds = movements.map(m => m.inventory_id).filter((id): id is string => Boolean(id));
         
-        // Fetch inventory data in parallel with other queries
-        const [invResponse, typeResponse, locResponse] = await Promise.all([
-          supabase
+        // Fetch inventory data in batches
+        const BATCH_SIZE = 100; // Define a batch size
+        let allInventoryData = [];
+
+        for (let i = 0; i < invIds.length; i += BATCH_SIZE) {
+          const batchIds = invIds.slice(i, i + BATCH_SIZE); // Get a batch of IDs
+
+          const { data: invResponse, error: invError } = await supabase
             .from('inventory')
             .select('id, rfid_tag, type_id')
-            .in('id', invIds),
-          supabase
-            .from('inventory_types')
-            .select('id, code'),
-          supabase
-            .from('customer_locations')
-            .select('id, customer_id, location_name, rental_rates')
-        ]);
+            .in('id', batchIds); // Fetch only the current batch of IDs
 
-        if (invResponse.error) throw invResponse.error;
-        if (typeResponse.error) throw typeResponse.error;
-        if (locResponse.error) throw locResponse.error;
-
-        const invMap = new Map(invResponse.data.map(i => [i.id, i]));
-        const typeMap = new Map(typeResponse.data.map(t => [t.id, t.code]));
-        const locMap = new Map(locResponse.data.map(l => [l.id, l]));
+          if (invError) throw invError;
+          if (invResponse) {
+            allInventoryData = [...allInventoryData, ...invResponse]; // Accumulate the results
+          }
+        }
 
         // Get unique customer IDs
-        const custIds = Array.from(new Set(locResponse.data.map(l => l.customer_id))).filter((id): id is string => Boolean(id));
+        const custIds = Array.from(new Set(movements.map(m => m.customer_location_id))).filter((id): id is string => Boolean(id));
         
         // Fetch customer names
         const { data: custData, error: custErr } = await supabase
@@ -146,13 +142,13 @@ const RentalReport = () => {
 
         // Build report rows with proper rental calculations
         const newRentalReports: RentalReportType[] = movements
-          .filter(m => invMap.has(m.inventory_id))
+          .filter(m => allInventoryData.some(i => i.id === m.inventory_id))
           .map(m => {
-            const inv = invMap.get(m.inventory_id)!;
-            const cl = locMap.get(m.previous_location_id);
-            const customerName = cl ? (custMap.get(cl.customer_id) || cl.customer_id) : 'Unknown';
-            const locationName = cl ? cl.location_name : 'Unknown';
-            const rentalStartDate = new Date(m.timestamp);
+          const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
+            const cl = custMap.get(m.customer_location_id);
+          const customerName = cl ? (custMap.get(m.customer_location_id) || m.customer_location_id) : 'Unknown';
+          const locationName = cl ? cl.location_name : 'Unknown';
+          const rentalStartDate = new Date(m.timestamp);
             
             // Calculate days rented based on selected date
             const endDate = Math.min(endOfRange.getTime(), new Date().getTime());
@@ -161,22 +157,22 @@ const RentalReport = () => {
               rentalStartDate.getTime()
             ) + 1; // Add 1 to include both start and end dates
             
-            const typeCode = typeMap.get(inv.type_id) || inv.type_id || '';
-            const rentalCost = m.rental_rate ?? 0;
+          const typeCode = inv.type_id || '';
+          const rentalCost = m.rental_rate ?? 0;
 
-            return {
-              inventoryId: inv.rfid_tag || inv.id,
-              inventoryType: typeCode,
-              customer: customerName,
-              location: locationName,
-              status: 'out',
-              rentalStartDate,
-              rentalCost,
-              daysRented,
-              monthlyTotal: rentalCost * daysRented,
-              dailyAverage: rentalCost
-            };
-          });
+          return {
+            inventoryId: inv.rfid_tag || inv.id,
+            inventoryType: typeCode,
+            customer: customerName,
+            location: locationName,
+            status: 'out',
+            rentalStartDate,
+            rentalCost,
+            daysRented,
+            monthlyTotal: rentalCost * daysRented,
+            dailyAverage: rentalCost
+          };
+        });
 
         // Update states
         setReportData(prevData => {
@@ -265,7 +261,7 @@ const RentalReport = () => {
       if (countError) throw countError;
 
       const totalItems = count || 0;
-      const BATCH_SIZE = 1000; // Supabase's default limit
+      const BATCH_SIZE = 1000; // Set batch size to 1000
       let allMovements: any[] = [];
 
       // Fetch all movements in batches
@@ -283,30 +279,26 @@ const RentalReport = () => {
       // Get unique inventory IDs from all movements
       const invIds = allMovements.map(m => m.inventory_id).filter((id): id is string => Boolean(id));
       
-      // Fetch inventory data in parallel with other queries
-      const [invResponse, typeResponse, locResponse] = await Promise.all([
-        supabase
+      // Fetch inventory data in batches
+      const BATCH_SIZE_INV = 100; // Define a batch size for inventory
+      let allInventoryData = [];
+
+      for (let i = 0; i < invIds.length; i += BATCH_SIZE_INV) {
+        const batchIds = invIds.slice(i, i + BATCH_SIZE_INV); // Get a batch of IDs
+
+        const { data: invResponse, error: invError } = await supabase
           .from('inventory')
-          .select('id, rfid_tag, type_id')
-          .in('id', invIds),
-        supabase
-          .from('inventory_types')
-          .select('id, code'),
-        supabase
-          .from('customer_locations')
-          .select('id, customer_id, location_name, rental_rates')
-      ]);
+          .select('id, rfid_tag') // Only fetch necessary fields
+          .in('id', batchIds); // Fetch only the current batch of IDs
 
-      if (invResponse.error) throw invResponse.error;
-      if (typeResponse.error) throw typeResponse.error;
-      if (locResponse.error) throw locResponse.error;
-
-      const invMap = new Map(invResponse.data.map(i => [i.id, i]));
-      const typeMap = new Map(typeResponse.data.map(t => [t.id, t.code]));
-      const locMap = new Map(locResponse.data.map(l => [l.id, l]));
+        if (invError) throw invError;
+        if (invResponse) {
+          allInventoryData = [...allInventoryData, ...invResponse]; // Accumulate the results
+        }
+      }
 
       // Get unique customer IDs
-      const custIds = Array.from(new Set(locResponse.data.map(l => l.customer_id))).filter((id): id is string => Boolean(id));
+      const custIds = Array.from(new Set(allMovements.map(m => m.customer_location_id))).filter((id): id is string => Boolean(id));
       
       // Fetch customer names
       const { data: custData, error: custErr } = await supabase
@@ -319,12 +311,9 @@ const RentalReport = () => {
 
       // Build report rows with proper rental calculations
       const exportRows = allMovements
-        .filter(m => invMap.has(m.inventory_id))
+        .filter(m => allInventoryData.some(i => i.id === m.inventory_id))
         .map(m => {
-          const inv = invMap.get(m.inventory_id)!;
-          const cl = locMap.get(m.previous_location_id);
-          const customerName = cl ? (custMap.get(cl.customer_id) || cl.customer_id) : 'Unknown';
-          const locationName = cl ? cl.location_name : 'Unknown';
+          const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
           const rentalStartDate = new Date(m.timestamp);
           
           // Calculate days rented based on selected date
@@ -334,37 +323,21 @@ const RentalReport = () => {
             rentalStartDate.getTime()
           ) + 1; // Add 1 to include both start and end dates
           
-          const typeCode = typeMap.get(inv.type_id) || inv.type_id || '';
           const rentalCost = m.rental_rate ?? 0;
 
           return {
             inventoryId: inv.rfid_tag || inv.id,
-            inventoryType: typeCode,
-            customer: customerName,
-            location: locationName,
-            status: 'out',
             rentalStartDate,
-            rentalCost,
             daysRented,
             monthlyTotal: rentalCost * daysRented,
             dailyAverage: rentalCost
           };
         });
 
-      // Apply search filter if needed
-      const filteredRows = searchTerm
-        ? exportRows.filter(item => item.inventoryId.toLowerCase().includes(searchTerm.toLowerCase()))
-        : exportRows;
-
       // Generate CSV
-      const headers = ["Inventory ID", "Type", "Customer", "Location", "Status", "Start Date", "Days Rented", "Monthly Cost (₹)", "Daily Average (₹)"];
-      
-      const csvData = filteredRows.map(item => [
+      const headers = ["Inventory ID", "Start Date", "Days Rented", "Monthly Cost (₹)", "Daily Average (₹)"];
+      const csvData = exportRows.map(item => [
         item.inventoryId,
-        item.inventoryType || "-",
-        item.customer,
-        item.location,
-        item.status,
         item.rentalStartDate ? format(item.rentalStartDate, "yyyy-MM-dd") : "-",
         item.daysRented,
         item.monthlyTotal.toFixed(2),
@@ -389,7 +362,7 @@ const RentalReport = () => {
 
       toast({
         title: "Export Successful",
-        description: `Exported ${filteredRows.length} items to CSV.`
+        description: `Exported ${exportRows.length} items to CSV.`
       });
     } catch (error: any) {
       console.error('Error exporting rental data:', error);
@@ -482,7 +455,7 @@ const RentalReport = () => {
             </Button>
           </div>
         </div>
-
+        
         <Card>
           <CardHeader>
             <CardTitle>Rental Cost Analysis</CardTitle>
@@ -596,11 +569,11 @@ const RentalReport = () => {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div className="flex items-center space-x-2 w-full sm:w-64 mb-4 sm:mb-0">
                   <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search Inventory ID"
-                      className="pl-8"
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search Inventory ID"
+                    className="pl-8"
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                     />
@@ -651,15 +624,15 @@ const RentalReport = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
-
+              </div>
+              
       {/* Scrollable Data Section */}
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-4 md:p-8">
             <Card>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
+              <div className="overflow-x-auto">
                   <div className="flex items-center justify-between px-4 py-2 border-b">
                     <div className="text-sm text-muted-foreground">
                       {filteredData.length} movements found
@@ -683,17 +656,17 @@ const RentalReport = () => {
                       </Button>
                     )}
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Inventory ID</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>Days</TableHead>
-                        <TableHead>Monthly Cost (₹)</TableHead>
-                        <TableHead>Daily Avg (₹)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Inventory ID</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Monthly Cost (₹)</TableHead>
+                      <TableHead>Daily Avg (₹)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                       {isLoading ? (
                         <TableRow>
                           <TableCell colSpan={5} className="h-24 text-center">
@@ -705,26 +678,26 @@ const RentalReport = () => {
                         </TableRow>
                       ) : filteredData.length > 0 ? (
                         filteredData.map((item, idx) => (
-                          <TableRow key={`${item.inventoryId}-${idx}`}>
-                            <TableCell>{item.inventoryId}</TableCell>
-                            <TableCell>{item.rentalStartDate ? format(item.rentalStartDate, 'dd-MM-yyyy') : '-'}</TableCell>
-                            <TableCell>{item.daysRented}</TableCell>
-                            <TableCell>{item.monthlyTotal.toFixed(2)}</TableCell>
-                            <TableCell>{item.dailyAverage.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4">
-                            No rental data found matching your criteria
-                          </TableCell>
+                        <TableRow key={`${item.inventoryId}-${idx}`}>
+                          <TableCell>{item.inventoryId}</TableCell>
+                          <TableCell>{item.rentalStartDate ? format(item.rentalStartDate, 'dd-MM-yyyy') : '-'}</TableCell>
+                          <TableCell>{item.daysRented}</TableCell>
+                          <TableCell>{item.monthlyTotal.toFixed(2)}</TableCell>
+                          <TableCell>{item.dailyAverage.toFixed(2)}</TableCell>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4">
+                          No rental data found matching your criteria
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+            </div>
+          </CardContent>
+        </Card>
           </div>
         </ScrollArea>
       </div>
