@@ -44,6 +44,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { hasPermission as checkPermission } from "@/utils/permissions";
 import { PERMISSIONS } from "@/utils/permissions";
 import { User } from "@/types";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Helper to format inventory movement timestamp as dd/mm/yyyy hh:mm:ss AM/PM
 const formatTimestamp = (ts: string): string => {
@@ -79,9 +88,11 @@ interface Movement {
   inventory_code?: string;
   gate_name?: string;
   customer_name?: string;
+  previous_location_name?: string;
   status?: string;
   remark?: string;
   reference_id?: string;
+  batch?: string;
 }
 
 interface Gate {
@@ -147,6 +158,12 @@ interface MovementData {
   remark?: string;
 }
 
+// Add this helper function near the top with other helpers
+const formatBatchId = (referenceId: string): string => {
+  if (!referenceId) return '';
+  return referenceId.substring(0, 8).toUpperCase();
+};
+
 export default function Movement() {
   const [loading, setLoading] = useState(true);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -182,6 +199,13 @@ export default function Movement() {
   const [customerLocationsMap, setCustomerLocationsMap] = useState<Map<string, string>>(new Map());
   // Map to store inventory status by inventory_id
   const inventoryStatusMap = useMemo(() => new Map(inventoryItems.map(item => [item.id, item.status])), [inventoryItems]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [searchInventoryId, setSearchInventoryId] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [gateFilter, setGateFilter] = useState<string>("ALL");
+  const [batchFilter, setBatchFilter] = useState<string>("");
+  const [createdFilter, setCreatedFilter] = useState<string>("");
+  const [remarkFilter, setRemarkFilter] = useState<string>("");
 
   // Remove the duplicate declaration at the bottom of the file
   const { toast } = useToast();
@@ -319,23 +343,42 @@ export default function Movement() {
     return userHasPermission;
   };
 
-  const fetchMovements = async (page: number = 0) => {
+  const fetchMovements = async () => {
     try {
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+      // Calculate start and end of selected date
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // First, get the total count for the date
+      const { count, error: countError } = await supabase
+        .from('inventory_movements')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', startOfDay.toISOString())
+        .lte('timestamp', endOfDay.toISOString());
+
+      if (countError) throw countError;
+
+      // Then fetch the first page
       const { data: movementsData, error: movementsError } = await supabase
         .from('inventory_movements')
         .select('*')
+        .gte('timestamp', startOfDay.toISOString())
+        .lte('timestamp', endOfDay.toISOString())
         .order('timestamp', { ascending: false })
-        .range(from, to);  // fetch based on page size
+        .range(0, PAGE_SIZE - 1);
 
       if (movementsError) throw movementsError;
 
-      // Fetch related data
+      // Get unique inventory IDs from the movements
+      const uniqueInventoryIds = [...new Set(movementsData.map(m => m.inventory_id))];
+
+      // Fetch only the inventory items related to these movements, including status
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
-        .select('id, rfid_tag')
-        .in('id', movementsData.map(m => m.inventory_id));
+        .select('id, rfid_tag, status')
+        .in('id', uniqueInventoryIds);
 
       if (inventoryError) throw inventoryError;
 
@@ -346,31 +389,45 @@ export default function Movement() {
 
       if (gatesError) throw gatesError;
 
+      // Get all unique location IDs (both previous and current)
+      const allLocationIds = new Set([
+        ...movementsData.map(m => m.customer_location_id),
+        ...movementsData.map(m => m.previous_location_id)
+      ].filter(Boolean));
+
+      // Fetch all customer locations at once
       const { data: customerLocationsData, error: customerLocationsError } = await supabase
         .from('customer_locations')
         .select('id, location_name')
-        .in('id', movementsData.map(m => m.customer_location_id));
+        .in('id', Array.from(allLocationIds));
 
       if (customerLocationsError) throw customerLocationsError;
 
-      // Group movements by inventory_id and select the latest by timestamp
-      const latestMovementsMap = new Map();
-      for (const movement of movementsData) {
-        const existing = latestMovementsMap.get(movement.inventory_id);
-        if (!existing || new Date(movement.timestamp) > new Date(existing.timestamp)) {
-          latestMovementsMap.set(movement.inventory_id, movement);
-        }
-      }
-      const latestMovements = Array.from(latestMovementsMap.values());
+      // Create a map of location IDs to names
+      const locationMap = new Map(
+        customerLocationsData.map(loc => [loc.id, loc.location_name])
+      );
 
-      // Format only the latest movements with human-readable names
-      const formattedMovements = latestMovements.map(movement => ({
+      // Update the customerLocationsMap state
+      setCustomerLocationsMap(locationMap);
+
+      // Format movements with human-readable names
+      const formattedMovements = movementsData.map(movement => ({
         ...movement,
         inventory_code: inventoryData.find(item => item.id === movement.inventory_id)?.rfid_tag || movement.inventory_id,
         gate_name: gatesData.find(gate => gate.id === movement.gate_id)?.name || movement.gate_id,
-        customer_name: customerLocationsData.find(loc => loc.id === movement.customer_location_id)?.location_name || movement.customer_location_id,
-        movement_type: movement.movement_type.toUpperCase()
+        customer_name: locationMap.get(movement.customer_location_id) || movement.customer_location_id,
+        previous_location_name: locationMap.get(movement.previous_location_id) || movement.previous_location_id,
+        movement_type: movement.movement_type.toUpperCase(),
+        status: inventoryData.find(item => item.id === movement.inventory_id)?.status || 'Unknown',
+        batch: movement.reference_id ? formatBatchId(movement.reference_id) : undefined,
+        remark: movement.remark || null
       }));
+
+      // Set hasMoreMovements based on total count
+      const hasMore = count > PAGE_SIZE;
+      setHasMoreMovements(hasMore);
+      console.log('Total count:', count, 'PAGE_SIZE:', PAGE_SIZE, 'hasMoreMovements:', hasMore);
 
       return formattedMovements;
     } catch (error) {
@@ -384,24 +441,40 @@ export default function Movement() {
     }
   };
 
+  // Add useEffect to fetch movements when date changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const movementsData = await fetchMovements();
+        setAllMovements(movementsData);
+        setDisplayedMovements(movementsData.slice(0, PAGE_SIZE));
+        setHasMoreMovements(movementsData.length > PAGE_SIZE);
+        setPage(0);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedDate]);
+
   const fetchInventoryItems = async () => {
     try {
-      const allItems: InventoryItem[] = [];
-      const pageSize = 3000;
-      let from = 0;
-      while (true) {
+      // Get unique inventory IDs from the movements
+      const uniqueInventoryIds = [...new Set(allMovements.map(m => m.inventory_id))];
+      
+      // Fetch only the inventory items related to these movements
         const { data, error } = await supabase
           .from('inventory')
           .select('id, rfid_tag, code, project, partition, serial_number, status, last_scan_time, last_scan_gate, created_at, created_by, type_id, location_id')
-          .order('rfid_tag')
-          .range(from, from + pageSize - 1);
+        .in('id', uniqueInventoryIds)
+        .order('rfid_tag');
+
         if (error) throw error;
-        if (!data || data.length === 0) break;
-        allItems.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return allItems;
+      return data || [];
     } catch (error) {
       console.error('Error fetching inventory items:', error);
       toast({
@@ -912,10 +985,37 @@ export default function Movement() {
     }
   };
 
+  // Handle movement type change
+  const handleMovementTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      movement_type: value,
+      customer_location_from_id: '',
+      customer_location_to_id: ''
+    }));
+  };
+
+  // Handle customer selection
+  const handleCustomerChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customer_id: value,
+      customer_location_from_id: '',
+      customer_location_to_id: ''
+    }));
+  };
+
+  // Single useEffect to handle all location updates
   useEffect(() => {
-    if (formData.customer_id) {
-      fetchCustomerLocations(formData.customer_id).then(async (data) => {
-        // Get all locations (without rental rate filtering)
+    const fetchAndSetLocations = async () => {
+      if (!formData.customer_id) {
+        setCustomerLocations([]);
+        setAllLocations([]);
+        return;
+      }
+
+      try {
+        // Fetch all locations for the customer
         const { data: allLocations, error } = await supabase
           .from('customer_locations')
           .select('*')
@@ -923,7 +1023,7 @@ export default function Movement() {
           .order('location_name');
 
         if (error) {
-          console.error('Error fetching all locations:', error);
+          console.error('Error fetching customer locations:', error);
           toast({
             title: "Error",
             description: "Failed to fetch customer locations",
@@ -932,61 +1032,74 @@ export default function Movement() {
           return;
         }
 
-        // Transform and filter locations based on movement type
-        // For OUT movement:
-        // - From: Filtered locations (non-zero rental rates)
-        // - To: All locations
-        // For IN movement:
-        // - From: All locations
-        // - To: Filtered locations (non-zero rental rates)
-        
-        // Get all locations
         const allLocationsMapped = allLocations || [];
 
         // Get the filtered locations (non-zero rental rates)
         const filteredLocations = allLocationsMapped.filter(loc => {
-          // Get the first rental rate value (assuming there's only one rate per location)
           const rentalRate = Object.values(loc.rental_rates || {})[0] ?? 0;
           return rentalRate !== 0;
         });
 
         // Set locations based on movement type
         if (formData.movement_type === 'out') {
-          setCustomerLocations(filteredLocations); // From: Filtered locations
-          setAllLocations(allLocationsMapped);     // To: All locations
+          // For OUT movements:
+          // From: Filtered locations (with rental rates)
+          // To: All locations
+          setCustomerLocations(filteredLocations);
+          setAllLocations(allLocationsMapped);
+        } else if (formData.movement_type === 'in') {
+          // For IN movements:
+          // From: All locations
+          // To: Filtered locations (with rental rates)
+          setCustomerLocations(allLocationsMapped);
+          setAllLocations(filteredLocations);
         } else {
-          setCustomerLocations(allLocationsMapped); // From: All locations
-          setAllLocations(filteredLocations);      // To: Filtered locations
+          // For other types: show all locations in both dropdowns
+          setCustomerLocations(allLocationsMapped);
+          setAllLocations(allLocationsMapped);
         }
 
-        if (data.length > 0 && allLocations?.length > 0) {
+        // Set default values for locations if none are selected
+        if (allLocationsMapped.length > 0 && (!formData.customer_location_from_id || !formData.customer_location_to_id)) {
+          if (formData.movement_type === 'out') {
+            // For OUT movements:
+            // From: First filtered location (with rental rates)
+            // To: First location from all locations
           setFormData(prev => ({
             ...prev,
-            customer_location_from_id: formData.movement_type === 'out' 
-              ? filteredLocations[0]?.id 
-              : allLocationsMapped[0]?.id,
-            customer_location_to_id: formData.movement_type === 'out' 
-              ? allLocationsMapped[0]?.id 
-              : filteredLocations[0]?.id
+              customer_location_from_id: filteredLocations[0]?.id || '',
+              customer_location_to_id: allLocationsMapped[0]?.id || ''
+            }));
+          } else if (formData.movement_type === 'in') {
+            // For IN movements:
+            // From: First location from all locations
+            // To: First filtered location (with rental rates)
+            setFormData(prev => ({
+              ...prev,
+              customer_location_from_id: allLocationsMapped[0]?.id || '',
+              customer_location_to_id: filteredLocations[0]?.id || ''
+            }));
+          } else {
+            // For other types: use first location for both
+            setFormData(prev => ({
+              ...prev,
+              customer_location_from_id: allLocationsMapped[0]?.id || '',
+              customer_location_to_id: allLocationsMapped[0]?.id || ''
           }));
         }
-      }).catch(error => {
-        console.error('Error fetching customer locations:', error);
+        }
+      } catch (error) {
+        console.error('Error in fetchAndSetLocations:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch customer locations",
+          description: "Failed to process locations",
           variant: "destructive",
         });
-      });
-    } else {
-      setCustomerLocations([]);
-      setFormData(prev => ({
-        ...prev,
-        customer_location_from_id: '',
-        customer_location_to_id: ''
-      }));
-    }
-  }, [formData.customer_id, toast]);
+      }
+    };
+
+    fetchAndSetLocations();
+  }, [formData.customer_id, formData.movement_type, toast]);
 
   const filteredMovements = displayedMovements.filter(
     m => {
@@ -994,13 +1107,24 @@ export default function Movement() {
       const fromLocation = customerLocationsMap.get(m.previous_location_id) || m.previous_location_id || '';
       const toLocation = customerLocationsMap.get(m.customer_location_id) || m.customer_location_id || '';
       
+      // Check if movement is on selected date
+      const movementDate = new Date(m.timestamp);
+      const isSameDay = movementDate.getDate() === selectedDate.getDate() &&
+                       movementDate.getMonth() === selectedDate.getMonth() &&
+                       movementDate.getFullYear() === selectedDate.getFullYear();
+      
       // Check all filters
       return (
+        isSameDay &&
         (!inventoryIdFilter || m.inventory_code.toLowerCase().includes(inventoryIdFilter.toLowerCase())) &&
         (movementTypeFilter === "ALL" || m.movement_type === movementTypeFilter.toUpperCase()) &&
+        (gateFilter === "ALL" || m.gate_id === gateFilter) &&
         (fromLocationFilter === "ALL" || m.previous_location_id === fromLocationFilter) &&
         (toLocationFilter === "ALL" || m.customer_location_id === toLocationFilter) &&
-        (statusFilter === "ALL" || (inventoryStatusMap?.get(m.inventory_id) ?? '').toLowerCase() === statusFilter.toLowerCase())
+        (statusFilter === "ALL" || (inventoryStatusMap?.get(m.inventory_id) ?? '').toLowerCase() === statusFilter.toLowerCase()) &&
+        (!batchFilter || (m.reference_id && formatBatchId(m.reference_id).toLowerCase().includes(batchFilter.toLowerCase()))) &&
+        (!createdFilter || formatTimestamp(m.timestamp).toLowerCase().includes(createdFilter.toLowerCase())) &&
+        (!remarkFilter || (m.remark && m.remark.toLowerCase().includes(remarkFilter.toLowerCase())))
       );
     }
   );
@@ -1022,8 +1146,6 @@ export default function Movement() {
     
     return customerLocations;
   };
-
-
 
   const handleNext = async () => {
     if (formData.movement_type === 'in') {
@@ -1060,13 +1182,216 @@ export default function Movement() {
     setIsScanning(false);
   };
 
+  const loadMoreMovements = async () => {
+    try {
+      setIsLoadingMore(true);
+      const nextPage = page + 1;
+      
+      // Calculate start and end of selected date
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Get total count first
+      const { count, error: countError } = await supabase
+        .from('inventory_movements')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', startOfDay.toISOString())
+        .lte('timestamp', endOfDay.toISOString());
+
+      if (countError) throw countError;
+
+      // Fetch next page of movements with date filter
+      const { data: nextMovements, error } = await supabase
+        .from('inventory_movements')
+        .select('*')
+        .gte('timestamp', startOfDay.toISOString())
+        .lte('timestamp', endOfDay.toISOString())
+        .order('timestamp', { ascending: false })
+        .range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      if (nextMovements && nextMovements.length > 0) {
+        // Get unique inventory IDs from the new movements
+        const uniqueInventoryIds = [...new Set(nextMovements.map(m => m.inventory_id))];
+
+        // Get all unique location IDs (both previous and current)
+        const allLocationIds = new Set([
+          ...nextMovements.map(m => m.customer_location_id),
+          ...nextMovements.map(m => m.previous_location_id)
+        ].filter(Boolean));
+
+        // Fetch related data for new movements
+        const [inventoryData, gatesData, customerLocationsData] = await Promise.all([
+          supabase.from('inventory').select('id, rfid_tag, status').in('id', uniqueInventoryIds),
+          supabase.from('gates').select('id, name').in('id', nextMovements.map(m => m.gate_id)),
+          supabase.from('customer_locations').select('id, location_name').in('id', Array.from(allLocationIds))
+        ]);
+
+        // Create a map of location IDs to names
+        const locationMap = new Map(
+          customerLocationsData.data?.map(loc => [loc.id, loc.location_name]) || []
+        );
+
+        // Update the customerLocationsMap state with new locations
+        setCustomerLocationsMap(prev => new Map([...prev, ...locationMap]));
+
+        // Format the new movements
+        const formattedNextMovements = nextMovements.map(movement => ({
+          ...movement,
+          inventory_code: inventoryData.data?.find(item => item.id === movement.inventory_id)?.rfid_tag || movement.inventory_id,
+          gate_name: gatesData.data?.find(gate => gate.id === movement.gate_id)?.name || movement.gate_id,
+          customer_name: locationMap.get(movement.customer_location_id) || movement.customer_location_id,
+          previous_location_name: locationMap.get(movement.previous_location_id) || movement.previous_location_id,
+          movement_type: movement.movement_type.toUpperCase(),
+          status: inventoryData.data?.find(item => item.id === movement.inventory_id)?.status || 'Unknown',
+          batch: movement.reference_id ? formatBatchId(movement.reference_id) : undefined,
+          remark: movement.remark || null
+        }));
+
+        // Update state
+        setAllMovements(prev => [...prev, ...formattedNextMovements]);
+        setDisplayedMovements(prev => [...prev, ...formattedNextMovements]);
+        setPage(nextPage);
+        
+        // Check if there are more movements to load
+        const remainingCount = count - ((nextPage + 1) * PAGE_SIZE);
+        const hasMore = remainingCount > 0;
+        setHasMoreMovements(hasMore);
+        
+        console.log('Load More - Total count:', count, 'Current page:', nextPage, 'Remaining:', remainingCount, 'hasMore:', hasMore);
+      } else {
+        setHasMoreMovements(false);
+      }
+    } catch (error) {
+      console.error('Error loading more movements:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load more movements",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Add new function to fetch movements by inventory ID
+  const fetchMovementsByInventoryId = async (inventoryId: string) => {
+    try {
+      setIsSearching(true);
+      // First, try to find inventory items by partial RFID tag match
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('id, status, rfid_tag')
+        .ilike('rfid_tag', `%${inventoryId}%`);
+
+      if (inventoryError) throw inventoryError;
+
+      if (!inventoryData || inventoryData.length === 0) {
+        toast({
+          title: "Not Found",
+          description: "No inventory items found with this ID",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Calculate start and end of selected date
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch movements for all matching inventory items
+      const { data: movementsData, error: movementsError } = await supabase
+        .from('inventory_movements')
+        .select('*')
+        .in('inventory_id', inventoryData.map(item => item.id))
+        .gte('timestamp', startOfDay.toISOString())
+        .lte('timestamp', endOfDay.toISOString())
+        .order('timestamp', { ascending: false });
+
+      if (movementsError) throw movementsError;
+
+      // Get related data
+      const { data: gatesData, error: gatesError } = await supabase
+        .from('gates')
+        .select('id, name')
+        .in('id', movementsData.map(m => m.gate_id));
+
+      if (gatesError) throw gatesError;
+
+      // Get all unique location IDs
+      const allLocationIds = new Set([
+        ...movementsData.map(m => m.customer_location_id),
+        ...movementsData.map(m => m.previous_location_id)
+      ].filter(Boolean));
+
+      // Fetch all customer locations
+      const { data: customerLocationsData, error: customerLocationsError } = await supabase
+        .from('customer_locations')
+        .select('id, location_name')
+        .in('id', Array.from(allLocationIds));
+
+      if (customerLocationsError) throw customerLocationsError;
+
+      // Create location map
+      const locationMap = new Map(
+        customerLocationsData.map(loc => [loc.id, loc.location_name])
+      );
+
+      // Create inventory map for quick lookup
+      const inventoryMap = new Map(
+        inventoryData.map(item => [item.id, item])
+      );
+
+      // Format movements
+      const formattedMovements = movementsData.map(movement => ({
+        ...movement,
+        inventory_code: inventoryMap.get(movement.inventory_id)?.rfid_tag || movement.inventory_id,
+        gate_name: gatesData.find(gate => gate.id === movement.gate_id)?.name || movement.gate_id,
+        customer_name: locationMap.get(movement.customer_location_id) || movement.customer_location_id,
+        previous_location_name: locationMap.get(movement.previous_location_id) || movement.previous_location_id,
+        movement_type: movement.movement_type.toUpperCase(),
+        status: inventoryMap.get(movement.inventory_id)?.status || 'Unknown',
+        batch: movement.reference_id ? formatBatchId(movement.reference_id) : undefined,
+        remark: movement.remark || null
+      }));
+
+      setAllMovements(formattedMovements);
+      setDisplayedMovements(formattedMovements.slice(0, PAGE_SIZE));
+      setHasMoreMovements(formattedMovements.length > PAGE_SIZE);
+      setPage(0);
+    } catch (error) {
+      console.error('Error fetching movements by inventory ID:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch movements",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Add handler for search
+  const handleSearch = () => {
+    if (!searchInventoryId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an Inventory ID",
+        variant: "destructive",
+      });
+      return;
+    }
+    fetchMovementsByInventoryId(searchInventoryId.trim());
+  };
+
   return (
     <div className="container mx-auto py-8">
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      ) : permissionError ? (
+      {permissionError ? (
         <div className="text-red-500 text-center py-4">
           You do not have permission to access this page.
         </div>
@@ -1086,43 +1411,168 @@ export default function Movement() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <Label htmlFor="inventoryId">Inventory ID</Label>
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Search Inventory ID</Label>
+              <div className="flex gap-2">
               <Input
-                id="inventoryId"
-                placeholder="Filter by Inventory ID"
+                  placeholder="Enter Inventory ID"
+                  value={searchInventoryId}
+                  onChange={(e) => setSearchInventoryId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={handleSearch}
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    'Search'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setSearchInventoryId("");
+                    fetchMovements();
+                  }}
+                  disabled={isSearching}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Card className="shadow-sm">
+            <CardContent className="p-0 overflow-x-auto">
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-2 border-b flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {filteredMovements.length} movement{filteredMovements.length !== 1 ? 's' : ''} found
+                    </span>
+                    {filteredMovements.length >= PAGE_SIZE && (
+                      <Button
+                        onClick={loadMoreMovements}
+                        disabled={isLoadingMore}
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          'Load More'
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Inventory ID</div>
+                            <Input
+                              placeholder="Filter ID"
                 value={inventoryIdFilter}
                 onChange={(e) => setInventoryIdFilter(e.target.value)}
+                              className="h-8"
               />
             </div>
-            <div>
-              <Label htmlFor="movementType">Movement Type</Label>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Gate</div>
+                            <Select
+                              value={gateFilter}
+                              onValueChange={(value) => setGateFilter(value)}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="All Gates" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Gates</SelectItem>
+                                {gates.map((gate) => (
+                                  <SelectItem key={gate.id} value={gate.id}>
+                                    {gate.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Movement</div>
               <Select
                 value={movementTypeFilter}
                 onValueChange={(value) => setMovementTypeFilter(value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Movement Type" />
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                                <SelectItem value="ALL">All Types</SelectItem>
                   <SelectItem value="IN">IN</SelectItem>
                   <SelectItem value="OUT">OUT</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="fromLocation">From Location</Label>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">From</div>
               <Select
                 value={fromLocationFilter}
                 onValueChange={(value) => setFromLocationFilter(value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by From Location" />
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                                <SelectItem value="ALL">All Locations</SelectItem>
                   {Array.from(customerLocationsMap.entries()).map(([id, name]) => (
                     <SelectItem key={id} value={id}>
                       {name}
@@ -1131,17 +1581,19 @@ export default function Movement() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="toLocation">To Location</Label>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">To</div>
               <Select
                 value={toLocationFilter}
                 onValueChange={(value) => setToLocationFilter(value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by To Location" />
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                                <SelectItem value="ALL">All Locations</SelectItem>
                   {Array.from(customerLocationsMap.entries()).map(([id, name]) => (
                     <SelectItem key={id} value={id}>
                       {name}
@@ -1150,17 +1602,19 @@ export default function Movement() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Status</div>
               <Select
                 value={statusFilter}
                 onValueChange={(value) => setStatusFilter(value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by Status" />
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                                <SelectItem value="ALL">All Status</SelectItem>
                   <SelectItem value="In-Stock">In-Stock</SelectItem>
                   <SelectItem value="In-Transit">In-Transit</SelectItem>
                   <SelectItem value="Received">Received</SelectItem>
@@ -1168,28 +1622,51 @@ export default function Movement() {
                 </SelectContent>
               </Select>
             </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Batch</div>
+                            <Input
+                              placeholder="Filter batch"
+                              value={batchFilter}
+                              onChange={(e) => setBatchFilter(e.target.value)}
+                              className="h-8"
+                            />
           </div>
-
-          <Card className="shadow-sm">
-            <CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Inventory ID</TableHead>
-                    <TableHead>Gate</TableHead>
-                    <TableHead>Movement</TableHead>
-                    <TableHead>From</TableHead>
-                    <TableHead>To</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Date</div>
+                            <Input
+                              placeholder="Filter date/time"
+                              value={createdFilter}
+                              onChange={(e) => setCreatedFilter(e.target.value)}
+                              className="h-8"
+                            />
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">Remark</div>
+                            <Input
+                              placeholder="Filter remark"
+                              value={remarkFilter}
+                              onChange={(e) => setRemarkFilter(e.target.value)}
+                              className="h-8"
+                            />
+                          </div>
+                        </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMovements.map((movement) => {
-                    // Display From using previous_location_id (customer location name if available)
-                    const fromLocation = customerLocationsMap.get(movement.previous_location_id) || movement.previous_location_id || '';
-                    const toLocation = customerLocationsMap.get(movement.customer_location_id) || movement.customer_location_id || '';
+                      {filteredMovements.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="h-24 text-center">
+                            No movements found for {format(selectedDate, "MMMM d, yyyy")}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredMovements.map((movement) => {
                     return (
                       <TableRow key={movement.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors">
                         <TableCell>{movement.inventory_code}</TableCell>
@@ -1203,64 +1680,42 @@ export default function Movement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium text-blue-900">{fromLocation}</span>
+                                <span className="font-medium text-blue-900">{movement.previous_location_name}</span>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium text-green-900">{toLocation}</span>
+                                <span className="font-medium text-green-900">{movement.customer_name}</span>
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded font-semibold text-xs
                             ${movement.status === 'In-Stock' ? 'bg-green-100 text-green-800' : ''}
                             ${movement.status === 'In-Transit' ? 'bg-yellow-100 text-yellow-800' : ''}
-                            ${movement.status === 'Lost' ? 'bg-red-100 text-red-800' : ''}
-                            ${!['In-Stock','In-Transit','Lost'].includes(movement.status) ? 'bg-gray-100 text-gray-800' : ''}
+                                  ${movement.status === 'Received' ? 'bg-blue-100 text-blue-800' : ''}
+                                  ${movement.status === 'Returned' ? 'bg-purple-100 text-purple-800' : ''}
+                                  ${!['In-Stock','In-Transit','Received','Returned'].includes(movement.status) ? 'bg-gray-100 text-gray-800' : ''}
                           `}>
-                            {movement.status || inventoryStatusMap.get(movement.inventory_id) || 'Unknown'}
+                                  {movement.status || 'Unknown'}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-mono text-sm">
+                                  {movement.reference_id ? formatBatchId(movement.reference_id) : '-'}
                           </span>
                         </TableCell>
                         <TableCell>{formatTimestamp(movement.timestamp)}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                                <span className="text-sm text-muted-foreground">
+                                  {movement.remark || '-'}
+                                </span>
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                        })
+                      )}
                 </TableBody>
               </Table>
+                </>
+              )}
             </CardContent>
-            {hasMoreMovements && (
-              <CardFooter className="flex justify-center">
-                <Button
-                  onClick={() => {
-                    setIsLoadingMore(true);
-                    const nextPage = page + 1;
-                    const nextSlice = allMovements.slice(0, (nextPage + 1) * PAGE_SIZE);
-                    setDisplayedMovements(nextSlice);
-                    setPage(nextPage);
-                    setHasMoreMovements(allMovements.length > nextSlice.length);
-                    setIsLoadingMore(false);
-                  }}
-                  disabled={isLoadingMore}
-                >
-                  Load more
-                </Button>
-              </CardFooter>
-            )}
           </Card>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -1274,17 +1729,7 @@ export default function Movement() {
                         <Label htmlFor="movement_type">Movement Type</Label>
                         <Select
                           value={formData.movement_type || 'out'}
-                          onValueChange={(value) => {
-                            setFormData(prev => ({ ...prev, movement_type: value }));
-                            // Reset location states when movement type changes
-                            if (value === 'out') {
-                              setCustomerLocations([]); // From: Will be populated with filtered locations when customer is selected
-                              setAllLocations([]);     // To: Will be populated with all locations when customer is selected
-                            } else {
-                              setCustomerLocations([]); // From: Will be populated with all locations when customer is selected
-                              setAllLocations([]);      // To: Will be populated with filtered locations when customer is selected
-                            }
-                          }}
+                          onValueChange={handleMovementTypeChange}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select movement type" />
@@ -1295,6 +1740,7 @@ export default function Movement() {
                           </SelectContent>
                         </Select>
                       </div>
+
                       <div className="grid gap-2">
                         <Label>Scan Inventory Items</Label>
                         <div className="flex gap-2">
@@ -1351,17 +1797,25 @@ export default function Movement() {
                   ) : (
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Truck className={`w-5 h-5 ${formData.movement_type === 'in' ? 'text-blue-500' : 'text-orange-500'}`} />
+                            <span className="font-medium">
+                              {formData.movement_type === 'in' ? 'IN Movement' : 'OUT Movement'}
+                            </span>
+                          </div>
+                          <Badge variant={formData.movement_type === 'in' ? 'secondary' : 'outline'} 
+                            className={formData.movement_type === 'in' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}>
+                            {formData.movement_type === 'in' ? 'Customer Location → Base Location' : 'Base Location → Customer Location'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2">
                         <Label htmlFor="customer_id">Customer</Label>
                         <Select
                           value={formData.customer_id || ''}
-                          onValueChange={(value) => {
-                            setFormData(prev => ({ 
-                              ...prev, 
-                              customer_id: value,
-                              customer_location_from_id: '',
-                              customer_location_to_id: ''
-                            }));
-                          }}
+                          onValueChange={handleCustomerChange}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select customer" />
@@ -1388,19 +1842,11 @@ export default function Movement() {
                             <SelectValue placeholder="Select customer location (From)" />
                           </SelectTrigger>
                           <SelectContent>
-                            {formData.movement_type === 'out' ? (
-                              customerLocations.map((location) => (
+                            {customerLocations.map((location) => (
                                 <SelectItem key={location.id} value={location.id}>
                                   {location.location_name}
                                 </SelectItem>
-                              ))
-                            ) : (
-                              allLocations.map((location) => (
-                                <SelectItem key={location.id} value={location.id}>
-                                  {location.location_name}
-                                </SelectItem>
-                              ))
-                            )}
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1417,19 +1863,11 @@ export default function Movement() {
                             <SelectValue placeholder="Select customer location (To)" />
                           </SelectTrigger>
                           <SelectContent>
-                            {formData.movement_type === 'out' ? (
-                              allLocations.map((location) => (
+                            {allLocations.map((location) => (
                                 <SelectItem key={location.id} value={location.id}>
                                   {location.location_name}
                                 </SelectItem>
-                              ))
-                            ) : (
-                              customerLocations.map((location) => (
-                                <SelectItem key={location.id} value={location.id}>
-                                  {location.location_name}
-                                </SelectItem>
-                              ))
-                            )}
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

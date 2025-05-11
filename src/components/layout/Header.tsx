@@ -7,7 +7,10 @@ import {
   Settings, 
   Menu, 
   ArrowLeft,
-  Home
+  Home,
+  Palette,
+  LogOut,
+  Key
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,10 +21,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 
 export const Header = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  
   // Load user profile from stored session
   const storedSession = localStorage.getItem('session');
   const user: User | null = storedSession
@@ -75,7 +81,6 @@ export const Header = () => {
         </div>
         
         <div className="flex items-center gap-4">
-
           <Button variant="ghost" size="icon" onClick={handleSettingsClick}>
             <Settings className="h-5 w-5" />
           </Button>
@@ -88,23 +93,32 @@ export const Header = () => {
                 </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSettingsClick}>UI Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)}>
+                <Key className="h-4 w-4 mr-2" />
+                Change Password
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSettingsClick} className="pl-3">
+                <Palette className="h-4 w-4 mr-2" />
+                UI Settings
+              </DropdownMenuItem>
               <DropdownMenuItem 
-                className="text-destructive" 
+                className="text-destructive pl-3" 
                 onClick={() => {
                   localStorage.removeItem("isLoggedIn");
                   navigate("/login");
                 }}
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
+      <ChangePasswordDialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen} />
     </header>
   );
 };

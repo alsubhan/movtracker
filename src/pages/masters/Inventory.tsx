@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Pencil, Trash2, Package, Loader2 } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Package, Loader2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +46,7 @@ import {
   RadioGroupItem,
 } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Box, IndianRupee, Search } from "lucide-react";
+import { Box, IndianRupee } from "lucide-react";
 import { Location, InventoryType } from "@/types";
 import { PERMISSIONS } from "@/utils/permissions";
 
@@ -192,9 +192,21 @@ export default function Inventory() {
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
   // Pagination for inventory list
-  const PAGE_SIZE = 3000;
+  const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+
+  // Filter state
+  const [typeFilter, setTypeFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [locationFilter, setLocationFilter] = useState("ALL");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Add new state for total count
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Add new state for search input
+  const [searchInput, setSearchInput] = useState("");
 
   // Initialize user from session and set created_by field
   useEffect(() => {
@@ -314,10 +326,19 @@ export default function Inventory() {
   // Auth
   const { toast } = useToast();
 
-  // Fetch a page of inventory, optionally appending
+  // Modify fetchInventoryPage to get total count
   const fetchInventoryPage = async (append = false) => {
     setIsInventoryLoading(true);
     try {
+      // First get total count
+      const { count, error: countError } = await supabase
+        .from('inventory')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Then fetch the page data
       const from = append ? (page + 1) * PAGE_SIZE : 0;
       const to = from + PAGE_SIZE - 1;
       const { data: invData, error: invError } = await supabase
@@ -779,17 +800,22 @@ export default function Inventory() {
     setIsTypeDialogOpen(true);
   };
 
+  // Filter inventory based on search term and filters
   const filteredInventory = inventory.filter(item => {
-    const term = searchTerm.toLowerCase();
-    return [
-      item.rfid_tag,
-      item.code,
-      item.project,
-      item.partition,
-      item.serial_number,
-      item.type,
-      item.location
-    ].some(field => field.toLowerCase().includes(term));
+    const matchesSearch = searchTerm === "" || 
+      item.rfid_tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.partition.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.location.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesType = typeFilter === "ALL" || item.type_id === typeFilter;
+    const matchesStatus = statusFilter === "ALL" || item.status === statusFilter;
+    const matchesLocation = locationFilter === "ALL" || item.location_id === locationFilter;
+
+    return matchesSearch && matchesType && matchesStatus && matchesLocation;
   });
 
   const filteredInventoryTypes = inventoryTypes.filter((type) => {
@@ -807,6 +833,63 @@ export default function Inventory() {
     const type = activeInventoryTypes.find(t => t.code === code);
     console.log('Found type:', type);
     return type ? type.name : code;
+  };
+
+  // Load more items
+  const loadMoreItems = async () => {
+    setIsLoadingMore(true);
+    try {
+      await fetchInventoryPage(true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Modify handleSearch to use the searchInput state
+  const handleSearch = async () => {
+    if (!searchInput.trim()) {
+      // If search is empty, fetch the first page
+      await fetchInventoryPage(false);
+      return;
+    }
+
+    setSearchTerm(searchInput);
+    setIsInventoryLoading(true);
+    try {
+      const { data: invData, error: invError } = await supabase
+        .from('inventory')
+        .select('*')
+        .or(`rfid_tag.ilike.%${searchInput}%,code.ilike.%${searchInput}%,project.ilike.%${searchInput}%,partition.ilike.%${searchInput}%,serial_number.ilike.%${searchInput}%`)
+        .order('rfid_tag', { ascending: true })
+        .limit(PAGE_SIZE);
+
+      if (invError) throw invError;
+
+      // Fetch lookup tables
+      const { data: locs } = await supabase.from('locations').select('id, name');
+      const { data: types } = await supabase.from('inventory_types').select('id, name');
+
+      const transformed = (invData || []).map(item => ({
+        ...convertDates(item),
+        location: locs?.find(l => l.id === item.location_id)?.name || '',
+        type: types?.find(t => t.id === item.type_id)?.name || ''
+      }));
+
+      setInventory(transformed);
+      setHasMore((invData?.length || 0) === PAGE_SIZE);
+      setPage(0);
+    } catch (e) {
+      console.error('Error searching inventory:', e);
+    } finally {
+      setIsInventoryLoading(false);
+    }
+  };
+
+  // Add clear search function
+  const handleClearSearch = async () => {
+    setSearchInput("");
+    setSearchTerm("");
+    await fetchInventoryPage();
   };
 
   if (!isProfileLoaded) {
@@ -856,85 +939,200 @@ export default function Inventory() {
               </Button>
             </CardHeader>
             <CardContent>
-              {isInventoryLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <Search className="h-5 w-5 text-muted-foreground" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-[400px]">
                     <Input
-                      placeholder="Search inventory..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search Inventory ID..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearch();
+                        }
+                      }}
                       className="flex-1"
                     />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSearch}
+                      className="h-10"
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleClearSearch}
+                      className="h-10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Inventory ID</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Created At</TableHead>
-                        <TableHead>Last Scan</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredInventory.length === 0 ? (
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Total Items: {totalCount}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-md border">
+                {isInventoryLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-2 border-b">
+                      <div className="text-sm text-muted-foreground">
+                        {filteredInventory.length} inventory items found
+                      </div>
+                      {hasMore && (
+                        <Button 
+                          onClick={loadMoreItems} 
+                          disabled={isLoadingMore}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load More'
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4">
-                            No inventory found
-                          </TableCell>
+                          <TableHead>
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium">Inventory ID</div>
+                              <Input
+                                placeholder="Filter ID"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="h-8"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium">Type</div>
+                              <Select
+                                value={typeFilter}
+                                onValueChange={setTypeFilter}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="All Types" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ALL">All Types</SelectItem>
+                                  {activeInventoryTypes.map((type) => (
+                                    <SelectItem key={type.id} value={type.id}>
+                                      {type.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium">Status</div>
+                              <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ALL">All Status</SelectItem>
+                                  <SelectItem value="In-Stock">In-Stock</SelectItem>
+                                  <SelectItem value="In-Transit">In-Transit</SelectItem>
+                                  <SelectItem value="Received">Received</SelectItem>
+                                  <SelectItem value="Returned">Returned</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium">Location</div>
+                              <Select
+                                value={locationFilter}
+                                onValueChange={setLocationFilter}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="All Locations" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ALL">All Locations</SelectItem>
+                                  {activeLocations.map((location) => (
+                                    <SelectItem key={location.id} value={location.id}>
+                                      {location.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </TableHead>
+                          <TableHead>Created At</TableHead>
+                          <TableHead>Last Scan</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ) : (
-                        filteredInventory.map((inventory) => (
-                          <TableRow key={inventory.id}>
-                            <TableCell className="font-medium">{`${addFormData.code}${inventory.project}${inventory.partition}${inventory.serial_number}`}</TableCell>
-                            <TableCell>{
-                              activeInventoryTypes.find(type => type.id === inventory.type_id)?.name || 'Unknown'
-                            }</TableCell>
-                            <TableCell>{inventory.status}</TableCell>
-                            <TableCell>{inventory.location}</TableCell>
-                            <TableCell>{formatDate(inventory.created_at)}</TableCell>
-                            <TableCell>{inventory.last_scan_time ? formatDateTime(inventory.last_scan_time) : ''}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditInventory(inventory)}
-                                  disabled={!canEditPermission}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => handleDeleteInventory(inventory.id)}
-                                  disabled={!canEditPermission}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInventory.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4">
+                              No inventory found
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                  {hasMore && (
-                    <div className="flex justify-center py-4">
-                      <Button onClick={() => fetchInventoryPage(true)} disabled={isInventoryLoading}>
-                        Load more
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
+                        ) : (
+                          filteredInventory.map((inventory) => (
+                            <TableRow key={inventory.id}>
+                              <TableCell className="font-medium">{`${addFormData.code}${inventory.project}${inventory.partition}${inventory.serial_number}`}</TableCell>
+                              <TableCell>{
+                                activeInventoryTypes.find(type => type.id === inventory.type_id)?.name || 'Unknown'
+                              }</TableCell>
+                              <TableCell>{inventory.status}</TableCell>
+                              <TableCell>{inventory.location}</TableCell>
+                              <TableCell>{formatDate(inventory.created_at)}</TableCell>
+                              <TableCell>{inventory.last_scan_time ? formatDateTime(inventory.last_scan_time) : ''}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleEditInventory(inventory)}
+                                    disabled={!canEditPermission}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={() => handleDeleteInventory(inventory.id)}
+                                    disabled={!canEditPermission}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+              </div>
             </CardContent>
             <CardFooter>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

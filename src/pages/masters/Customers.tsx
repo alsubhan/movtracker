@@ -44,6 +44,7 @@ const Customers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
+  const [isLocationDeleteDialogOpen, setIsLocationDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [currentLocation, setCurrentLocation] = useState<CustomerLocation | null>(null);
@@ -56,6 +57,7 @@ const Customers = () => {
     location_name: "",
     rental_rates: {},
   });
+  const [deleteType, setDeleteType] = useState<'customer' | 'location'>('customer');
 
   // Fetch customers from Supabase
   useEffect(() => {
@@ -250,6 +252,7 @@ const Customers = () => {
 
   const handleDeleteCustomer = (customer: Customer) => {
     setCurrentCustomer(customer);
+    setDeleteType('customer');
     setIsDeleteDialogOpen(true);
   };
 
@@ -257,14 +260,39 @@ const Customers = () => {
     if (!currentCustomer) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.from('customers').delete().eq('id', currentCustomer.id);
-      if (error) throw error;
+      // First delete all associated customer locations
+      const { error: locationsError } = await supabase
+        .from('customer_locations')
+        .delete()
+        .eq('customer_id', currentCustomer.id);
+
+      if (locationsError) {
+        throw new Error(`Failed to delete customer locations: ${locationsError.message}`);
+      }
+
+      // Then delete the customer
+      const { error: customerError } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', currentCustomer.id);
+
+      if (customerError) {
+        throw new Error(`Failed to delete customer: ${customerError.message}`);
+      }
+
       setCustomers(customers.filter(c => c.id !== currentCustomer.id));
-      toast({ title: "Customer Deleted", description: `${currentCustomer.name} has been deleted successfully.` });
+      toast({ 
+        title: "Customer Deleted", 
+        description: `${currentCustomer.name} and all associated locations have been deleted successfully.` 
+      });
       setIsDeleteDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting customer:', error);
-      toast({ title: "Error", description: "Failed to delete customer. It may be in use by other records.", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete customer. It may be in use by other records.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -328,23 +356,43 @@ const Customers = () => {
     setIsLocationDialogOpen(true);
   };
 
-  const handleDeleteLocation = async (location: CustomerLocation) => {
+  const handleDeleteLocation = (location: CustomerLocation) => {
     setCurrentLocation(location);
-    setIsDeleteDialogOpen(true);
+    setDeleteType('location');
+    setIsLocationDeleteDialogOpen(true);
   };
 
   const handleConfirmDeleteLocation = async () => {
     if (!currentLocation) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.from('customer_locations').delete().eq('id', currentLocation.id);
-      if (error) throw error;
-      setCustomers(customers.map(c => c.id === currentLocation.customer_id ? { ...c, locations: c.locations?.filter(loc => loc.id !== currentLocation.id) || [] } : c));
-      toast({ title: "Location Deleted", description: `${currentLocation.location_name} has been deleted successfully.` });
-      setIsDeleteDialogOpen(false);
-    } catch (error) {
+      const { error } = await supabase
+        .from('customer_locations')
+        .delete()
+        .eq('id', currentLocation.id);
+
+      if (error) {
+        throw new Error(`Failed to delete location: ${error.message}`);
+      }
+
+      setCustomers(customers.map(c => 
+        c.id === currentLocation.customer_id 
+          ? { ...c, locations: c.locations?.filter(loc => loc.id !== currentLocation.id) || [] }
+          : c
+      ));
+      
+      toast({ 
+        title: "Location Deleted", 
+        description: `${currentLocation.location_name} has been deleted successfully.` 
+      });
+      setIsLocationDeleteDialogOpen(false);
+    } catch (error: any) {
       console.error('Error deleting location:', error);
-      toast({ title: "Error", description: "Failed to delete location. It may be in use by other records.", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete location. It may be in use by other records.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -566,13 +614,13 @@ const Customers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Customer Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {currentCustomer?.name}? This action cannot be undone.
+              Are you sure you want to delete {currentCustomer?.name}? This will also delete all associated locations. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -696,8 +744,8 @@ const Customers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      {/* Location Delete Confirmation Dialog */}
+      <Dialog open={isLocationDeleteDialogOpen} onOpenChange={setIsLocationDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
@@ -708,7 +756,7 @@ const Customers = () => {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
+              onClick={() => setIsLocationDeleteDialogOpen(false)}
               disabled={isLoading}
             >
               Cancel

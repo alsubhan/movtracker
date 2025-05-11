@@ -177,7 +177,9 @@ const Users = () => {
             full_name: formData.full_name,
             role: formData.role,
             status: formData.status,
-            customer_location_id: formData.customer_location_id
+            customer_location_id: formData.customer_location_id,
+            // Only update password if it's provided (for password reset)
+            ...(formData.password && { password: formData.password })
           })
           .eq('id', formData.id)
           .select();
@@ -219,6 +221,40 @@ const Users = () => {
       fetchUsers();
     } catch (error) {
       console.error('Error in form submission:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!formData.username) {
+      toast({
+        title: 'Error',
+        description: 'Username is required to reset password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ password: formData.username })
+        .eq('id', formData.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Password has been reset to username',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reset password',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -476,8 +512,47 @@ const Users = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" name="username" value={formData.username || ""} onChange={handleInputChange} required />
+                  <Input 
+                    id="username" 
+                    name="username" 
+                    value={formData.username || ""} 
+                    onChange={handleInputChange} 
+                    required 
+                    disabled={isEditing}
+                  />
                 </div>
+                {isEditing && currentUser?.role === 'admin' && (
+                  <div className="grid gap-2">
+                    <div className="flex justify-between items-center">
+                      <Label>Password Reset</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetPassword}
+                        disabled={loading}
+                      >
+                        Reset to Username
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This will reset the user's password to their username. Only admins can perform this action.
+                    </p>
+                  </div>
+                )}
+                {!isEditing && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password || ""}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="role">Role</Label>
                   <Select value={formData.role!} onValueChange={v => handleSelectChange("role", v)}>
