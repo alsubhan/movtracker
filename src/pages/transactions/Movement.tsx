@@ -847,6 +847,18 @@ export default function Movement() {
 
       if (typeFetchError) throw typeFetchError;
 
+      // Fetch the type codes for all inventory types
+      const typeIds = [...new Set(inventoryTypes.map(inv => inv.type_id))];
+      const { data: typeData, error: typeDataError } = await supabase
+        .from('inventory_types')
+        .select('id, code')
+        .in('id', typeIds);
+
+      if (typeDataError) throw typeDataError;
+
+      // Create a map of type_id to type_code
+      const typeCodeMap = new Map(typeData.map(type => [type.id, type.code]));
+
       const { data: fromLocationData, error: locationFetchError } = await supabase
         .from('customer_locations')
         .select('id, rental_rates')
@@ -855,16 +867,32 @@ export default function Movement() {
 
       if (locationFetchError) throw locationFetchError;
 
+      // Add detailed debug logging
+      console.log('From Location ID:', formData.customer_location_from_id);
+      console.log('From Location Data:', fromLocationData);
+      console.log('Rental Rates Type:', typeof fromLocationData?.rental_rates);
+      console.log('Rental Rates Raw:', fromLocationData?.rental_rates);
+      console.log('Rental Rates Keys:', Object.keys(fromLocationData?.rental_rates || {}));
+      console.log('Type Code Map:', Object.fromEntries(typeCodeMap));
+
       // Create movements with proper location references and rental rates
       const movements = scannedItems.map((item: MovementItem) => {
-        const typeCode = inventoryTypes.find(inv => inv.id === item.id)?.type_id || '';
-        const rentalRate = fromLocationData?.rental_rates[typeCode] ?? 0;
+        const typeId = inventoryTypes.find(inv => inv.id === item.id)?.type_id || '';
+        const typeCode = typeCodeMap.get(typeId) || '';
+        console.log('Processing Item:', {
+          itemId: item.id,
+          typeId: typeId,
+          typeCode: typeCode,
+          rentalRates: fromLocationData?.rental_rates,
+          foundRate: fromLocationData?.rental_rates?.[typeCode]
+        });
+        const rentalRate = fromLocationData?.rental_rates?.[typeCode] ?? 0;
         return {
           inventory_id: item.id,
           gate_id: formData.gate_id,
           movement_type: formData.movement_type.toLowerCase(),
-          customer_location_id: formData.customer_location_to_id, // To
-          previous_location_id: formData.customer_location_from_id, // From
+          customer_location_id: formData.customer_location_to_id,
+          previous_location_id: formData.customer_location_from_id,
           rental_rate: rentalRate,
           recorded_by: JSON.parse(localStorage.getItem('session')).user.id,
           remark: formData.remark || null,

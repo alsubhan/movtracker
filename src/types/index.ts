@@ -135,15 +135,15 @@ export interface Dashboard {
 
 export interface RentalReport {
   inventoryId: string;
-  inventoryType?: string;
-  customer: string;
-  location: string;
+  inventoryType: string;
+  fromLocation: string;
+  toLocation: string;
   status: string;
-  rentalStartDate?: Date | null;
+  rentalStartDate: Date;
   rentalCost: number;
   daysRented: number;
-  monthlyTotal: number;
-  dailyAverage: number;
+  actualDays: number;
+  referenceId: string;
 }
 
 export interface CompanyInfo {

@@ -6,6 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +15,25 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import type { Inventory } from "@/types/index";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2, Search, X, Plus } from "lucide-react";
 import { fetchLocations } from "@/utils/location";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 type MovementItem = {
   id: string;
@@ -28,6 +45,16 @@ type MovementItem = {
 interface ReceiptData {
   items: MovementItem[];
 }
+
+// Helper function to format dates as dd/mm/yyyy hh:mm
+const formatDateTime = (d: Date) => {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+};
 
 export default function Receipt() {
   const navigate = useNavigate();
@@ -43,6 +70,14 @@ export default function Receipt() {
   const [baseCustomerLocationId, setBaseCustomerLocationId] = useState<string | null>(null);
   const [locations, setLocations] = useState<{id: string; name: string}[]>([]);
   const [tab, setTab] = useState<'receive'|'return'>('receive');
+  const [searchInput, setSearchInput] = useState("");
+  const [totalCount, setTotalCount] = useState(0);
+  const [filteredMovements, setFilteredMovements] = useState<any[]>([]);
+  const [isLoadingMovements, setIsLoadingMovements] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 10;
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleRemoveItem = (itemId: string) => {
     if (tab === 'receive') {
@@ -333,18 +368,443 @@ export default function Receipt() {
     }
   };
 
+  const handleSearchMovements = async () => {
+    if (!userLocationId) return;
+    
+    setIsLoadingMovements(true);
+    try {
+      const { data, error } = await supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          inventory:inventory_id (
+            id,
+            rfid_tag,
+            status,
+            code
+          ),
+          previous_location:previous_location_id (
+            location_name
+          ),
+          customer_location:customer_location_id (
+            location_name
+          )
+        `)
+        .eq('customer_location_id', userLocationId)
+        .eq('movement_type', tab === 'receive' ? 'out' : 'in')
+        .ilike('inventory.rfid_tag', `%${searchInput}%`)
+        .order('timestamp', { ascending: false })
+        .limit(PAGE_SIZE);
+
+      if (error) throw error;
+
+      if (data) {
+        // Filter the data based on status after fetching
+        const filteredData = data.filter(movement => 
+          tab === 'receive' 
+            ? movement.inventory?.status === 'In-Transit'
+            : movement.inventory?.status === 'Received'
+        );
+        
+        console.log('Fetched movements with inventory details:', filteredData.map(m => ({
+          id: m.id,
+          inventory_id: m.inventory_id,
+          rfid_tag: m.inventory?.rfid_tag,
+          code: m.inventory?.code,
+          status: m.inventory?.status
+        })));
+        
+        setFilteredMovements(filteredData);
+        setTotalCount(filteredData.length);
+        setHasMore(filteredData.length === PAGE_SIZE);
+      }
+    } catch (error) {
+      console.error('Error searching movements:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch movements",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMovements(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setFilteredMovements([]);
+    setTotalCount(0);
+    setHasMore(false);
+  };
+
+  const loadMoreItems = async () => {
+    if (!userLocationId) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const { data, error } = await supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          inventory:inventory_id (
+            rfid_tag,
+            status,
+            code
+          ),
+          previous_location:previous_location_id (
+            location_name
+          ),
+          customer_location:customer_location_id (
+            location_name
+          )
+        `)
+        .eq('customer_location_id', userLocationId)
+        .eq('movement_type', tab === 'receive' ? 'out' : 'in')
+        .ilike('inventory.rfid_tag', `%${searchInput}%`)
+        .order('timestamp', { ascending: false })
+        .range(filteredMovements.length, filteredMovements.length + PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      if (data) {
+        // Filter the data based on status after fetching
+        const filteredData = data.filter(movement => 
+          tab === 'receive' 
+            ? movement.inventory?.status === 'In-Transit'
+            : movement.inventory?.status === 'Received'
+        );
+        
+        setFilteredMovements([...filteredMovements, ...filteredData]);
+        setHasMore(filteredData.length === PAGE_SIZE);
+      }
+    } catch (error) {
+      console.error('Error loading more movements:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load more movements",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Helper function to format batch reference
+  const formatBatchReference = (referenceId: string | null) => {
+    if (!referenceId) return '-';
+    return referenceId.substring(0, 8).toUpperCase();
+  };
+
+  // Update useEffect to handle tab changes
+  useEffect(() => {
+    if (userLocationId) {
+      handleSearchMovements();
+    }
+  }, [userLocationId, tab]); // Added tab dependency
+
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Receipt Management</h2>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          {tab === 'receive' ? 'Receive Items' : 'Return Items'}
+        </Button>
+      </div>
+
+      <Tabs value={tab} onValueChange={(value) => setTab(value as 'receive'|'return')} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="receive">Receive</TabsTrigger>
+          <TabsTrigger value="return">Return</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="receive">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <div className="flex gap-4">
-              <button className={tab==='receive' ? 'font-bold underline' : ''} onClick={()=>setTab('receive')}>Receive</button>
-              <button className={tab==='return' ? 'font-bold underline' : ''} onClick={()=>setTab('return')}>Return</button>
+              <CardTitle>Receive Movements</CardTitle>
+              <CardDescription>
+                View and manage movements for receiving
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-[400px]">
+                    <Input
+                      placeholder="Search Inventory ID..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearchMovements();
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleSearchMovements}
+                      className="h-10"
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleClearSearch}
+                      className="h-10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-md border">
+                {isLoadingMovements ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-2 border-b">
+                      <div className="text-sm text-muted-foreground">
+                        {filteredMovements.length} OUT movements found
+                      </div>
+                      {hasMore && (
+                        <Button 
+                          onClick={loadMoreItems} 
+                          disabled={isLoadingMore}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load More'
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Inventory ID</TableHead>
+                          <TableHead>Movement</TableHead>
+                          <TableHead>From</TableHead>
+                          <TableHead>To</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Batch</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Remark</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredMovements.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-4">
+                              No OUT movements found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredMovements.map((movement) => (
+                            <TableRow key={movement.id}>
+                              <TableCell className="font-medium">
+                                {movement.inventory?.rfid_tag || movement.inventory?.code || '-'}
+                              </TableCell>
+                              <TableCell>
+                                <span className="uppercase">{movement.movement_type}</span>
+                              </TableCell>
+                              <TableCell>
+                                {movement.previous_location?.location_name}
+                              </TableCell>
+                              <TableCell>
+                                {movement.customer_location?.location_name}
+                              </TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  movement.inventory?.status === 'In-Transit' 
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : movement.inventory?.status === 'Received'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {movement.inventory?.status}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {formatBatchReference(movement.reference_id)}
+                              </TableCell>
+                              <TableCell>
+                                {formatDateTime(new Date(movement.timestamp))}
+                              </TableCell>
+                              <TableCell>
+                                {movement.remark}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
             </div>
-          </CardTitle>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="return">
+          <Card>
+            <CardHeader>
+              <CardTitle>Return Movements</CardTitle>
+              <CardDescription>
+                View and manage movements for returns
+              </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-[400px]">
+                    <Input
+                      placeholder="Search Inventory ID..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearchMovements();
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleSearchMovements}
+                      className="h-10"
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleClearSearch}
+                      className="h-10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-md border">
+                {isLoadingMovements ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-2 border-b">
+                      <div className="text-sm text-muted-foreground">
+                        {filteredMovements.length} IN movements found
+                      </div>
+                      {hasMore && (
+                        <Button 
+                          onClick={loadMoreItems} 
+                          disabled={isLoadingMore}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load More'
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Inventory ID</TableHead>
+                          <TableHead>Movement</TableHead>
+                          <TableHead>From</TableHead>
+                          <TableHead>To</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Batch</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Remark</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredMovements.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-4">
+                              No IN movements found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredMovements.map((movement) => (
+                            <TableRow key={movement.id}>
+                              <TableCell className="font-medium">
+                                {movement.inventory?.rfid_tag || movement.inventory?.code || '-'}
+                              </TableCell>
+                              <TableCell>
+                                <span className="uppercase">{movement.movement_type}</span>
+                              </TableCell>
+                              <TableCell>
+                                {movement.previous_location?.location_name}
+                              </TableCell>
+                              <TableCell>
+                                {movement.customer_location?.location_name}
+                              </TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  movement.inventory?.status === 'In-Transit' 
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : movement.inventory?.status === 'Received'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {movement.inventory?.status}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {formatBatchReference(movement.reference_id)}
+                              </TableCell>
+                              <TableCell>
+                                {formatDateTime(new Date(movement.timestamp))}
+                              </TableCell>
+                              <TableCell>
+                                {movement.remark}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{tab === 'receive' ? 'Receive Items' : 'Return Items'}</DialogTitle>
+            <DialogDescription>
+              {tab === 'receive' ? 'Scan and receive items at your location' : 'Scan and return items to base location'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
           {tab === 'return' && baseCustomerLocationId && (
             <div className="space-y-2 mb-4">
               <Label>Return Location</Label>
@@ -356,6 +816,7 @@ export default function Receipt() {
               </div>
             </div>
           )}
+
           <div className="space-y-2">
             <Label htmlFor="rfid">Scan Inventory ID</Label>
             <Input
@@ -371,9 +832,12 @@ export default function Receipt() {
               }}
             />
           </div>
+
           <div className="space-y-2">
-            <Label>{tab === 'receive' ? 'Scanned Items to Receive' : 'Scanned Items to Return'}</Label>
-            <div className="text-sm text-muted-foreground">Total scanned items: {tab === 'receive' ? scannedReceiveItems.length : scannedReturnItems.length}</div>
+              <Label>Scanned Items to {tab === 'receive' ? 'Receive' : 'Return'}</Label>
+              <div className="text-sm text-muted-foreground">
+                Total scanned items: {tab === 'receive' ? scannedReceiveItems.length : scannedReturnItems.length}
+              </div>
             <ScrollArea className="h-64 overflow-y-auto space-y-2">
               {(tab === 'receive' ? scannedReceiveItems : scannedReturnItems).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
@@ -399,8 +863,9 @@ export default function Receipt() {
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
