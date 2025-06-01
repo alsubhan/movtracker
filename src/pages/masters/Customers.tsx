@@ -56,6 +56,7 @@ const Customers = () => {
     location_id: "",
     location_name: "",
     rental_rates: {},
+    rental_days: 0,
   });
   const [deleteType, setDeleteType] = useState<'customer' | 'location'>('customer');
 
@@ -99,7 +100,7 @@ const Customers = () => {
         // Fetch customer locations
         const { data: customerLocationsData, error: customerLocationsError } = await supabase
           .from('customer_locations')
-          .select('*');
+          .select('id, customer_id, location_id, location_name, rental_rates, rental_days, created_at');
           
         if (customerLocationsError) {
           throw customerLocationsError;
@@ -117,6 +118,7 @@ const Customers = () => {
               location_id: loc.location_id,
               location_name: loc.location_name,
               rental_rates: loc.rental_rates as { [key: string]: number },
+              rental_days: loc.rental_days ?? 0,
               created_at: loc.created_at
             })) || [];
             
@@ -165,6 +167,7 @@ const Customers = () => {
                   location_id: loc.location_id,
                   location_name: loc.location_name,
                   rental_rates: loc.rental_rates as { [key: string]: number },
+                  rental_days: loc.rental_days ?? 0,
                   created_at: loc.created_at
                 }))[0];
                 
@@ -301,7 +304,7 @@ const Customers = () => {
   // Location dialog handlers
   const handleAddLocation = (customerId: string) => {
     setCurrentLocation(null);
-    setLocationFormData({ id: "", customer_id: customerId, location_id: "", location_name: "", rental_rates: {} });
+    setLocationFormData({ id: "", customer_id: customerId, location_id: "", location_name: "", rental_rates: {}, rental_days: 0 });
     setIsLocationDialogOpen(true);
   };
 
@@ -313,6 +316,7 @@ const Customers = () => {
       location_id: locationFormData.location_id,
       location_name: locationFormData.location_name,
       rental_rates: locationFormData.rental_rates,
+      rental_days: locationFormData.rental_days,
     };
     try {
       if (currentLocation) {
@@ -352,6 +356,7 @@ const Customers = () => {
       location_id: customerLocation.location_id,
       location_name: customerLocation.location_name,
       rental_rates: customerLocation.rental_rates || {},
+      rental_days: customerLocation.rental_days ?? 0,
     });
     setIsLocationDialogOpen(true);
   };
@@ -700,6 +705,27 @@ const Customers = () => {
                   required
                 />
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="rental_days" className="text-right">
+                  Rental Days
+                </Label>
+                <Input
+                  id="rental_days"
+                  name="rental_days"
+                  type="number"
+                  min="0"
+                  value={locationFormData.rental_days}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setLocationFormData(prev => ({
+                      ...prev,
+                      rental_days: isNaN(value) ? 0 : value
+                    }));
+                  }}
+                  className="col-span-3"
+                  required
+                />
+              </div>
               
               {/* Dynamic rental rates configuration based on inventory types */}
               <div className="grid grid-cols-1 gap-4">
@@ -789,13 +815,17 @@ const Customers = () => {
                   <div>
                     <span className="font-medium">{location.location_name}</span>
                     <div className="text-sm text-muted-foreground">
-                      Rates: {location.rental_rates && Object.keys(location.rental_rates).length > 0 
-                        ? Object.entries(location.rental_rates).map(([type, rate]) => (
-                            <span key={type} className="mr-2">
-                              {type}: ₹{rate}
-                            </span>
-                          ))
-                        : "No rates defined"}
+                      <div>Rental Days: {location.rental_days ?? 0}</div>
+                      <div>
+                        Rates: {location.rental_rates && Object.keys(location.rental_rates).length > 0 
+                          ? Object.entries(location.rental_rates).map(([type, rate]) => (
+                              <span key={type} className="mr-2">
+                                {type}: ₹{rate}
+                              </span>
+                            ))
+                          : "No rates defined"
+                        }
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">

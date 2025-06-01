@@ -76,7 +76,7 @@ export default function Receipt() {
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 1000;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleRemoveItem = (itemId: string) => {
@@ -369,15 +369,25 @@ export default function Receipt() {
   };
 
   const handleSearchMovements = async () => {
-    if (!userLocationId) return;
+    if (!userLocationId) {
+      console.log('No userLocationId available');
+      return;
+    }
     
     setIsLoadingMovements(true);
     try {
-      const { data, error } = await supabase
+      console.log('Searching with params:', {
+        userLocationId,
+        movementType: tab === 'receive' ? 'out' : 'in',
+        searchInput,
+        tab
+      });
+
+      let query = supabase
         .from('inventory_movements')
         .select(`
           *,
-          inventory:inventory_id (
+          inventory!inner (
             id,
             rfid_tag,
             status,
@@ -392,26 +402,59 @@ export default function Receipt() {
         `)
         .eq('customer_location_id', userLocationId)
         .eq('movement_type', tab === 'receive' ? 'out' : 'in')
-        .ilike('inventory.rfid_tag', `%${searchInput}%`)
         .order('timestamp', { ascending: false })
         .limit(PAGE_SIZE);
 
-      if (error) throw error;
+      // Only apply search filter if there's a search term
+      if (searchInput.trim()) {
+        query = query.ilike('inventory.rfid_tag', `%${searchInput}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+
+      console.log('Raw data from database:', data?.map(m => ({
+        id: m.id,
+        inventory_id: m.inventory_id,
+        rfid_tag: m.inventory?.rfid_tag,
+        status: m.inventory?.status,
+        movement_type: m.movement_type,
+        timestamp: m.timestamp
+      })));
 
       if (data) {
         // Filter the data based on status after fetching
-        const filteredData = data.filter(movement => 
-          tab === 'receive' 
+        const filteredData = data.filter(movement => {
+          const matchesStatus = tab === 'receive' 
             ? movement.inventory?.status === 'In-Transit'
-            : movement.inventory?.status === 'Received'
-        );
+            : movement.inventory?.status === 'Received';
+          
+          if (movement.inventory?.rfid_tag === 'SRP000765') {
+            console.log('Found SRP000765:', {
+              status: movement.inventory?.status,
+              expectedStatus: tab === 'receive' ? 'In-Transit' : 'Received',
+              matchesStatus,
+              movementType: movement.movement_type,
+              timestamp: movement.timestamp
+            });
+          }
+          
+          return matchesStatus;
+        });
         
-        console.log('Fetched movements with inventory details:', filteredData.map(m => ({
+        console.log('Final filtered movements:', filteredData.map(m => ({
           id: m.id,
           inventory_id: m.inventory_id,
           rfid_tag: m.inventory?.rfid_tag,
           code: m.inventory?.code,
-          status: m.inventory?.status
+          status: m.inventory?.status,
+          movement_type: m.movement_type,
+          customer_location_id: m.customer_location_id,
+          timestamp: m.timestamp
         })));
         
         setFilteredMovements(filteredData);
@@ -442,11 +485,18 @@ export default function Receipt() {
     
     setIsLoadingMore(true);
     try {
-      const { data, error } = await supabase
+      // Calculate the correct range for pagination
+      const start = filteredMovements.length;
+      const end = start + PAGE_SIZE - 1;
+
+      console.log('Loading more items with range:', { start, end, currentCount: filteredMovements.length });
+
+      let query = supabase
         .from('inventory_movements')
         .select(`
           *,
-          inventory:inventory_id (
+          inventory!inner (
+            id,
             rfid_tag,
             status,
             code
@@ -460,22 +510,60 @@ export default function Receipt() {
         `)
         .eq('customer_location_id', userLocationId)
         .eq('movement_type', tab === 'receive' ? 'out' : 'in')
-        .ilike('inventory.rfid_tag', `%${searchInput}%`)
         .order('timestamp', { ascending: false })
-        .range(filteredMovements.length, filteredMovements.length + PAGE_SIZE - 1);
+        .range(start, end);
+
+      // Only apply search filter if there's a search term
+      if (searchInput.trim()) {
+        query = query.ilike('inventory.rfid_tag', `%${searchInput}%`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
       if (data) {
+        console.log('Load more raw data:', data?.map(m => ({
+          id: m.id,
+          inventory_id: m.inventory_id,
+          rfid_tag: m.inventory?.rfid_tag,
+          status: m.inventory?.status,
+          movement_type: m.movement_type,
+          timestamp: m.timestamp
+        })));
+
         // Filter the data based on status after fetching
-        const filteredData = data.filter(movement => 
-          tab === 'receive' 
+        const filteredData = data.filter(movement => {
+          const matchesStatus = tab === 'receive' 
             ? movement.inventory?.status === 'In-Transit'
-            : movement.inventory?.status === 'Received'
+            : movement.inventory?.status === 'Received';
+          
+          if (movement.inventory?.rfid_tag === 'SRP000765') {
+            console.log('Found SRP000765 in load more:', {
+              status: movement.inventory?.status,
+              expectedStatus: tab === 'receive' ? 'In-Transit' : 'Received',
+              matchesStatus,
+              movementType: movement.movement_type,
+              timestamp: movement.timestamp
+            });
+          }
+          
+          return matchesStatus;
+        });
+
+        // Check for duplicates before adding new data
+        const newData = filteredData.filter(newItem => 
+          !filteredMovements.some(existingItem => 
+            existingItem.id === newItem.id && 
+            existingItem.inventory_id === newItem.inventory_id &&
+            existingItem.timestamp === newItem.timestamp
+          )
         );
         
-        setFilteredMovements([...filteredMovements, ...filteredData]);
-        setHasMore(filteredData.length === PAGE_SIZE);
+        console.log('New unique items to add:', newData.length);
+        
+        setFilteredMovements(prev => [...prev, ...newData]);
+        setHasMore(newData.length === PAGE_SIZE);
       }
     } catch (error) {
       console.error('Error loading more movements:', error);
@@ -498,6 +586,11 @@ export default function Receipt() {
   // Update useEffect to handle tab changes
   useEffect(() => {
     if (userLocationId) {
+      // Reset search input and movements when tab changes
+      setSearchInput("");
+      setFilteredMovements([]);
+      setTotalCount(0);
+      setHasMore(false);
       handleSearchMovements();
     }
   }, [userLocationId, tab]); // Added tab dependency
@@ -611,7 +704,7 @@ export default function Receipt() {
                           </TableRow>
                         ) : (
                           filteredMovements.map((movement) => (
-                            <TableRow key={movement.id}>
+                            <TableRow key={`${movement.id}-${movement.inventory_id}-${movement.timestamp}`}>
                               <TableCell className="font-medium">
                                 {movement.inventory?.rfid_tag || movement.inventory?.code || '-'}
                               </TableCell>
@@ -749,7 +842,7 @@ export default function Receipt() {
                           </TableRow>
                         ) : (
                           filteredMovements.map((movement) => (
-                            <TableRow key={movement.id}>
+                            <TableRow key={`${movement.id}-${movement.inventory_id}-${movement.timestamp}`}>
                               <TableCell className="font-medium">
                                 {movement.inventory?.rfid_tag || movement.inventory?.code || '-'}
                               </TableCell>

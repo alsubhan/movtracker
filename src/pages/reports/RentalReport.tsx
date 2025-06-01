@@ -42,9 +42,11 @@ interface MovementData {
   rental_rate: number;
   previous_location: {
     location_name: string;
+    rental_days: number;
   } | null;
   customer_location: {
     location_name: string;
+    rental_days: number;
   } | null;
 }
 
@@ -91,8 +93,14 @@ const RentalReport = () => {
             movement_type, 
             reference_id, 
             rental_rate,
-            previous_location:previous_location_id(location_name),
-            customer_location:customer_location_id(location_name)
+            previous_location:previous_location_id(
+              location_name,
+              rental_days
+            ),
+            customer_location:customer_location_id(
+              location_name,
+              rental_days
+            )
           `, { count: 'exact' })
           .eq('movement_type', 'out')
           .gt('rental_rate', 0)
@@ -170,8 +178,15 @@ const RentalReport = () => {
           const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
           const rentalStartDate = new Date(m.timestamp);
           const endDate = Math.min(endOfRange.getTime(), new Date().getTime());
-          const daysRented = 7; // Always use 7 days for rental calculation
-          const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1; // Calculate actual days
+          
+          // Calculate rental days based on both locations
+          const fromLocationRentalDays = m.previous_location?.rental_days ?? 0;
+          const toLocationRentalDays = m.customer_location?.rental_days ?? 0;
+          const daysRented = fromLocationRentalDays === 0 
+            ? toLocationRentalDays 
+            : fromLocationRentalDays - toLocationRentalDays + 2;
+            
+          const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1;
           return {
             inventoryId: inv.rfid_tag || inv.id,
             inventoryType: inv.type_id || '',
@@ -254,8 +269,14 @@ const RentalReport = () => {
           movement_type, 
           reference_id, 
           rental_rate,
-          previous_location:previous_location_id(location_name),
-          customer_location:customer_location_id(location_name)
+          previous_location:previous_location_id(
+            location_name,
+            rental_days
+          ),
+          customer_location:customer_location_id(
+            location_name,
+            rental_days
+          )
         `, { count: 'exact' })
         .eq('movement_type', 'out')
         .gt('rental_rate', 0)
@@ -330,8 +351,15 @@ const RentalReport = () => {
         const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
         const rentalStartDate = new Date(m.timestamp);
         const endDate = Math.min(endOfDay.getTime(), new Date().getTime());
-        const daysRented = 7; // Always use 7 days for rental calculation
-        const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1; // Calculate actual days
+        
+        // Calculate rental days based on both locations
+        const fromLocationRentalDays = m.previous_location?.rental_days ?? 0;
+        const toLocationRentalDays = m.customer_location?.rental_days ?? 0;
+        const daysRented = fromLocationRentalDays === 0 
+          ? toLocationRentalDays 
+          : fromLocationRentalDays - toLocationRentalDays + 2;
+          
+        const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1;
         const rentalCost = m.rental_rate ?? 0;
         return {
           inventoryId: inv.rfid_tag || inv.id,

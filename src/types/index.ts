@@ -82,6 +82,7 @@ export interface CustomerLocation {
   location_id: string;
   location_name: string;
   rental_rates: { [key: string]: number };
+  rental_days: number;
   created_at?: string;
 }
 
