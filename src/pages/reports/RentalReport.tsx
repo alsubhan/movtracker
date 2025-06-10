@@ -173,19 +173,31 @@ const RentalReport = () => {
         }, {} as Record<string, typeof movements>);
 
         // Update the report row creation to include actualDays
-        const newRentalReports: RentalReportType[] = Object.entries(groupedMovements).map(([key, group]) => {
+        const newRentalReports: RentalReportType[] = await Promise.all(Object.entries(groupedMovements).map(async ([key, group]) => {
           const m = group[0];
           const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
           const rentalStartDate = new Date(m.timestamp);
           const endDate = Math.min(endOfRange.getTime(), new Date().getTime());
           
+          // Get base customer location from settings
+          const { data: settings } = await supabase
+            .from('settings')
+            .select('base_customer_location_id')
+            .single();
+
           // Calculate rental days based on both locations
           const fromLocationRentalDays = m.previous_location?.rental_days ?? 0;
           const toLocationRentalDays = m.customer_location?.rental_days ?? 0;
-          const daysRented = fromLocationRentalDays === 0 
-            ? toLocationRentalDays 
-            : fromLocationRentalDays - toLocationRentalDays + 2;
-            
+          
+          let daysRented;
+          if (m.previous_location_id === settings?.base_customer_location_id) {
+            daysRented = toLocationRentalDays;
+          } else if (m.customer_location_id === settings?.base_customer_location_id) {
+            daysRented = toLocationRentalDays;
+          } else {
+            daysRented = fromLocationRentalDays - toLocationRentalDays + 2;
+          }
+          
           const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1;
           return {
             inventoryId: inv.rfid_tag || inv.id,
@@ -199,7 +211,7 @@ const RentalReport = () => {
             actualDays,
             referenceId: m.reference_id,
           };
-        });
+        }));
 
         // Update states
         setReportData(prevData => {
@@ -346,7 +358,7 @@ const RentalReport = () => {
       }, {} as Record<string, typeof allMovements>);
 
       // Update the export function to include actualDays
-      const exportRows = Object.entries(groupedExportMovements).map(([key, group]) => {
+      const exportRows = await Promise.all(Object.entries(groupedExportMovements).map(async ([key, group]) => {
         const m = group[0];
         const inv = allInventoryData.find(i => i.id === m.inventory_id)!;
         const rentalStartDate = new Date(m.timestamp);
@@ -372,7 +384,7 @@ const RentalReport = () => {
           fromLocation: m.previous_location?.location_name || 'Unknown',
           toLocation: m.customer_location?.location_name || 'Unknown',
         };
-      });
+      }));
 
       // Generate CSV with all columns
       const csvHeaders = [
@@ -386,23 +398,24 @@ const RentalReport = () => {
         "Total Rental Cost (₹)"
       ];
       
-      const csvData = exportRows.map(item => [
-        item.rentalStartDate ? format(item.rentalStartDate, "yyyy-MM-dd") : "-",
-        item.inventoryId,
-        item.fromLocation,
-        item.toLocation,
-        item.actualDays,
-        item.daysRented,
-        item.rentalCost.toFixed(2),
-        item.totalRentalCost.toFixed(2)
-      ]);
+      const csvData = await Promise.all(exportRows.map(async (item) => {
+        const row = [
+          item.rentalStartDate ? format(item.rentalStartDate, "yyyy-MM-dd") : "-",
+          item.inventoryId,
+          item.fromLocation,
+          item.toLocation,
+          item.actualDays,
+          item.daysRented,
+          item.rentalCost.toFixed(2),
+          item.totalRentalCost.toFixed(2)
+        ];
+        return row.map(v => `"${v.toString().replace(/"/g, '""')}"`).join(",");
+      }));
       
       const csvContent = [
         csvHeaders,
         ...csvData
-      ]
-        .map(row => row.map(v => `"${v.toString().replace(/"/g, '""')}"`).join(","))
-        .join("\n");
+      ].join("\n");
       
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);

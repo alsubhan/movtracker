@@ -197,8 +197,6 @@ export default function Movement() {
   const [settings, setSettings] = useState<any>(null);
   // Map to store id -> location_name for all customer locations (including previous_location_id and customer_location_id)
   const [customerLocationsMap, setCustomerLocationsMap] = useState<Map<string, string>>(new Map());
-  // Map to store inventory status by inventory_id
-  const inventoryStatusMap = useMemo(() => new Map(inventoryItems.map(item => [item.id, item.status])), [inventoryItems]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchInventoryId, setSearchInventoryId] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
@@ -1149,7 +1147,7 @@ export default function Movement() {
         (gateFilter === "ALL" || m.gate_id === gateFilter) &&
         (fromLocationFilter === "ALL" || m.previous_location_id === fromLocationFilter) &&
         (toLocationFilter === "ALL" || m.customer_location_id === toLocationFilter) &&
-        (statusFilter === "ALL" || (inventoryStatusMap?.get(m.inventory_id) ?? '').toLowerCase() === statusFilter.toLowerCase()) &&
+        (statusFilter === "ALL" || m.status?.toLowerCase() === statusFilter.toLowerCase()) &&
         (!batchFilter || (m.reference_id && formatBatchId(m.reference_id).toLowerCase().includes(batchFilter.toLowerCase()))) &&
         (!createdFilter || formatTimestamp(m.timestamp).toLowerCase().includes(createdFilter.toLowerCase())) &&
         (!remarkFilter || (m.remark && m.remark.toLowerCase().includes(remarkFilter.toLowerCase())))
