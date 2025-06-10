@@ -364,12 +364,24 @@ const RentalReport = () => {
         const rentalStartDate = new Date(m.timestamp);
         const endDate = Math.min(endOfDay.getTime(), new Date().getTime());
         
+        // Get base customer location from settings
+        const { data: settings } = await supabase
+          .from('settings')
+          .select('base_customer_location_id')
+          .single();
+
         // Calculate rental days based on both locations
         const fromLocationRentalDays = m.previous_location?.rental_days ?? 0;
         const toLocationRentalDays = m.customer_location?.rental_days ?? 0;
-        const daysRented = fromLocationRentalDays === 0 
-          ? toLocationRentalDays 
-          : fromLocationRentalDays - toLocationRentalDays + 2;
+        
+        let daysRented;
+        if (m.previous_location_id === settings?.base_customer_location_id) {
+          daysRented = toLocationRentalDays;
+        } else if (m.customer_location_id === settings?.base_customer_location_id) {
+          daysRented = toLocationRentalDays;
+        } else {
+          daysRented = fromLocationRentalDays - toLocationRentalDays + 2;
+        }
           
         const actualDays = differenceInDays(endDate, rentalStartDate.getTime()) + 1;
         const rentalCost = m.rental_rate ?? 0;
